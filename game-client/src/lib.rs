@@ -115,9 +115,15 @@ fn setup_input(canvas: &web_sys::HtmlCanvasElement, state: Rc<RefCell<GameState>
         .unwrap();
     on_keyup.forget();
 
-    // Pointer down
+    // Pointer down (ignore left-half touches — that's the joystick zone)
     let s = state.clone();
     let on_down = Closure::wrap(Box::new(move |e: web_sys::PointerEvent| {
+        if e.pointer_type() == "touch" {
+            let w = web_sys::window().unwrap().inner_width().unwrap().as_f64().unwrap();
+            if (e.client_x() as f64) < w * 0.5 {
+                return;
+            }
+        }
         s.borrow_mut()
             .camera
             .on_pointer_down(e.client_x() as f32, e.client_y() as f32);

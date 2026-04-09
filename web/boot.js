@@ -9,8 +9,12 @@ async function init() {
     screen.show('Loading game...');
 
     try {
-        const { default: initWasm } = await import('./pkg/game_client.js');
-        await initWasm();
+        const wasm = await import('./pkg/game_client.js');
+        await wasm.default();
+
+        // Expose WASM functions for web components
+        window.setJoystickInput = wasm.set_joystick_input;
+
         screen.hide();
     } catch (e) {
         console.error(e);
