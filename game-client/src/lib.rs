@@ -4,11 +4,16 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 mod camera;
+mod input;
+mod net;
 mod player;
 mod renderer;
 mod terrain;
 
 use camera::OrbitCamera;
+use game_core::protocol::ServerMsg;
+use input::InputState;
+use net::Connection;
 use player::PlayerInstance;
 use renderer::Renderer;
 use terrain::Uniforms;
@@ -18,6 +23,8 @@ struct GameState {
     camera: OrbitCamera,
     heightmap_data: Vec<f32>,
     players: Vec<PlayerInstance>,
+    input: InputState,
+    last_send_time: f64,
 }
 
 #[wasm_bindgen(start)]
@@ -55,18 +62,59 @@ async fn run() {
         color: [0.90, 0.30, 0.25, 0.0],
     };
 
+    // WebSocket connection — extract room code from URL path
+    let incoming: Rc<RefCell<Vec<ServerMsg>>> = Rc::new(RefCell::new(Vec::new()));
+    let pathname = window.location().pathname().unwrap_or_default();
+    let room_code = pathname.trim_start_matches('/');
+    let connection = if !room_code.is_empty() {
+        log::info!("Room code: {room_code}");
+        Some(Connection::new(room_code, incoming.clone()))
+    } else {
+        log::info!("No room code — offline mode");
+        None
+    };
+
     let state = Rc::new(RefCell::new(GameState {
         renderer,
         camera,
         heightmap_data,
         players: vec![test_player],
+        input: InputState::new(),
+        last_send_time: 0.0,
     }));
 
     setup_input(&canvas, state.clone());
-    start_render_loop(state);
+    start_render_loop(state, connection, incoming);
 }
 
 fn setup_input(canvas: &web_sys::HtmlCanvasElement, state: Rc<RefCell<GameState>>) {
+    let window = web_sys::window().unwrap();
+
+    // Keyboard down
+    let s = state.clone();
+    let on_keydown = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+        if e.repeat() {
+            return;
+        }
+        if s.borrow_mut().input.on_key_down(&e.code()) {
+            e.prevent_default();
+        }
+    }) as Box<dyn FnMut(_)>);
+    window
+        .add_event_listener_with_callback("keydown", on_keydown.as_ref().unchecked_ref())
+        .unwrap();
+    on_keydown.forget();
+
+    // Keyboard up
+    let s = state.clone();
+    let on_keyup = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+        s.borrow_mut().input.on_key_up(&e.code());
+    }) as Box<dyn FnMut(_)>);
+    window
+        .add_event_listener_with_callback("keyup", on_keyup.as_ref().unchecked_ref())
+        .unwrap();
+    on_keyup.forget();
+
     // Pointer down
     let s = state.clone();
     let on_down = Closure::wrap(Box::new(move |e: web_sys::PointerEvent| {
@@ -96,8 +144,7 @@ fn setup_input(canvas: &web_sys::HtmlCanvasElement, state: Rc<RefCell<GameState>
     let on_up = Closure::wrap(Box::new(move |_e: web_sys::PointerEvent| {
         s.borrow_mut().camera.on_pointer_up();
     }) as Box<dyn FnMut(_)>);
-    web_sys::window()
-        .unwrap()
+    window
         .add_event_listener_with_callback("pointerup", on_up.as_ref().unchecked_ref())
         .unwrap();
     on_up.forget();
@@ -120,13 +167,31 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("requestAnimationFrame failed");
 }
 
-fn start_render_loop(state: Rc<RefCell<GameState>>) {
+fn start_render_loop(
+    state: Rc<RefCell<GameState>>,
+    connection: Option<Connection>,
+    _incoming: Rc<RefCell<Vec<ServerMsg>>>,
+) {
     let f: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
     let g = f.clone();
 
     *g.borrow_mut() = Some(Closure::new(move || {
         {
-            let state = state.borrow();
+            let mut state = state.borrow_mut();
+
+            // Send input to server at ~20 Hz
+            let now = js_sys::Date::now();
+            if now - state.last_send_time >= 50.0 {
+                if let Some(conn) = &connection {
+                    conn.send_input(
+                        state.input.forward(),
+                        state.input.strafe(),
+                        state.camera.yaw,
+                    );
+                }
+                state.last_send_time = now;
+            }
+
             let (w, h) = state.renderer.surface_size();
             let aspect = w as f32 / h as f32;
 

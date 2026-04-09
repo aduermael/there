@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 game-core = { path = "../game-core" }
+bincode = { workspace = true }
 glam = { workspace = true }
 log = { workspace = true }
 wgpu = { version = "24", features = ["webgpu"] }
@@ -18,9 +19,15 @@ web-sys = { version = "0.3", features = [
     "Document",
     "HtmlCanvasElement",
     "Element",
+    "Event",
     "EventTarget",
-    "PointerEvent",
+    "KeyboardEvent",
+    "Location",
+    "MessageEvent",
     "MouseEvent",
+    "PointerEvent",
+    "WebSocket",
+    "BinaryType",
     "WheelEvent",
     "console",
 ] }
