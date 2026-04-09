@@ -3,15 +3,17 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
+mod camera;
 mod renderer;
 mod terrain;
 
+use camera::OrbitCamera;
 use renderer::Renderer;
 use terrain::Uniforms;
 
 struct GameState {
     renderer: Renderer,
-    #[allow(dead_code)]
+    camera: OrbitCamera,
     heightmap_data: Vec<f32>,
 }
 
@@ -34,13 +36,70 @@ async fn run() {
     let heightmap_data = game_core::terrain::generate_heightmap();
     log::info!("Heightmap generated: {} values", heightmap_data.len());
 
-    let renderer = Renderer::new(canvas, &heightmap_data).await;
+    let renderer = Renderer::new(canvas.clone(), &heightmap_data).await;
+
+    let camera = OrbitCamera::new(
+        glam::Vec3::new(128.0, 15.0, 128.0), // target: world center
+        0.5,                                   // yaw
+        0.35,                                  // pitch
+        80.0,                                  // distance
+    );
 
     let state = Rc::new(RefCell::new(GameState {
         renderer,
+        camera,
         heightmap_data,
     }));
+
+    setup_input(&canvas, state.clone());
     start_render_loop(state);
+}
+
+fn setup_input(canvas: &web_sys::HtmlCanvasElement, state: Rc<RefCell<GameState>>) {
+    // Pointer down
+    let s = state.clone();
+    let on_down = Closure::wrap(Box::new(move |e: web_sys::PointerEvent| {
+        s.borrow_mut()
+            .camera
+            .on_pointer_down(e.client_x() as f32, e.client_y() as f32);
+    }) as Box<dyn FnMut(_)>);
+    canvas
+        .add_event_listener_with_callback("pointerdown", on_down.as_ref().unchecked_ref())
+        .unwrap();
+    on_down.forget();
+
+    // Pointer move
+    let s = state.clone();
+    let on_move = Closure::wrap(Box::new(move |e: web_sys::PointerEvent| {
+        s.borrow_mut()
+            .camera
+            .on_pointer_move(e.client_x() as f32, e.client_y() as f32);
+    }) as Box<dyn FnMut(_)>);
+    canvas
+        .add_event_listener_with_callback("pointermove", on_move.as_ref().unchecked_ref())
+        .unwrap();
+    on_move.forget();
+
+    // Pointer up (on window to catch releases outside canvas)
+    let s = state.clone();
+    let on_up = Closure::wrap(Box::new(move |_e: web_sys::PointerEvent| {
+        s.borrow_mut().camera.on_pointer_up();
+    }) as Box<dyn FnMut(_)>);
+    web_sys::window()
+        .unwrap()
+        .add_event_listener_with_callback("pointerup", on_up.as_ref().unchecked_ref())
+        .unwrap();
+    on_up.forget();
+
+    // Wheel (zoom)
+    let s = state.clone();
+    let on_wheel = Closure::wrap(Box::new(move |e: web_sys::WheelEvent| {
+        s.borrow_mut().camera.on_wheel(e.delta_y() as f32);
+    }) as Box<dyn FnMut(_)>);
+    canvas
+        .add_event_listener_with_callback("wheel", on_wheel.as_ref().unchecked_ref())
+        .unwrap();
+    on_wheel.forget();
 }
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
@@ -60,10 +119,8 @@ fn start_render_loop(state: Rc<RefCell<GameState>>) {
             let (w, h) = state.renderer.surface_size();
             let aspect = w as f32 / h as f32;
 
-            // Fixed camera for now (orbit camera added in 3e)
-            let eye = glam::Vec3::new(128.0, 60.0, 200.0);
-            let target = glam::Vec3::new(128.0, 15.0, 128.0);
-            let view = glam::Mat4::look_at_rh(eye, target, glam::Vec3::Y);
+            let eye = state.camera.eye(&state.heightmap_data);
+            let view = glam::Mat4::look_at_rh(eye, state.camera.target, glam::Vec3::Y);
             let proj = glam::Mat4::perspective_rh(
                 std::f32::consts::FRAC_PI_4,
                 aspect,

@@ -1,0 +1,80 @@
+use glam::{Mat4, Vec3};
+
+const SENSITIVITY: f32 = 0.005;
+const ZOOM_SPEED: f32 = 0.1;
+const MIN_PITCH: f32 = 0.05;
+const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
+const MIN_DISTANCE: f32 = 5.0;
+const MAX_DISTANCE: f32 = 200.0;
+const MIN_CAMERA_HEIGHT: f32 = 2.0;
+
+pub struct OrbitCamera {
+    pub target: Vec3,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub distance: f32,
+    dragging: bool,
+    last_x: f32,
+    last_y: f32,
+}
+
+impl OrbitCamera {
+    pub fn new(target: Vec3, yaw: f32, pitch: f32, distance: f32) -> Self {
+        Self {
+            target,
+            yaw,
+            pitch: pitch.clamp(MIN_PITCH, MAX_PITCH),
+            distance: distance.clamp(MIN_DISTANCE, MAX_DISTANCE),
+            dragging: false,
+            last_x: 0.0,
+            last_y: 0.0,
+        }
+    }
+
+    pub fn on_pointer_down(&mut self, x: f32, y: f32) {
+        self.dragging = true;
+        self.last_x = x;
+        self.last_y = y;
+    }
+
+    pub fn on_pointer_move(&mut self, x: f32, y: f32) {
+        if !self.dragging {
+            return;
+        }
+        let dx = x - self.last_x;
+        let dy = y - self.last_y;
+        self.last_x = x;
+        self.last_y = y;
+
+        self.yaw -= dx * SENSITIVITY;
+        self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
+    }
+
+    pub fn on_pointer_up(&mut self) {
+        self.dragging = false;
+    }
+
+    pub fn on_wheel(&mut self, delta_y: f32) {
+        self.distance = (self.distance + delta_y * ZOOM_SPEED).clamp(MIN_DISTANCE, MAX_DISTANCE);
+    }
+
+    /// Camera position in world space (spherical → cartesian).
+    fn raw_eye(&self) -> Vec3 {
+        let x = self.distance * self.pitch.cos() * self.yaw.sin();
+        let y = self.distance * self.pitch.sin();
+        let z = self.distance * self.pitch.cos() * self.yaw.cos();
+        self.target + Vec3::new(x, y, z)
+    }
+
+    /// Eye position clamped above terrain.
+    pub fn eye(&self, heightmap: &[f32]) -> Vec3 {
+        let mut eye = self.raw_eye();
+        let terrain_y = game_core::terrain::sample_height(heightmap, eye.x, eye.z);
+        eye.y = eye.y.max(terrain_y + MIN_CAMERA_HEIGHT);
+        eye
+    }
+
+    pub fn view_matrix(&self, heightmap: &[f32]) -> Mat4 {
+        Mat4::look_at_rh(self.eye(heightmap), self.target, Vec3::Y)
+    }
+}
