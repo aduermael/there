@@ -22,3 +22,4 @@ web-sys = { version = "0.3", features = [
 ] }
 js-sys = "0.3"
 console_log = "1"
+bytemuck = { version = "1", features = ["derive"] }

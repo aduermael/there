@@ -9,6 +9,8 @@ use renderer::Renderer;
 
 struct GameState {
     renderer: Renderer,
+    #[allow(dead_code)]
+    heightmap_data: Vec<f32>,
 }
 
 #[wasm_bindgen(start)]
@@ -27,10 +29,16 @@ async fn run() {
         .dyn_into::<web_sys::HtmlCanvasElement>()
         .expect("not a canvas");
 
-    let renderer = Renderer::new(canvas).await;
+    let heightmap_data = game_core::terrain::generate_heightmap();
+    log::info!("Heightmap generated: {} values", heightmap_data.len());
+
+    let renderer = Renderer::new(canvas, &heightmap_data).await;
     log::info!("Renderer initialized");
 
-    let state = Rc::new(RefCell::new(GameState { renderer }));
+    let state = Rc::new(RefCell::new(GameState {
+        renderer,
+        heightmap_data,
+    }));
     start_render_loop(state);
 }
 

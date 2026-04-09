@@ -5,10 +5,11 @@ pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    pub heightmap_view: wgpu::TextureView,
 }
 
 impl Renderer {
-    pub async fn new(canvas: HtmlCanvasElement) -> Self {
+    pub async fn new(canvas: HtmlCanvasElement, heightmap_data: &[f32]) -> Self {
         let window = web_sys::window().unwrap();
         let dpr = window.device_pixel_ratio();
         let width = (canvas.client_width() as f64 * dpr) as u32;
@@ -64,13 +65,61 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
-        log::info!("wgpu initialized: {}x{}, format={:?}", width, height, format);
+        // Upload heightmap as R32Float texture
+        let hm_res = game_core::HEIGHTMAP_RES;
+        let heightmap_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Heightmap"),
+            size: wgpu::Extent3d {
+                width: hm_res,
+                height: hm_res,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &heightmap_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            bytemuck::cast_slice(heightmap_data),
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(hm_res * 4),
+                rows_per_image: Some(hm_res),
+            },
+            wgpu::Extent3d {
+                width: hm_res,
+                height: hm_res,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let heightmap_view =
+            heightmap_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        log::info!(
+            "wgpu initialized: {}x{}, format={:?}, heightmap={}x{}",
+            width,
+            height,
+            format,
+            hm_res,
+            hm_res
+        );
 
         Self {
             surface,
             device,
             queue,
             config,
+            heightmap_view,
         }
     }
 
