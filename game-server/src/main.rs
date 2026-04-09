@@ -3,14 +3,14 @@ mod room;
 
 use axum::extract::ws::WebSocket;
 use axum::extract::{Query, State, WebSocketUpgrade};
-use axum::response::{Html, IntoResponse, Redirect};
+use axum::response::{IntoResponse, Redirect};
 use axum::routing::get;
 use axum::Router;
 use room::{RoomEvent, RoomManager};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 type SharedRoomManager = Arc<RwLock<RoomManager>>;
 
@@ -25,11 +25,13 @@ async fn main() {
 
     let rooms: SharedRoomManager = Arc::new(RwLock::new(RoomManager::new()));
 
+    // Static files served from web/, room code paths fall back to index.html
+    let serve = ServeDir::new("web").fallback(ServeFile::new("web/index.html"));
+
     let app = Router::new()
         .route("/", get(handle_root))
         .route("/ws", get(handle_ws))
-        .route("/{code}", get(handle_room))
-        .fallback_service(ServeDir::new("web"))
+        .fallback_service(serve)
         .with_state(rooms);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
@@ -42,11 +44,6 @@ async fn main() {
 async fn handle_root(State(rooms): State<SharedRoomManager>) -> impl IntoResponse {
     let code = rooms.read().await.generate_code();
     Redirect::temporary(&format!("/{}", code))
-}
-
-async fn handle_room() -> impl IntoResponse {
-    // Serve index.html for any room code path
-    Html(include_str!("../../web/index.html"))
 }
 
 async fn handle_ws(
