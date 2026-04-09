@@ -24,7 +24,9 @@ struct GameState {
     heightmap_data: Vec<f32>,
     players: Vec<PlayerInstance>,
     input: InputState,
+    local_pos: glam::Vec3,
     last_send_time: f64,
+    last_frame_time: f64,
 }
 
 #[wasm_bindgen(start)]
@@ -48,17 +50,19 @@ async fn run() {
 
     let renderer = Renderer::new(canvas.clone(), &heightmap_data).await;
 
+    // Spawn at world center
+    let spawn_y = game_core::terrain::sample_height(&heightmap_data, 128.0, 128.0);
+    let local_pos = glam::Vec3::new(128.0, spawn_y, 128.0);
+
     let camera = OrbitCamera::new(
-        glam::Vec3::new(128.0, 15.0, 128.0), // target: world center
-        0.5,                                   // yaw
-        0.35,                                  // pitch
-        80.0,                                  // distance
+        local_pos,
+        0.5,  // yaw
+        0.35, // pitch
+        15.0, // distance
     );
 
-    // Test player at world center
-    let spawn_y = game_core::terrain::sample_height(&heightmap_data, 128.0, 128.0);
-    let test_player = PlayerInstance {
-        pos_yaw: [128.0, spawn_y, 128.0, 0.0],
+    let local_player = PlayerInstance {
+        pos_yaw: [local_pos.x, local_pos.y, local_pos.z, 0.0],
         color: [0.90, 0.30, 0.25, 0.0],
     };
 
@@ -78,9 +82,11 @@ async fn run() {
         renderer,
         camera,
         heightmap_data,
-        players: vec![test_player],
+        players: vec![local_player],
         input: InputState::new(),
+        local_pos,
         last_send_time: 0.0,
+        last_frame_time: js_sys::Date::now(),
     }));
 
     setup_input(&canvas, state.clone());
@@ -182,15 +188,40 @@ fn start_render_loop(
         {
             let mut state = state.borrow_mut();
 
-            // Send input to server at ~20 Hz
+            // Frame delta time
             let now = js_sys::Date::now();
+            let dt = ((now - state.last_frame_time) / 1000.0) as f32;
+            let dt = dt.clamp(0.0, 0.1); // cap at 100ms to avoid jumps
+            state.last_frame_time = now;
+
+            // Local player movement (client prediction)
+            let forward = state.input.forward();
+            let strafe = state.input.strafe();
+            let yaw = state.camera.yaw;
+            if forward != 0.0 || strafe != 0.0 {
+                state.local_pos = game_core::movement::apply_movement(
+                    state.local_pos,
+                    forward,
+                    strafe,
+                    yaw,
+                    dt,
+                    &state.heightmap_data,
+                );
+            }
+
+            // Update camera to follow player
+            state.camera.target = state.local_pos;
+
+            // Update local player visual
+            let pos = state.local_pos;
+            if let Some(p) = state.players.first_mut() {
+                p.pos_yaw = [pos.x, pos.y, pos.z, yaw];
+            }
+
+            // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
                 if let Some(conn) = &connection {
-                    conn.send_input(
-                        state.input.forward(),
-                        state.input.strafe(),
-                        state.camera.yaw,
-                    );
+                    conn.send_input(forward, strafe, yaw);
                 }
                 state.last_send_time = now;
             }
