@@ -1,0 +1,9 @@
+[workspace]
+members = ["game-core", "game-client", "game-server"]
+resolver = "2"
+
+[workspace.dependencies]
+glam = "0.29"
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
+log = "0.4"

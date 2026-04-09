@@ -1,0 +1,13 @@
+[package]
+name = "game-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+game-core = { path = "../game-core" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+rust-embed = "8"
+tower-http = { version = "0.6", features = ["fs"] }
+log = { workspace = true }
+env_logger = "0.11"
