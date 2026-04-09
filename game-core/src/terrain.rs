@@ -38,3 +38,23 @@ pub fn sample_height(heightmap: &[f32], x: f32, z: f32) -> f32 {
 pub fn in_bounds(x: f32, z: f32) -> bool {
     x >= 0.0 && x < WORLD_SIZE && z >= 0.0 && z < WORLD_SIZE
 }
+
+/// Generate a simple procedural heightmap using layered sine waves.
+/// Returns a Vec<f32> of HEIGHTMAP_RES * HEIGHTMAP_RES values.
+pub fn generate_heightmap() -> Vec<f32> {
+    let res = HEIGHTMAP_RES as usize;
+    let mut data = vec![0.0f32; res * res];
+    for iz in 0..res {
+        for ix in 0..res {
+            let u = ix as f32 / res as f32;
+            let v = iz as f32 / res as f32;
+            let h = 8.0 * (u * 3.0 * std::f32::consts::PI).sin()
+                * (v * 2.0 * std::f32::consts::PI).sin()
+                + 4.0 * (u * 7.0 + 0.3).sin() * (v * 5.0 + 1.2).sin()
+                + 2.0 * (u * 13.0 + 2.1).sin() * (v * 11.0 + 0.7).sin()
+                + 15.0;
+            data[iz * res + ix] = h;
+        }
+    }
+    data
+}
