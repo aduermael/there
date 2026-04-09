@@ -4,10 +4,12 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 mod camera;
+mod player;
 mod renderer;
 mod terrain;
 
 use camera::OrbitCamera;
+use player::PlayerInstance;
 use renderer::Renderer;
 use terrain::Uniforms;
 
@@ -15,6 +17,7 @@ struct GameState {
     renderer: Renderer,
     camera: OrbitCamera,
     heightmap_data: Vec<f32>,
+    players: Vec<PlayerInstance>,
 }
 
 #[wasm_bindgen(start)]
@@ -45,10 +48,18 @@ async fn run() {
         80.0,                                  // distance
     );
 
+    // Test player at world center
+    let spawn_y = game_core::terrain::sample_height(&heightmap_data, 128.0, 128.0);
+    let test_player = PlayerInstance {
+        pos_yaw: [128.0, spawn_y, 128.0, 0.0],
+        color: [0.90, 0.30, 0.25, 0.0],
+    };
+
     let state = Rc::new(RefCell::new(GameState {
         renderer,
         camera,
         heightmap_data,
+        players: vec![test_player],
     }));
 
     setup_input(&canvas, state.clone());
@@ -144,7 +155,7 @@ fn start_render_loop(state: Rc<RefCell<GameState>>) {
             };
 
             state.renderer.update_uniforms(&uniforms);
-            state.renderer.render(eye, &view_proj);
+            state.renderer.render(eye, &view_proj, &state.players);
         }
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));

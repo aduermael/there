@@ -1,6 +1,7 @@
 use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
+use crate::player::{PlayerInstance, PlayerRenderer};
 use crate::terrain::{self, TerrainRenderer, Uniforms};
 
 pub struct Renderer {
@@ -12,6 +13,7 @@ pub struct Renderer {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     terrain: TerrainRenderer,
+    players: PlayerRenderer,
 }
 
 impl Renderer {
@@ -148,6 +150,9 @@ impl Renderer {
         let terrain =
             TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view, heightmap_data);
 
+        // Player renderer
+        let players = PlayerRenderer::new(&device, format, &uniform_bgl);
+
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
             width,
@@ -164,6 +169,7 @@ impl Renderer {
             uniform_buffer,
             uniform_bind_group,
             terrain,
+            players,
         }
     }
 
@@ -185,7 +191,14 @@ impl Renderer {
         }
     }
 
-    pub fn render(&self, camera_pos: glam::Vec3, view_proj: &glam::Mat4) {
+    pub fn render(
+        &self,
+        camera_pos: glam::Vec3,
+        view_proj: &glam::Mat4,
+        player_instances: &[PlayerInstance],
+    ) {
+        self.players
+            .update_instances(&self.queue, player_instances);
         let output = match self.surface.get_current_texture() {
             Ok(t) => t,
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -237,6 +250,11 @@ impl Renderer {
 
             self.terrain
                 .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
+            self.players.draw(
+                &mut pass,
+                &self.uniform_bind_group,
+                player_instances.len() as u32,
+            );
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
