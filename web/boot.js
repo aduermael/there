@@ -1,12 +1,21 @@
-// WebGPU detection and WASM bootstrap
 async function init() {
+    const screen = document.querySelector('connect-screen');
+
     if (!navigator.gpu) {
-        document.body.innerHTML = '<div class="error">WebGPU is not supported in this browser.</div>';
+        screen.showError('WebGPU is not supported in this browser.');
         return;
     }
 
-    const { default: initWasm } = await import('./pkg/game_client.js');
-    await initWasm();
+    screen.show('Loading game...');
+
+    try {
+        const { default: initWasm } = await import('./pkg/game_client.js');
+        await initWasm();
+        screen.hide();
+    } catch (e) {
+        console.error(e);
+        screen.showError('Failed to load game: ' + e.message);
+    }
 }
 
-init().catch(console.error);
+init();
