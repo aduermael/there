@@ -115,14 +115,11 @@ fn setup_input(canvas: &web_sys::HtmlCanvasElement, state: Rc<RefCell<GameState>
         .unwrap();
     on_keyup.forget();
 
-    // Pointer down (ignore left-half touches — that's the joystick zone)
+    // Pointer down (mouse only — touch camera handled by camera-control component)
     let s = state.clone();
     let on_down = Closure::wrap(Box::new(move |e: web_sys::PointerEvent| {
         if e.pointer_type() == "touch" {
-            let w = web_sys::window().unwrap().inner_width().unwrap().as_f64().unwrap();
-            if (e.client_x() as f64) < w * 0.5 {
-                return;
-            }
+            return;
         }
         s.borrow_mut()
             .camera
@@ -196,6 +193,12 @@ fn start_render_loop(
                     );
                 }
                 state.last_send_time = now;
+            }
+
+            // Apply touch camera drag (from camera-control web component)
+            let (tdx, tdy) = camera::consume_touch_drag();
+            if tdx != 0.0 || tdy != 0.0 {
+                state.camera.apply_drag(tdx, tdy);
             }
 
             let (w, h) = state.renderer.surface_size();

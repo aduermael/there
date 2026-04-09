@@ -1,4 +1,7 @@
+use std::cell::Cell;
+
 use glam::{Mat4, Vec3};
+use wasm_bindgen::prelude::*;
 
 const SENSITIVITY: f32 = 0.005;
 const ZOOM_SPEED: f32 = 0.1;
@@ -7,6 +10,29 @@ const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
 const MIN_DISTANCE: f32 = 5.0;
 const MAX_DISTANCE: f32 = 200.0;
 const MIN_CAMERA_HEIGHT: f32 = 2.0;
+
+// Accumulated touch drag deltas from the camera-control web component.
+thread_local! {
+    static TOUCH_DRAG: Cell<(f32, f32)> = const { Cell::new((0.0, 0.0)) };
+}
+
+/// Called from JS camera-control web component.
+#[wasm_bindgen]
+pub fn on_camera_drag(dx: f32, dy: f32) {
+    TOUCH_DRAG.with(|c| {
+        let (cx, cy) = c.get();
+        c.set((cx + dx, cy + dy));
+    });
+}
+
+/// Drain accumulated touch drag deltas (called once per frame).
+pub fn consume_touch_drag() -> (f32, f32) {
+    TOUCH_DRAG.with(|c| {
+        let val = c.get();
+        c.set((0.0, 0.0));
+        val
+    })
+}
 
 pub struct OrbitCamera {
     pub target: Vec3,
@@ -56,6 +82,12 @@ impl OrbitCamera {
 
     pub fn on_wheel(&mut self, delta_y: f32) {
         self.distance = (self.distance + delta_y * ZOOM_SPEED).clamp(MIN_DISTANCE, MAX_DISTANCE);
+    }
+
+    /// Apply drag deltas directly (used by touch camera control).
+    pub fn apply_drag(&mut self, dx: f32, dy: f32) {
+        self.yaw -= dx * SENSITIVITY;
+        self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
     }
 
     /// Camera position in world space (spherical → cartesian).
