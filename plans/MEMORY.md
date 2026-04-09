@@ -1,0 +1,1 @@
+- [UI Philosophy](../plans/2026-04-09-init.md) — All UI is DOM web components over WebGPU canvas, no in-engine UI

@@ -490,6 +490,7 @@ dependencies = [
 name = "game-client"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "console_log",
  "game-core",
  "glam",
