@@ -1,11 +1,17 @@
+use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
+
+use crate::terrain::{self, TerrainRenderer, Uniforms};
 
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    pub heightmap_view: wgpu::TextureView,
+    depth_view: wgpu::TextureView,
+    uniform_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
+    terrain: TerrainRenderer,
 }
 
 impl Renderer {
@@ -65,7 +71,7 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
-        // Upload heightmap as R32Float texture
+        // Heightmap texture (R32Float)
         let hm_res = game_core::HEIGHTMAP_RES;
         let heightmap_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Heightmap"),
@@ -105,13 +111,47 @@ impl Renderer {
         let heightmap_view =
             heightmap_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
+        // Depth texture
+        let depth_view = terrain::create_depth_texture(&device, width, height);
+
+        // Uniform buffer + bind group (shared across pipelines)
+        let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Uniform BGL"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniforms"),
+            contents: &[0u8; std::mem::size_of::<Uniforms>()],
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Uniform BG"),
+            layout: &uniform_bgl,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        // Terrain renderer
+        let terrain = TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view);
+
         log::info!(
-            "wgpu initialized: {}x{}, format={:?}, heightmap={}x{}",
+            "Renderer initialized: {}x{}, format={:?}",
             width,
             height,
-            format,
-            hm_res,
-            hm_res
+            format
         );
 
         Self {
@@ -119,8 +159,20 @@ impl Renderer {
             device,
             queue,
             config,
-            heightmap_view,
+            depth_view,
+            uniform_buffer,
+            uniform_bind_group,
+            terrain,
         }
+    }
+
+    pub fn surface_size(&self) -> (u32, u32) {
+        (self.config.width, self.config.height)
+    }
+
+    pub fn update_uniforms(&self, uniforms: &Uniforms) {
+        self.queue
+            .write_buffer(&self.uniform_buffer, 0, bytemuck::bytes_of(uniforms));
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -128,6 +180,7 @@ impl Renderer {
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
+            self.depth_view = terrain::create_depth_texture(&self.device, width, height);
         }
     }
 
@@ -151,12 +204,12 @@ impl Renderer {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
+                label: Some("Render"),
             });
 
         {
-            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Clear Pass"),
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Main Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -170,9 +223,18 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 ..Default::default()
             });
+
+            self.terrain.draw(&mut pass, &self.uniform_bind_group);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
