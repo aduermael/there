@@ -87,7 +87,7 @@ fn start_render_loop(state: Rc<RefCell<GameState>>) {
             };
 
             state.renderer.update_uniforms(&uniforms);
-            state.renderer.render();
+            state.renderer.render(eye, &view_proj);
         }
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));

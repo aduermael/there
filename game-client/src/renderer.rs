@@ -145,7 +145,8 @@ impl Renderer {
         });
 
         // Terrain renderer
-        let terrain = TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view);
+        let terrain =
+            TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view, heightmap_data);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -184,7 +185,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(&self) {
+    pub fn render(&self, camera_pos: glam::Vec3, view_proj: &glam::Mat4) {
         let output = match self.surface.get_current_texture() {
             Ok(t) => t,
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -234,7 +235,8 @@ impl Renderer {
                 ..Default::default()
             });
 
-            self.terrain.draw(&mut pass, &self.uniform_bind_group);
+            self.terrain
+                .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

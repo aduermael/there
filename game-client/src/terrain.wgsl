@@ -8,8 +8,13 @@ struct Uniforms {
     hm_res: f32,
 };
 
+struct ChunkOffset {
+    offset: vec2<f32>,
+};
+
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(1) @binding(0) var heightmap: texture_2d<f32>;
+@group(2) @binding(0) var<uniform> chunk: ChunkOffset;
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
@@ -23,7 +28,8 @@ fn get_height(ix: i32, iz: i32) -> f32 {
 }
 
 @vertex
-fn vs_main(@location(0) pos_xz: vec2<f32>) -> VertexOutput {
+fn vs_main(@location(0) local_xz: vec2<f32>) -> VertexOutput {
+    let pos_xz = local_xz + chunk.offset;
     let uv = pos_xz / u.world_size;
     let tc = vec2<i32>(uv * u.hm_res);
 
