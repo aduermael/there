@@ -285,7 +285,7 @@ The final polish layer. Currently the renderer writes directly to the swapchain.
 
 All rendering polish must work in the live multiplayer context — multiple browser clients connected to the server, all seeing the same world with the same visual quality as the snapshots.
 
-- [ ] 8a: Fix client WASM build and verify it compiles with all rendering changes
+- [x] 8a: Fix client WASM build and verify it compiles with all rendering changes
 
   **Approach**: The client (`game-client`) targets `wasm32-unknown-unknown` via `wasm-pack`. All shader and uniform changes from Phases 1-7 must compile cleanly for the browser. Fix any web-target-specific issues (e.g. `SurfaceTarget` API differences, missing features).
 
