@@ -201,7 +201,7 @@ Linear fog is boring. Real atmosphere has exponential falloff and height-depende
   - New uniforms: `fog_density` (f32), `fog_height_falloff` (f32)
   - Maintain artistic control: atmosphere.rs computes density/falloff per time-of-day (hazier mornings, clearer noon)
 
-- [ ] 5b: Add atmospheric color shift with distance
+- [x] 5b: Add atmospheric color shift with distance
 
   **Approach**: Objects far away don't just fade to fog color — they shift toward the sky color (Rayleigh scattering approximation). Blend the fog color from warm/neutral (near) to cool/blue (far, high). This creates the "blue mountains in the distance" effect.
 

@@ -71,8 +71,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = length(in.world_pos - u.camera_pos);
     let avg_height = (in.world_pos.y + u.camera_pos.y) * 0.5;
     let height_atten = exp(-u.fog_height_falloff * max(avg_height, 0.0));
-    let fog = 1.0 - exp(-dist * u.fog_density * height_atten);
-    let color = mix(lit, u.fog_color, clamp(fog, 0.0, 1.0));
+    let fog = clamp(1.0 - exp(-dist * u.fog_density * height_atten), 0.0, 1.0);
+
+    // Atmospheric color shift: far objects fade toward sky blue
+    let far_blend = smoothstep(0.3, 0.9, fog);
+    let atmo_fog_color = mix(u.fog_color, u.sky_zenith, far_blend * 0.35);
+    let color = mix(lit, atmo_fog_color, fog);
 
     return vec4(color, 1.0);
 }
