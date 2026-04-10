@@ -173,7 +173,7 @@ Time-of-day driven atmosphere. A single `sun_angle` parameter (0.0 = dawn, 0.25 
 - Should the sky be a fullscreen quad shader pass or just the clear color + fog blending? A fullscreen quad gives a proper gradient but adds one draw call. Worth it for the visual quality.
 - Night rendering: do we dim everything or add a moon direction? Start simple — just dim ambient + dark blue sky.
 
-- [ ] 4a: Atmosphere parameter computation from `sun_angle` (sun direction, colors, ambient) in `game-render`
+- [x] 4a: Atmosphere parameter computation from `sun_angle` (sun direction, colors, ambient) in `game-render`
 - [ ] 4b: Update terrain + player shaders for dynamic sun color, ambient, and sky-aware fog
 - [ ] 4c: Sky gradient rendering (fullscreen quad or clear-color approach)
 - [ ] 4d: Integrate in both browser (default noon) and snapshot CLI (already has `--sun-angle`), verify across dawn/noon/dusk/night

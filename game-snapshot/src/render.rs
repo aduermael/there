@@ -1,22 +1,10 @@
 use game_render::{
-    create_depth_texture, scatter_objects, RockRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    compute_atmosphere, create_depth_texture, scatter_objects, RockRenderer, TerrainRenderer,
+    TreeRenderer, Uniforms,
 };
 use wgpu::util::DeviceExt;
 
 const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-
-/// Compute sun direction from sun_angle (0.0=dawn, 0.25=noon, 0.5=dusk, 0.75=night, 1.0=dawn)
-fn sun_direction_from_angle(sun_angle: f32) -> glam::Vec3 {
-    let theta = sun_angle * std::f32::consts::TAU; // full orbit
-    // Sun orbits east-west: x = cos(theta), y = sin(theta) (above horizon when y>0)
-    let dir = glam::Vec3::new(theta.cos(), theta.sin(), 0.3).normalize();
-    // At night (y < 0.05), clamp to just above horizon so lighting doesn't go fully black
-    if dir.y < 0.05 {
-        glam::Vec3::new(dir.x, 0.05, dir.z).normalize()
-    } else {
-        dir
-    }
-}
 
 pub async fn render_frame(
     width: u32,
@@ -134,19 +122,26 @@ pub async fn render_frame(
     let aspect = width as f32 / height as f32;
     let proj = glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_4, aspect, 0.1, 500.0);
     let view_proj = proj * view;
-    let sun_dir = sun_direction_from_angle(sun_angle);
+    let atmo = compute_atmosphere(sun_angle);
 
     let uniforms = Uniforms {
         view_proj: view_proj.to_cols_array(),
         camera_pos: camera_pos.to_array(),
         _pad0: 0.0,
-        sun_dir: sun_dir.to_array(),
+        sun_dir: atmo.sun_dir.to_array(),
         _pad1: 0.0,
-        fog_color: [0.53, 0.81, 0.92],
+        fog_color: atmo.fog_color,
         fog_far: 300.0,
         world_size: game_core::WORLD_SIZE,
         hm_res: game_core::HEIGHTMAP_RES as f32,
-        _pad2: [0.0; 2],
+        ambient_intensity: atmo.ambient_intensity,
+        _pad2: 0.0,
+        sun_color: atmo.sun_color,
+        _pad3: 0.0,
+        sky_zenith: atmo.sky_zenith,
+        _pad4: 0.0,
+        sky_horizon: atmo.sky_horizon,
+        _pad5: 0.0,
     };
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -193,9 +188,9 @@ pub async fn render_frame(
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.53,
-                        g: 0.81,
-                        b: 0.92,
+                        r: atmo.sky_horizon[0] as f64,
+                        g: atmo.sky_horizon[1] as f64,
+                        b: atmo.sky_horizon[2] as f64,
                         a: 1.0,
                     }),
                     store: wgpu::StoreOp::Store,

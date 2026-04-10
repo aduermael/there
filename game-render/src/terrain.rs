@@ -19,7 +19,14 @@ pub struct Uniforms {
     pub fog_far: f32,
     pub world_size: f32,
     pub hm_res: f32,
-    pub _pad2: [f32; 2],
+    pub ambient_intensity: f32,
+    pub _pad2: f32,
+    pub sun_color: [f32; 3],
+    pub _pad3: f32,
+    pub sky_zenith: [f32; 3],
+    pub _pad4: f32,
+    pub sky_horizon: [f32; 3],
+    pub _pad5: f32,
 }
 
 pub struct TerrainRenderer {

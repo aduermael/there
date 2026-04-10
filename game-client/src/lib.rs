@@ -11,7 +11,7 @@ mod renderer;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
-use game_render::{player_color, PlayerInstance, Uniforms};
+use game_render::{compute_atmosphere, player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
 use renderer::Renderer;
@@ -363,19 +363,26 @@ fn start_render_loop(
                 500.0,
             );
             let view_proj = proj * view;
-            let sun_dir = glam::Vec3::new(0.5, 0.8, 0.3).normalize();
+            let atmo = compute_atmosphere(0.25); // noon
 
             let uniforms = Uniforms {
                 view_proj: view_proj.to_cols_array(),
                 camera_pos: eye.to_array(),
                 _pad0: 0.0,
-                sun_dir: sun_dir.to_array(),
+                sun_dir: atmo.sun_dir.to_array(),
                 _pad1: 0.0,
-                fog_color: [0.53, 0.81, 0.92],
+                fog_color: atmo.fog_color,
                 fog_far: 300.0,
                 world_size: game_core::WORLD_SIZE,
                 hm_res: game_core::HEIGHTMAP_RES as f32,
-                _pad2: [0.0; 2],
+                ambient_intensity: atmo.ambient_intensity,
+                _pad2: 0.0,
+                sun_color: atmo.sun_color,
+                _pad3: 0.0,
+                sky_zenith: atmo.sky_zenith,
+                _pad4: 0.0,
+                sky_horizon: atmo.sky_horizon,
+                _pad5: 0.0,
             };
 
             state.renderer.update_uniforms(&uniforms);
