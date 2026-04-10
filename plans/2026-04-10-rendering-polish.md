@@ -599,7 +599,7 @@ Verify everything works together across all 4 times of day and in the browser.
 
   Iterate until all 4 snapshots look cohesive and polished.
 
-- [ ] 14b: Verify WASM build and browser rendering
+- [x] 14b: Verify WASM build and browser rendering
 
   **Approach**: Same as Phase 8 — build the client WASM and test in browser.
   - `cd game-client && wasm-pack build --target web` must succeed
