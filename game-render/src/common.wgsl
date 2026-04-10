@@ -93,7 +93,7 @@ fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32) -> vec3
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
     let ndl = max(dot(n, u.sun_dir), 0.0);
     // Shadow only affects direct sun light, not ambient
-    let sun_shadow = mix(0.3, 1.0, shadow); // shadowed areas keep 30% sun
+    let sun_shadow = mix(0.05, 1.0, shadow); // shadowed areas keep 5% sun
     return base_color * (ambient + ndl * u.sun_color * sun_shadow);
 }
 

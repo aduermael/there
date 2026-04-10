@@ -124,7 +124,7 @@ Shadows provide critical depth cues and grounding. Currently they're barely visi
 
   **Failure modes**: PCF adds 4-9 texture samples per fragment per geometry shader. On mobile this is notable — benchmark. If too expensive, fall back to 4-tap PCF. High shadow map res increases VRAM (1024x1024 x 4 bytes = 4MB, acceptable).
 
-- [ ] 2b: Tune shadow contrast and atmospheric integration
+- [x] 2b: Tune shadow contrast and atmospheric integration
 
   **Context**: `common.wgsl` `hemisphere_lighting()` (line 86) applies shadow via `mix(0.3, 1.0, shadow)` — shadowed areas keep 30% of sun contribution. Combined with hemisphere ambient (sky_ambient + ground_ambient), shadowed areas still receive substantial light.
 
