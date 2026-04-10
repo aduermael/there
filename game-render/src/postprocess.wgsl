@@ -1,6 +1,7 @@
 @group(0) @binding(0) var hdr_texture: texture_2d<f32>;
 @group(0) @binding(1) var hdr_sampler: sampler;
 @group(0) @binding(2) var ao_texture: texture_2d<f32>;
+@group(0) @binding(3) var depth_texture: texture_depth_2d;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -31,23 +32,38 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(hdr_texture, hdr_sampler, in.uv).rgb;
 
-    // --- Colored SSAO with wide soft blur ---
-    // 9-tap Gaussian-approximate blur on half-res AO texture
-    // Weights: center 4, cross 2, corners 1 (sum = 16)
-    // At 2.5 texel spread with bilinear, covers ~12 full-res pixels
+    // --- Depth-aware bilateral SSAO blur ---
+    // 9-tap blur that respects depth edges: smooth within surfaces, sharp across silhouettes
     let ao_texel = 1.0 / vec2<f32>(textureDimensions(ao_texture));
+    let depth_dims = vec2<f32>(textureDimensions(depth_texture));
     let t = ao_texel * 1.5;
-    let ao = (
-        textureSample(ao_texture, hdr_sampler, in.uv).r * 4.0
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(-t.x,  0.0)).r * 2.0
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2( t.x,  0.0)).r * 2.0
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2( 0.0, -t.y)).r * 2.0
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2( 0.0,  t.y)).r * 2.0
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(-t.x, -t.y)).r
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2( t.x, -t.y)).r
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(-t.x,  t.y)).r
-        + textureSample(ao_texture, hdr_sampler, in.uv + vec2( t.x,  t.y)).r
-    ) / 16.0;
+
+    // Center depth (full-res, loaded at the pixel corresponding to this UV)
+    let depth_pixel = vec2<i32>(in.uv * depth_dims);
+    let center_depth = textureLoad(depth_texture, depth_pixel, 0);
+
+    // Bilateral weights: Gaussian spatial * depth similarity
+    let depth_threshold = 0.002;
+    var ao_sum = textureSample(ao_texture, hdr_sampler, in.uv).r * 4.0;
+    var weight_sum = 4.0;
+
+    let offsets = array<vec2<f32>, 8>(
+        vec2(-t.x,  0.0), vec2( t.x,  0.0), vec2( 0.0, -t.y), vec2( 0.0,  t.y),
+        vec2(-t.x, -t.y), vec2( t.x, -t.y), vec2(-t.x,  t.y), vec2( t.x,  t.y)
+    );
+    let spatial_weights = array<f32, 8>(2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0);
+
+    for (var i = 0u; i < 8u; i++) {
+        let sample_uv = in.uv + offsets[i];
+        let sample_depth_pixel = vec2<i32>(sample_uv * depth_dims);
+        let sample_depth = textureLoad(depth_texture, sample_depth_pixel, 0);
+        let depth_diff = abs(sample_depth - center_depth);
+        let depth_weight = select(0.05, 1.0, depth_diff < depth_threshold);
+        let w = spatial_weights[i] * depth_weight;
+        ao_sum += textureSample(ao_texture, hdr_sampler, sample_uv).r * w;
+        weight_sum += w;
+    }
+    let ao = ao_sum / weight_sum;
 
     // Colored AO: occluded areas shift warm (impressionistic shadow tone)
     let shadow_warmth = vec3(0.5, 0.4, 0.35);

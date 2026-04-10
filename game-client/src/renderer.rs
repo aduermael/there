@@ -177,7 +177,7 @@ impl Renderer {
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
 
         // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, ssao.ao_view(), width, height);
+        let postprocess = PostProcessRenderer::new(&device, format, ssao.ao_view(), &depth_view, width, height);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -223,7 +223,7 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
             self.depth_view = create_depth_texture(&self.device, width, height);
             self.ssao.resize(&self.device, &self.depth_view, width, height);
-            self.postprocess.resize(&self.device, self.ssao.ao_view(), width, height);
+            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, width, height);
         }
     }
 

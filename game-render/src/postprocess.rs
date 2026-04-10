@@ -13,6 +13,7 @@ impl PostProcessRenderer {
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
         ao_view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         width: u32,
         height: u32,
     ) -> Self {
@@ -45,6 +46,16 @@ impl PostProcessRenderer {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -96,7 +107,7 @@ impl PostProcessRenderer {
         });
 
         let (intermediate_view, bind_group) =
-            Self::create_intermediate(device, &bind_group_layout, &sampler, ao_view, width, height);
+            Self::create_intermediate(device, &bind_group_layout, &sampler, ao_view, depth_view, width, height);
 
         Self {
             pipeline,
@@ -112,6 +123,7 @@ impl PostProcessRenderer {
         layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
         ao_view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         width: u32,
         height: u32,
     ) -> (wgpu::TextureView, wgpu::BindGroup) {
@@ -146,14 +158,18 @@ impl PostProcessRenderer {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(ao_view),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(depth_view),
+                },
             ],
         });
         (view, bind_group)
     }
 
-    pub fn resize(&mut self, device: &wgpu::Device, ao_view: &wgpu::TextureView, width: u32, height: u32) {
+    pub fn resize(&mut self, device: &wgpu::Device, ao_view: &wgpu::TextureView, depth_view: &wgpu::TextureView, width: u32, height: u32) {
         let (view, bind_group) =
-            Self::create_intermediate(device, &self.bind_group_layout, &self.sampler, ao_view, width, height);
+            Self::create_intermediate(device, &self.bind_group_layout, &self.sampler, ao_view, depth_view, width, height);
         self.intermediate_view = view;
         self.bind_group = bind_group;
     }

@@ -198,7 +198,7 @@ pub async fn render_frame(
     let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
 
     // --- Post-process renderer ---
-    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, ssao.ao_view(), width, height);
+    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, ssao.ao_view(), &depth_view, width, height);
 
     // --- Shadow pass: depth from sun POV ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {

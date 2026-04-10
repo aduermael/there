@@ -144,7 +144,7 @@ Shadows provide critical depth cues and grounding. Currently they're barely visi
 
 SSAO is "much better but still a bit dirty." The remaining issues are: blur bleeds across depth edges (rock silhouettes against sky get haloing), and some flat surfaces show faint noise patterns.
 
-- [ ] 3a: Implement depth-aware bilateral blur for SSAO in postprocess
+- [x] 3a: Implement depth-aware bilateral blur for SSAO in postprocess
 
   **Context**: `postprocess.wgsl` (lines 34-50) does a 9-tap Gaussian blur on the half-res AO texture at 1.5 texel spread. This blur doesn't know about depth edges — it averages AO values from the rock and from the sky behind it, creating visible haloing at silhouettes.
 
