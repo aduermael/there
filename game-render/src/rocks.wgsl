@@ -25,6 +25,16 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 }
 
+@vertex
+fn vs_shadow(
+    @location(0) position: vec3<f32>,
+    @location(1) inst_pos_scale: vec4<f32>,
+    @location(2) inst_color: vec4<f32>,
+) -> @builtin(position) vec4<f32> {
+    let world_pos = position * inst_pos_scale.w + inst_pos_scale.xyz;
+    return u.sun_view_proj * vec4(world_pos, 1.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);

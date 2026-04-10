@@ -1,6 +1,7 @@
 use game_render::{
-    compute_atmosphere, create_depth_texture, scatter_objects, GrassRenderer, PostProcessRenderer,
-    RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_texture,
+    scatter_objects, GrassRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
+    TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 use wgpu::util::DeviceExt;
 
@@ -124,6 +125,8 @@ pub async fn render_frame(
     let view_proj = proj * view;
     let atmo = compute_atmosphere(sun_angle);
 
+    let sun_vp = compute_sun_view_proj(atmo.sun_dir, camera_pos);
+
     let uniforms = Uniforms {
         view_proj: view_proj.to_cols_array(),
         camera_pos: camera_pos.to_array(),
@@ -147,6 +150,7 @@ pub async fn render_frame(
         _pad6: 0.0,
         ground_ambient: atmo.ground_ambient,
         _pad7: 0.0,
+        sun_view_proj: sun_vp.to_cols_array(),
     };
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -183,14 +187,39 @@ pub async fn render_frame(
     let grass_renderer =
         GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &grass_instances);
 
+    // --- Shadow depth texture ---
+    let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+
     // --- Post-process renderer ---
     let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, width, height);
 
-    // --- Pass 1: Scene → HDR intermediate ---
+    // --- Shadow pass: depth from sun POV ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
     });
 
+    // Skip shadow pass at night (sun below horizon)
+    if atmo.sun_dir.y > 0.02 {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Shadow Pass"),
+            color_attachments: &[],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &shadow_depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            ..Default::default()
+        });
+
+        terrain.draw_shadow(&mut pass, &uniform_bind_group);
+        rock_renderer.draw_shadow(&mut pass, &uniform_bind_group);
+        tree_renderer.draw_shadow(&mut pass, &uniform_bind_group);
+    }
+
+    // --- Pass 1: Scene → HDR intermediate ---
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Scene Pass"),

@@ -11,7 +11,7 @@ mod renderer;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
-use game_render::{compute_atmosphere, player_color, PlayerInstance, Uniforms};
+use game_render::{compute_atmosphere, compute_sun_view_proj, player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
 use renderer::Renderer;
@@ -368,6 +368,8 @@ fn start_render_loop(
             let view_proj = proj * view;
             let atmo = compute_atmosphere(0.25); // noon
 
+            let sun_vp = compute_sun_view_proj(atmo.sun_dir, eye);
+
             let uniforms = Uniforms {
                 view_proj: view_proj.to_cols_array(),
                 camera_pos: eye.to_array(),
@@ -391,6 +393,7 @@ fn start_render_loop(
                 _pad6: 0.0,
                 ground_ambient: atmo.ground_ambient,
                 _pad7: 0.0,
+                sun_view_proj: sun_vp.to_cols_array(),
             };
 
             state.renderer.update_uniforms(&uniforms);

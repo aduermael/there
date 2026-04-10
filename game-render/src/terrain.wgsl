@@ -43,6 +43,15 @@ fn vs_main(@location(0) local_xz: vec2<f32>) -> VertexOutput {
     return out;
 }
 
+@vertex
+fn vs_shadow(@location(0) local_xz: vec2<f32>) -> @builtin(position) vec4<f32> {
+    let pos_xz = local_xz + chunk.offset;
+    let uv = pos_xz / u.world_size;
+    let tc = vec2<i32>(uv * u.hm_res);
+    let h = get_height(tc.x, tc.y);
+    return u.sun_view_proj * vec4(pos_xz.x, h, pos_xz.y, 1.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let h = in.world_pos.y;

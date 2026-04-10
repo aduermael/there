@@ -13,6 +13,7 @@ pub struct TreeInstance {
 
 pub struct TreeRenderer {
     pipeline: wgpu::RenderPipeline,
+    shadow_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
@@ -144,6 +145,72 @@ impl TreeRenderer {
             cache: None,
         });
 
+        // Shadow pipeline (depth-only)
+        let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Tree Shadow Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_shadow"),
+                buffers: &[
+                    wgpu::VertexBufferLayout {
+                        array_stride: 24,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x3,
+                                offset: 0,
+                                shader_location: 0,
+                            },
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x3,
+                                offset: 12,
+                                shader_location: 1,
+                            },
+                        ],
+                    },
+                    wgpu::VertexBufferLayout {
+                        array_stride: 32,
+                        step_mode: wgpu::VertexStepMode::Instance,
+                        attributes: &[
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x4,
+                                offset: 0,
+                                shader_location: 2,
+                            },
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x4,
+                                offset: 16,
+                                shader_location: 3,
+                            },
+                        ],
+                    },
+                ],
+                compilation_options: Default::default(),
+            },
+            fragment: None,
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                ..Default::default()
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: wgpu::DepthBiasState {
+                    constant: 2,
+                    slope_scale: 2.0,
+                    clamp: 0.0,
+                },
+            }),
+            multisample: Default::default(),
+            multiview: None,
+            cache: None,
+        });
+
         log::info!(
             "Tree renderer: {} verts, {} tris, {} instances",
             vertices.len(),
@@ -153,6 +220,7 @@ impl TreeRenderer {
 
         Self {
             pipeline,
+            shadow_pipeline,
             vertex_buffer,
             index_buffer,
             index_count,
@@ -170,6 +238,22 @@ impl TreeRenderer {
             return;
         }
         pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        pass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+    }
+
+    pub fn draw_shadow<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        uniform_bg: &'a wgpu::BindGroup,
+    ) {
+        if self.instance_count == 0 {
+            return;
+        }
+        pass.set_pipeline(&self.shadow_pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

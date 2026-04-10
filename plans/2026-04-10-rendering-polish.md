@@ -448,7 +448,7 @@ Three problems: blades are pointy triangles (should be simple rectangles), distr
 
 The scene has no cast shadows — everything is lit uniformly. A single directional shadow map from the sun transforms depth perception. Keep it lightweight for WebGPU mobile.
 
-- [ ] 12a: Add shadow depth pass and infrastructure
+- [x] 12a: Add shadow depth pass and infrastructure
 
   **Approach**: Add a depth-only render pass from the sun's point of view. This is a third render pass (shadow → scene → postprocess).
 

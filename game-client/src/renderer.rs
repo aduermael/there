@@ -3,8 +3,8 @@ use web_sys::HtmlCanvasElement;
 
 use game_render::{
     GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, scatter_objects,
-    INTERMEDIATE_FORMAT,
+    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_texture,
+    scatter_objects, INTERMEDIATE_FORMAT,
 };
 
 pub struct Renderer {
@@ -13,6 +13,7 @@ pub struct Renderer {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     depth_view: wgpu::TextureView,
+    shadow_depth_view: wgpu::TextureView,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     sky: SkyRenderer,
@@ -124,6 +125,9 @@ impl Renderer {
         // Depth texture
         let depth_view = create_depth_texture(&device, width, height);
 
+        // Shadow depth texture
+        let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+
         // Uniform buffer + bind group (shared across pipelines)
         let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Uniform BGL"),
@@ -181,6 +185,7 @@ impl Renderer {
             queue,
             config,
             depth_view,
+            shadow_depth_view,
             uniform_buffer,
             uniform_bind_group,
             sky,
@@ -241,6 +246,28 @@ impl Renderer {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render"),
             });
+
+        // Shadow pass: depth from sun POV
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Shadow Pass"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.shadow_depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                ..Default::default()
+            });
+
+            self.terrain
+                .draw_shadow(&mut pass, &self.uniform_bind_group);
+            self.rocks.draw_shadow(&mut pass, &self.uniform_bind_group);
+            self.trees.draw_shadow(&mut pass, &self.uniform_bind_group);
+        }
 
         // Pass 1: Scene → HDR intermediate
         {

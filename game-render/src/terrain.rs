@@ -32,10 +32,12 @@ pub struct Uniforms {
     pub _pad6: f32,
     pub ground_ambient: [f32; 3],
     pub _pad7: f32,
+    pub sun_view_proj: [f32; 16],
 }
 
 pub struct TerrainRenderer {
     pipeline: wgpu::RenderPipeline,
+    shadow_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     lod0_index_buffer: wgpu::Buffer,
     lod1_index_buffer: wgpu::Buffer,
@@ -211,6 +213,47 @@ impl TerrainRenderer {
             cache: None,
         });
 
+        // Shadow pipeline (depth-only, uses vs_shadow entry point)
+        let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Terrain Shadow Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_shadow"),
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: 8,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &[wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 0,
+                        shader_location: 0,
+                    }],
+                }],
+                compilation_options: Default::default(),
+            },
+            fragment: None,
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                ..Default::default()
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: wgpu::DepthBiasState {
+                    constant: 2,
+                    slope_scale: 2.0,
+                    clamp: 0.0,
+                },
+            }),
+            multisample: Default::default(),
+            multiview: None,
+            cache: None,
+        });
+
         let chunk_bounds = compute_chunk_bounds(heightmap_data);
 
         log::info!(
@@ -224,6 +267,7 @@ impl TerrainRenderer {
 
         Self {
             pipeline,
+            shadow_pipeline,
             vertex_buffer,
             lod0_index_buffer,
             lod1_index_buffer,
@@ -288,6 +332,31 @@ impl TerrainRenderer {
             }
         }
         let _ = drawn; // will be used for debug stats later
+    }
+
+    /// Draw terrain into shadow depth map (all chunks at LOD1).
+    pub fn draw_shadow<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        uniform_bg: &'a wgpu::BindGroup,
+    ) {
+        pass.set_pipeline(&self.shadow_pipeline);
+        pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_bind_group(1, &self.heightmap_bind_group, &[]);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(
+            self.lod1_index_buffer.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+
+        for cz in 0..CHUNK_COUNT {
+            for cx in 0..CHUNK_COUNT {
+                let idx = cz * CHUNK_COUNT + cx;
+                let dyn_offset = (idx as u32) * MIN_UNIFORM_ALIGN;
+                pass.set_bind_group(2, &self.chunk_bind_group, &[dyn_offset]);
+                pass.draw_indexed(0..self.lod1_index_count, 0, 0..1);
+            }
+        }
     }
 }
 

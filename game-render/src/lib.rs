@@ -7,6 +7,7 @@ mod scatter;
 mod atmosphere;
 mod sky;
 mod postprocess;
+mod shadow;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
 pub use player::{PlayerRenderer, PlayerInstance, player_color};
@@ -17,3 +18,4 @@ pub use scatter::scatter_objects;
 pub use atmosphere::{AtmosphereParams, compute_atmosphere};
 pub use sky::SkyRenderer;
 pub use postprocess::{PostProcessRenderer, INTERMEDIATE_FORMAT};
+pub use shadow::{create_shadow_texture, compute_sun_view_proj};
