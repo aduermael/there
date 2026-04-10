@@ -12,6 +12,8 @@ struct Uniforms {
     sky_zenith: vec3<f32>,
     sky_horizon: vec3<f32>,
     inv_view_proj: mat4x4<f32>,
+    sky_ambient: vec3<f32>,
+    ground_ambient: vec3<f32>,
 };
 
 struct ChunkOffset {
@@ -70,10 +72,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let gr = smoothstep(18.0, 24.0, h);
     let base_color = mix(mix(sand, grass, sg), rock, gr);
 
-    // Directional light (sun) with sun color + ambient
+    // Hemisphere ambient: sky from above, ground bounce from below
     let n = normalize(in.normal);
+    let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
+    let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
+
+    // Directional light (sun)
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    let lit = base_color * (u.ambient_intensity + (1.0 - u.ambient_intensity) * ndl * u.sun_color);
+    let lit = base_color * (ambient + ndl * u.sun_color);
 
     // Distance fog
     let dist = length(in.world_pos - u.camera_pos);

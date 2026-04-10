@@ -12,6 +12,8 @@ struct Uniforms {
     sky_zenith: vec3<f32>,
     sky_horizon: vec3<f32>,
     inv_view_proj: mat4x4<f32>,
+    sky_ambient: vec3<f32>,
+    ground_ambient: vec3<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -57,9 +59,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dy = dpdy(in.world_pos);
     let n = normalize(cross(dx, dy));
 
-    // Directional light with sun color + ambient
+    // Hemisphere ambient
+    let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
+    let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
+
+    // Directional light with sun color
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    let lit = in.color * (u.ambient_intensity + (1.0 - u.ambient_intensity) * ndl * u.sun_color);
+    let lit = in.color * (ambient + ndl * u.sun_color);
 
     // Distance fog
     let dist = length(in.world_pos - u.camera_pos);

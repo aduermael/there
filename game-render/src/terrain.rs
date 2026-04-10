@@ -28,6 +28,10 @@ pub struct Uniforms {
     pub sky_horizon: [f32; 3],
     pub _pad5: f32,
     pub inv_view_proj: [f32; 16],
+    pub sky_ambient: [f32; 3],
+    pub _pad6: f32,
+    pub ground_ambient: [f32; 3],
+    pub _pad7: f32,
 }
 
 pub struct TerrainRenderer {

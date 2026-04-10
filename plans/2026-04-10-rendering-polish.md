@@ -87,7 +87,7 @@ The single biggest visual upgrade. An empty sky screams "prototype." Clouds crea
 
 The current constant ambient makes everything look flat. Real outdoor scenes have rich ambient from sky light above and ground bounce below. This phase transforms the shading across all objects.
 
-- [ ] 2a: Replace constant ambient with hemisphere lighting in all geometry shaders
+- [x] 2a: Replace constant ambient with hemisphere lighting in all geometry shaders
 
   **Approach**: Instead of `ambient_intensity` as a flat scalar, blend between `sky_zenith` (for upward-facing normals) and a ground color (brownish-green, for downward-facing). Formula: `hemisphere = mix(ground_color, sky_color, dot(normal, up) * 0.5 + 0.5)`. This gives terrain subtle blue fill from the sky and warm undertones in crevices.
 

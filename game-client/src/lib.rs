@@ -387,6 +387,10 @@ fn start_render_loop(
                 sky_horizon: atmo.sky_horizon,
                 _pad5: 0.0,
                 inv_view_proj: view_proj.inverse().to_cols_array(),
+                sky_ambient: atmo.sky_ambient,
+                _pad6: 0.0,
+                ground_ambient: atmo.ground_ambient,
+                _pad7: 0.0,
             };
 
             state.renderer.update_uniforms(&uniforms);

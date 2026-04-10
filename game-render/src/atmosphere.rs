@@ -7,6 +7,8 @@ pub struct AtmosphereParams {
     pub sky_horizon: [f32; 3],
     pub fog_color: [f32; 3],
     pub ambient_intensity: f32,
+    pub sky_ambient: [f32; 3],
+    pub ground_ambient: [f32; 3],
 }
 
 pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
@@ -63,6 +65,19 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     // Ambient intensity: 0.15 at night, 0.3 at day
     let ambient_intensity = 0.15 + 0.15 * day_factor;
 
+    // Hemisphere lighting: sky-tinted ambient from above, warm ground bounce from below
+    let sky_ambient = [
+        sky_zenith[0] * ambient_intensity,
+        sky_zenith[1] * ambient_intensity,
+        sky_zenith[2] * ambient_intensity,
+    ];
+    let ground_base = lerp3(&[0.20, 0.15, 0.08], &[0.35, 0.30, 0.15], day_factor);
+    let ground_ambient = [
+        ground_base[0] * ambient_intensity,
+        ground_base[1] * ambient_intensity,
+        ground_base[2] * ambient_intensity,
+    ];
+
     AtmosphereParams {
         sun_dir,
         sun_color,
@@ -70,6 +85,8 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_horizon,
         fog_color,
         ambient_intensity,
+        sky_ambient,
+        ground_ambient,
     }
 }
 
