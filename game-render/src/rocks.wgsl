@@ -6,6 +6,10 @@ struct Uniforms {
     fog_far: f32,
     world_size: f32,
     hm_res: f32,
+    ambient_intensity: f32,
+    sun_color: vec3<f32>,
+    sky_zenith: vec3<f32>,
+    sky_horizon: vec3<f32>,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -42,7 +46,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(cross(dx, dy));
 
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    let lit = in.color * (0.3 + 0.7 * ndl);
+    let lit = in.color * (u.ambient_intensity + (1.0 - u.ambient_intensity) * ndl * u.sun_color);
 
     // Distance fog
     let dist = length(in.world_pos - u.camera_pos);
