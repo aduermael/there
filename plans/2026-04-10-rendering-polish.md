@@ -189,7 +189,7 @@ Grass transforms the ground plane from dead to alive. The user specifically requ
 
 Linear fog is boring. Real atmosphere has exponential falloff and height-dependent density (thicker near ground, thinner up high). This creates the layered depth that makes distant mountains feel *far away*.
 
-- [ ] 5a: Replace linear fog with exponential height fog in all geometry shaders
+- [x] 5a: Replace linear fog with exponential height fog in all geometry shaders
 
   **Approach**: Replace `clamp(dist / fog_far, 0, 1)` with exponential formula: `1.0 - exp(-dist * fog_density)`. Add height component: fog is denser at lower altitudes. Formula: `density = base_density * exp(-height_falloff * height)`. Integrate along the view ray for physically plausible result (or approximate with endpoint evaluation).
 

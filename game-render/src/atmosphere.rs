@@ -6,7 +6,8 @@ pub struct AtmosphereParams {
     pub sky_zenith: [f32; 3],
     pub sky_horizon: [f32; 3],
     pub fog_color: [f32; 3],
-    pub ambient_intensity: f32,
+    pub fog_density: f32,
+    pub fog_height_falloff: f32,
     pub sky_ambient: [f32; 3],
     pub ground_ambient: [f32; 3],
 }
@@ -62,7 +63,6 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     // Fog color matches horizon (what you see in the distance)
     let fog_color = sky_horizon;
 
-    // Ambient intensity: 0.15 at night, 0.3 at day
     let ambient_intensity = 0.15 + 0.15 * day_factor;
 
     // Hemisphere lighting: sky-tinted ambient from above, warm ground bounce from below
@@ -78,13 +78,18 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         ground_base[2] * ambient_intensity,
     ];
 
+    // Exponential height fog: hazier mornings/evenings, clearer noon
+    let fog_density = 0.007 + 0.006 * horizon_glow + 0.002 * (1.0 - day_factor);
+    let fog_height_falloff = 0.04 - 0.015 * horizon_glow;
+
     AtmosphereParams {
         sun_dir,
         sun_color,
         sky_zenith,
         sky_horizon,
         fog_color,
-        ambient_intensity,
+        fog_density,
+        fog_height_falloff,
         sky_ambient,
         ground_ambient,
     }

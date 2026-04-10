@@ -3,10 +3,10 @@ struct Uniforms {
     camera_pos: vec3<f32>,
     sun_dir: vec3<f32>,
     fog_color: vec3<f32>,
-    fog_far: f32,
+    fog_density: f32,
     world_size: f32,
     hm_res: f32,
-    ambient_intensity: f32,
+    fog_height_falloff: f32,
     time: f32,
     sun_color: vec3<f32>,
     sky_zenith: vec3<f32>,
@@ -156,10 +156,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let fresnel = pow(1.0 - max(dot(n, view_dir), 0.0), 3.0);
     let rim = fresnel * u.sky_ambient * 0.8;
 
-    // Distance fog
+    // Exponential height fog: denser in valleys, thinner at altitude
     let dist = length(in.world_pos - u.camera_pos);
-    let fog = clamp(dist / u.fog_far, 0.0, 1.0);
-    let color = mix(lit + rim, u.fog_color, fog);
+    let avg_height = (in.world_pos.y + u.camera_pos.y) * 0.5;
+    let height_atten = exp(-u.fog_height_falloff * max(avg_height, 0.0));
+    let fog = 1.0 - exp(-dist * u.fog_density * height_atten);
+    let color = mix(lit + rim, u.fog_color, clamp(fog, 0.0, 1.0));
 
     return vec4(color, 1.0);
 }
