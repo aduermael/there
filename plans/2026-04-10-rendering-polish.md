@@ -263,7 +263,7 @@ The final polish layer. Currently the renderer writes directly to the swapchain.
 
   **Failure modes**: RGBA16Float may not be supported on all WebGPU targets. Fallback to RGBA8Unorm if needed (less headroom but still works). Safari mobile: verify format support.
 
-- [ ] 7b: Implement tone mapping and color grading in post-process shader
+- [x] 7b: Implement tone mapping and color grading in post-process shader
 
   **Approach**: In `postprocess.wgsl`:
   1. **ACES tone mapping**: Maps HDR → LDR with a filmic curve (preserves highlights, rich shadows)
