@@ -293,7 +293,7 @@ All rendering polish must work in the live multiplayer context — multiple brow
   - `cd game-client && wasm-pack build --target web` succeeds
   - All rendering polish (clouds, hemisphere lighting, terrain noise, grass, fog, trees, post-processing) is present in the browser build
 
-- [ ] 8b: Verify server + client scene consistency
+- [x] 8b: Verify server + client scene consistency
 
   **Approach**: Run the server (`make server`), open two browser tabs connecting to the same room. Verify both clients render the identical scene — same terrain, same rock/tree/grass placement, same atmosphere. Confirm players see each other moving.
 
