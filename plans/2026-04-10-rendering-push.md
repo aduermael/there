@@ -71,7 +71,7 @@ All time-of-day parameters are computed in `atmosphere.rs` and flow through this
 
 Noon looks washed out. The overall palette across all times of day lacks the rich, saturated quality of impressionist paintings. This is the foundation — every subsequent phase looks better on a vibrant base.
 
-- [ ] 1a: Rework atmosphere colors for vibrancy across all times of day
+- [x] 1a: Rework atmosphere colors for vibrancy across all times of day
 
   **Context**: `atmosphere.rs` (lines 33-61) defines sun_color, sky_zenith, sky_horizon, fog_color, sky_ambient, and ground_ambient as time-of-day interpolated colors. Noon sun is `[0.85, 0.82, 0.76]` (neutral), sky_zenith noon is `[0.40, 0.60, 0.90]`.
 

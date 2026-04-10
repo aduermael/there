@@ -21,7 +21,6 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let sun_dir = glam::Vec3::new(east_west, elevation.max(0.01), 0.3).normalize();
 
     // Time-of-day factor: 1.0 at noon (angle=0.25), 0.0 at midnight (angle=0.75)
-    // Using a smooth cosine curve centered on noon
     let day_factor = ((sun_angle - 0.25) * std::f32::consts::TAU).cos() * 0.5 + 0.5;
     let day_factor = day_factor.clamp(0.0, 1.0);
 
@@ -30,48 +29,58 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let dawn_dusk = dawn_dusk.clamp(0.0, 1.0);
     let horizon_glow = dawn_dusk * (1.0 - (day_factor - 0.5).abs() * 2.0).max(0.0);
 
-    // Sun color: white at noon, warm orange at dawn/dusk, dim blue at night
-    let noon_sun = [0.85_f32, 0.82, 0.76];
-    let dawn_sun = [1.0_f32, 0.6, 0.3];
-    let night_sun = [0.2_f32, 0.25, 0.4];
+    // Separate dawn vs dusk: 0.0 at dawn (angle ~0.0), 1.0 at dusk (angle ~0.5)
+    let dusk_blend = smoothstep(0.15, 0.38, sun_angle) * (1.0 - smoothstep(0.62, 0.85, sun_angle));
+
+    // Sun color: warm golden at noon, peach-gold at dawn, deep amber at dusk
+    let noon_sun = [1.05_f32, 0.92, 0.70];
+    let dawn_sun = [1.2_f32, 0.58, 0.25];
+    let dusk_sun = [1.15_f32, 0.42, 0.18];
+    let night_sun = [0.15_f32, 0.20, 0.35];
+    let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),
-        &dawn_sun,
-        horizon_glow * 0.7,
+        &glow_sun,
+        horizon_glow * 0.75,
     );
 
-    // Sky zenith: bright blue at noon, dark blue at night, slight pink at dawn/dusk
-    let noon_zenith = [0.40_f32, 0.60, 0.90];
-    let night_zenith = [0.05_f32, 0.05, 0.15];
-    let dawn_zenith = [0.45_f32, 0.45, 0.75];
+    // Sky zenith: deep blue at noon, cool lavender at dawn, warm purple at dusk
+    let noon_zenith = [0.28_f32, 0.52, 0.95];
+    let night_zenith = [0.06_f32, 0.06, 0.20];
+    let dawn_zenith = [0.38_f32, 0.38, 0.78];
+    let dusk_zenith = [0.30_f32, 0.18, 0.58];
+    let glow_zenith = lerp3(&dawn_zenith, &dusk_zenith, dusk_blend);
     let sky_zenith = lerp3(
         &lerp3(&night_zenith, &noon_zenith, day_factor),
-        &dawn_zenith,
-        horizon_glow * 0.5,
+        &glow_zenith,
+        horizon_glow * 0.55,
     );
 
-    // Sky horizon: light blue at noon, orange/pink at dawn/dusk, dark at night
-    let noon_horizon = [0.55_f32, 0.72, 0.88];
-    let night_horizon = [0.08_f32, 0.08, 0.18];
-    let dawn_horizon = [0.95_f32, 0.55, 0.30];
+    // Sky horizon: warm blue at noon, peach at dawn, deep amber-rose at dusk
+    let noon_horizon = [0.58_f32, 0.75, 0.92];
+    let night_horizon = [0.08_f32, 0.07, 0.18];
+    let dawn_horizon = [1.0_f32, 0.58, 0.32];
+    let dusk_horizon = [1.0_f32, 0.35, 0.12];
+    let glow_horizon = lerp3(&dawn_horizon, &dusk_horizon, dusk_blend);
     let sky_horizon = lerp3(
         &lerp3(&night_horizon, &noon_horizon, day_factor),
-        &dawn_horizon,
-        horizon_glow * 0.8,
+        &glow_horizon,
+        horizon_glow * 0.85,
     );
 
-    // Fog color matches horizon (what you see in the distance)
+    // Fog color matches horizon (atmospheric perspective)
     let fog_color = sky_horizon;
 
-    let ambient_intensity = 0.10 + 0.08 * day_factor;
+    // Ambient intensity: strong base for night readability
+    let ambient_intensity = 0.18 + 0.08 * day_factor;
 
-    // Hemisphere lighting: sky-tinted ambient from above, warm ground bounce from below
+    // Hemisphere lighting: sky-tinted ambient from above, warm earth bounce from below
     let sky_ambient = [
         sky_zenith[0] * ambient_intensity,
         sky_zenith[1] * ambient_intensity,
         sky_zenith[2] * ambient_intensity,
     ];
-    let ground_base = lerp3(&[0.20, 0.15, 0.08], &[0.35, 0.30, 0.15], day_factor);
+    let ground_base = lerp3(&[0.28, 0.22, 0.12], &[0.40, 0.32, 0.14], day_factor);
     let ground_ambient = [
         ground_base[0] * ambient_intensity,
         ground_base[1] * ambient_intensity,
@@ -93,6 +102,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_ambient,
         ground_ambient,
     }
+}
+
+fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 fn lerp3(a: &[f32; 3], b: &[f32; 3], t: f32) -> [f32; 3] {
