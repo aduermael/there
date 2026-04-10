@@ -101,7 +101,7 @@ The current constant ambient makes everything look flat. Real outdoor scenes hav
   - Must replace `ambient_intensity` usage everywhere
   - Result should be more colorful shadows, not just dimmer
 
-- [ ] 2b: Add rim/fresnel lighting for silhouette definition
+- [x] 2b: Add rim/fresnel lighting for silhouette definition
 
   **Approach**: Add a subtle rim light based on `1.0 - dot(normal, view_dir)`. This brightens object edges, creating separation between overlapping silhouettes (critical for trees against terrain, rocks against mountains).
 

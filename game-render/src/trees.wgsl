@@ -60,10 +60,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ndl = max(dot(n, u.sun_dir), 0.0);
     let lit = in.color * (ambient + ndl * u.sun_color);
 
+    // Rim/fresnel lighting for silhouette definition
+    let view_dir = normalize(u.camera_pos - in.world_pos);
+    let fresnel = pow(1.0 - max(dot(n, view_dir), 0.0), 3.0);
+    let rim = fresnel * u.sky_ambient * 0.8;
+
     // Distance fog
     let dist = length(in.world_pos - u.camera_pos);
     let fog = clamp(dist / u.fog_far, 0.0, 1.0);
-    let color = mix(lit, u.fog_color, fog);
+    let color = mix(lit + rim, u.fog_color, fog);
 
     return vec4(color, 1.0);
 }
