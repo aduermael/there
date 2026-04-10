@@ -135,13 +135,14 @@ pub async fn render_frame(
         world_size: game_core::WORLD_SIZE,
         hm_res: game_core::HEIGHTMAP_RES as f32,
         ambient_intensity: atmo.ambient_intensity,
-        _pad2: 0.0,
+        time: 0.0,
         sun_color: atmo.sun_color,
         _pad3: 0.0,
         sky_zenith: atmo.sky_zenith,
         _pad4: 0.0,
         sky_horizon: atmo.sky_horizon,
         _pad5: 0.0,
+        inv_view_proj: view_proj.inverse().to_cols_array(),
     };
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

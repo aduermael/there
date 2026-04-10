@@ -48,6 +48,7 @@ struct GameState {
     local_player_id: Option<PlayerId>,
     last_send_time: f64,
     last_frame_time: f64,
+    time: f32,
 }
 
 #[wasm_bindgen(start)]
@@ -111,6 +112,7 @@ async fn run() {
         local_player_id: None,
         last_send_time: 0.0,
         last_frame_time: js_sys::Date::now(),
+        time: 0.0,
     }));
 
     setup_input(&canvas, state.clone());
@@ -217,6 +219,7 @@ fn start_render_loop(
             let dt = ((now - state.last_frame_time) / 1000.0) as f32;
             let dt = dt.clamp(0.0, 0.1); // cap at 100ms to avoid jumps
             state.last_frame_time = now;
+            state.time += dt;
 
             // Process incoming server messages
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
@@ -376,13 +379,14 @@ fn start_render_loop(
                 world_size: game_core::WORLD_SIZE,
                 hm_res: game_core::HEIGHTMAP_RES as f32,
                 ambient_intensity: atmo.ambient_intensity,
-                _pad2: 0.0,
+                time: state.time,
                 sun_color: atmo.sun_color,
                 _pad3: 0.0,
                 sky_zenith: atmo.sky_zenith,
                 _pad4: 0.0,
                 sky_horizon: atmo.sky_horizon,
                 _pad5: 0.0,
+                inv_view_proj: view_proj.inverse().to_cols_array(),
             };
 
             state.renderer.update_uniforms(&uniforms);

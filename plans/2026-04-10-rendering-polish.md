@@ -56,7 +56,7 @@ pub struct Uniforms {
 
 The single biggest visual upgrade. An empty sky screams "prototype." Clouds create depth, scale, drama, and mood — especially with time-of-day lighting.
 
-- [ ] 1a: Add procedural clouds to sky shader using layered 2D noise
+- [x] 1a: Add procedural clouds to sky shader using layered 2D noise
 
   **Approach**: In `sky.wgsl`, compute cloud coverage using a hash-based noise function (no texture needed). Layer 2-3 octaves of value noise sampled at `(world_ray_xz / cloud_scale)`. Clouds sit at a virtual altitude — reconstruct a ray from the camera through the pixel, intersect with a horizontal plane at cloud height, sample noise at that XZ.
 
