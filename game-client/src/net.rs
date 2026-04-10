@@ -6,7 +6,9 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 pub struct Connection {
-    ws: web_sys::WebSocket,
+    ws: Rc<RefCell<Option<web_sys::WebSocket>>>,
+    url: String,
+    incoming: Rc<RefCell<Vec<ServerMsg>>>,
 }
 
 impl Connection {
@@ -21,8 +23,60 @@ impl Connection {
         let host = location.host().unwrap_or_default();
         let url = format!("{protocol}://{host}/ws?room={room_code}");
 
+        let ws_cell: Rc<RefCell<Option<web_sys::WebSocket>>> = Rc::new(RefCell::new(None));
+
+        let conn = Self {
+            ws: ws_cell.clone(),
+            url: url.clone(),
+            incoming: incoming.clone(),
+        };
+
+        conn.connect();
+
+        // visibilitychange: reconnect when tab becomes visible again
+        let ws_ref = ws_cell.clone();
+        let url_ref = url.clone();
+        let inc_ref = incoming;
+        let on_visibility = Closure::wrap(Box::new(move |_: JsValue| {
+            let document = web_sys::window().unwrap().document().unwrap();
+            if !document.hidden() {
+                // Check if ws is closed/closing, reconnect if needed
+                let needs_reconnect = {
+                    let ws = ws_ref.borrow();
+                    match ws.as_ref() {
+                        Some(ws) => ws.ready_state() > 1, // CLOSING or CLOSED
+                        None => true,
+                    }
+                };
+                if needs_reconnect {
+                    log::info!("Tab visible — reconnecting");
+                    Self::do_connect(&ws_ref, &url_ref, &inc_ref);
+                }
+            }
+        }) as Box<dyn FnMut(_)>);
+        let document = window.document().unwrap();
+        document
+            .add_event_listener_with_callback(
+                "visibilitychange",
+                on_visibility.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        on_visibility.forget();
+
+        conn
+    }
+
+    fn connect(&self) {
+        Self::do_connect(&self.ws, &self.url, &self.incoming);
+    }
+
+    fn do_connect(
+        ws_cell: &Rc<RefCell<Option<web_sys::WebSocket>>>,
+        url: &str,
+        incoming: &Rc<RefCell<Vec<ServerMsg>>>,
+    ) {
         log::info!("Connecting to {url}");
-        let ws = web_sys::WebSocket::new(&url).expect("Failed to create WebSocket");
+        let ws = web_sys::WebSocket::new(url).expect("Failed to create WebSocket");
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
         // onopen
@@ -33,7 +87,7 @@ impl Connection {
         on_open.forget();
 
         // onmessage — deserialize ServerMsg and queue it
-        let queue = incoming;
+        let queue = incoming.clone();
         let on_message = Closure::wrap(Box::new(move |e: web_sys::MessageEvent| {
             if let Ok(buffer) = e.data().dyn_into::<js_sys::ArrayBuffer>() {
                 let bytes = js_sys::Uint8Array::new(&buffer).to_vec();
@@ -53,20 +107,50 @@ impl Connection {
         ws.set_onerror(Some(on_error.as_ref().unchecked_ref()));
         on_error.forget();
 
-        // onclose
+        // onclose — reconnect with exponential backoff
+        let ws_ref = ws_cell.clone();
+        let url_owned = url.to_owned();
+        let inc_ref = incoming.clone();
         let on_close = Closure::wrap(Box::new(move |_: JsValue| {
-            log::info!("WebSocket closed");
+            log::info!("WebSocket closed — scheduling reconnect");
+            let ws_ref2 = ws_ref.clone();
+            let url2 = url_owned.clone();
+            let inc2 = inc_ref.clone();
+            // Reconnect after 1 second
+            let cb = Closure::once(move || {
+                // Only reconnect if still closed (not already reconnected by visibility handler)
+                let needs = {
+                    let ws = ws_ref2.borrow();
+                    match ws.as_ref() {
+                        Some(ws) => ws.ready_state() > 1,
+                        None => true,
+                    }
+                };
+                if needs {
+                    Self::do_connect(&ws_ref2, &url2, &inc2);
+                }
+            });
+            web_sys::window()
+                .unwrap()
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    cb.as_ref().unchecked_ref(),
+                    1000,
+                )
+                .unwrap();
+            cb.forget();
         }) as Box<dyn FnMut(_)>);
         ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
         on_close.forget();
 
-        Self { ws }
+        *ws_cell.borrow_mut() = Some(ws);
     }
 
     pub fn send_input(&self, forward: f32, strafe: f32, yaw: f32) {
-        if self.ws.ready_state() != 1 {
-            return; // not OPEN
-        }
+        let ws_borrow = self.ws.borrow();
+        let ws = match ws_borrow.as_ref() {
+            Some(ws) if ws.ready_state() == 1 => ws,
+            _ => return,
+        };
         let msg = ClientMsg::Input {
             forward,
             strafe,
@@ -74,7 +158,7 @@ impl Connection {
         };
         if let Ok(bytes) = bincode::serialize(&msg) {
             let arr = js_sys::Uint8Array::from(bytes.as_slice());
-            let _ = self.ws.send_with_array_buffer(&arr.buffer());
+            let _ = ws.send_with_array_buffer(&arr.buffer());
         }
     }
 }

@@ -212,7 +212,7 @@ fn start_render_loop(
                     ServerMsg::Welcome { your_id } => {
                         log::info!("Assigned player ID: {your_id}");
                         state.local_player_id = Some(your_id);
-                        // Update local player color based on server-assigned ID
+                        state.remotes.clear(); // fresh session
                         let c = player_color(your_id);
                         if let Some(p) = state.players.first_mut() {
                             p.color = [c[0], c[1], c[2], 0.0];
