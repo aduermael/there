@@ -1,14 +1,18 @@
+use crate::grass::GrassInstance;
 use crate::rocks::RockInstance;
 use crate::trees::TreeInstance;
 
-/// Deterministic scatter placement for rocks and trees based on heightmap.
-pub fn scatter_objects(heightmap: &[f32]) -> (Vec<RockInstance>, Vec<TreeInstance>) {
+/// Deterministic scatter placement for rocks, trees, and grass based on heightmap.
+pub fn scatter_objects(
+    heightmap: &[f32],
+) -> (Vec<RockInstance>, Vec<TreeInstance>, Vec<GrassInstance>) {
     let hm_res = game_core::HEIGHTMAP_RES as usize;
     let world_size = game_core::WORLD_SIZE;
     let texel_size = world_size / hm_res as f32;
 
     let mut rocks = Vec::new();
     let mut trees = Vec::new();
+    let mut grass = Vec::new();
 
     // Grid-based placement: check every Nth cell
     let rock_step = 8; // check every 8 texels for rock candidates
@@ -98,13 +102,60 @@ pub fn scatter_objects(heightmap: &[f32]) -> (Vec<RockInstance>, Vec<TreeInstanc
         }
     }
 
+    // Grass: height 8–17 (grass zones), gentle slopes, high density
+    let grass_step = 2;
+    for gz in (0..hm_res).step_by(grass_step) {
+        for gx in (0..hm_res).step_by(grass_step) {
+            let h = heightmap[gz * hm_res + gx];
+            if h < 8.0 || h > 17.0 {
+                continue;
+            }
+
+            let hash = cell_hash(gx as u32, gz as u32, 0xCAFE);
+            // ~78% acceptance rate for dense coverage
+            if (hash & 0xFF) > 200 {
+                continue;
+            }
+
+            let slope = sample_slope(heightmap, hm_res, gx, gz, texel_size);
+            if slope > 0.3 {
+                continue;
+            }
+
+            let jx = ((hash >> 8) & 0xFF) as f32 / 255.0;
+            let jz = ((hash >> 16) & 0xFF) as f32 / 255.0;
+            let wx = (gx as f32 + jx * grass_step as f32) * texel_size;
+            let wz = (gz as f32 + jz * grass_step as f32) * texel_size;
+            let wy = game_core::terrain::sample_height(heightmap, wx, wz);
+
+            let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
+            let scale = 0.5 + size_hash * 0.8; // 0.5 to 1.3
+
+            // Green color with variation
+            let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
+            let r = 0.25 + color_hash * 0.15;
+            let g = 0.45 + color_hash * 0.3;
+            let b = 0.12 + color_hash * 0.08;
+
+            // Random Y rotation
+            let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
+            let rotation = rot_hash * std::f32::consts::TAU;
+
+            grass.push(GrassInstance {
+                pos_scale: [wx, wy, wz, scale],
+                color_rotation: [r, g, b, rotation],
+            });
+        }
+    }
+
     log::info!(
-        "Scatter: {} rocks, {} trees placed",
+        "Scatter: {} rocks, {} trees, {} grass placed",
         rocks.len(),
-        trees.len()
+        trees.len(),
+        grass.len(),
     );
 
-    (rocks, trees)
+    (rocks, trees, grass)
 }
 
 /// Compute terrain slope magnitude at a heightmap texel.

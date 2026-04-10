@@ -2,8 +2,8 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    PlayerInstance, PlayerRenderer, RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer,
-    Uniforms, create_depth_texture, scatter_objects,
+    GrassRenderer, PlayerInstance, PlayerRenderer, RockRenderer, SkyRenderer, TerrainRenderer,
+    TreeRenderer, Uniforms, create_depth_texture, scatter_objects,
 };
 
 pub struct Renderer {
@@ -19,6 +19,7 @@ pub struct Renderer {
     players: PlayerRenderer,
     rocks: RockRenderer,
     trees: TreeRenderer,
+    grass: GrassRenderer,
 }
 
 impl Renderer {
@@ -161,10 +162,11 @@ impl Renderer {
         // Player renderer
         let players = PlayerRenderer::new(&device, format, &uniform_bgl);
 
-        // Scene objects (rocks + trees)
-        let (rock_instances, tree_instances) = scatter_objects(heightmap_data);
+        // Scene objects (rocks + trees + grass)
+        let (rock_instances, tree_instances, grass_instances) = scatter_objects(heightmap_data);
         let rocks = RockRenderer::new(&device, &queue, format, &uniform_bgl, &rock_instances);
         let trees = TreeRenderer::new(&device, &queue, format, &uniform_bgl, &tree_instances);
+        let grass = GrassRenderer::new(&device, &queue, format, &uniform_bgl, &grass_instances);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -186,6 +188,7 @@ impl Renderer {
             players,
             rocks,
             trees,
+            grass,
         }
     }
 
@@ -267,6 +270,7 @@ impl Renderer {
             self.sky.draw(&mut pass, &self.uniform_bind_group);
             self.terrain
                 .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
+            self.grass.draw(&mut pass, &self.uniform_bind_group);
             self.rocks.draw(&mut pass, &self.uniform_bind_group);
             self.trees.draw(&mut pass, &self.uniform_bind_group);
             self.players.draw(

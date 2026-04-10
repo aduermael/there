@@ -144,7 +144,7 @@ The terrain is the largest surface on screen. Breaking up its flat monotone biom
 
 Grass transforms the ground plane from dead to alive. The user specifically requested this. Individual blades catching the light create that impressionist field-of-flowers feel.
 
-- [ ] 4a: Create grass blade geometry system with instanced rendering
+- [x] 4a: Create grass blade geometry system with instanced rendering
 
   **Approach**: New `grass.rs` + `grass.wgsl` in `game-render`. Each grass blade is a simple quad (2 triangles) or a 3-vertex triangle. Scatter instances across grass-zone terrain (height 8-17, slope < 0.3) using the same hash-based placement as `scatter.rs` but at much higher density. Each instance stores position, height, color, and a random rotation.
 

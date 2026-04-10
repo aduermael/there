@@ -1,6 +1,6 @@
 use game_render::{
-    compute_atmosphere, create_depth_texture, scatter_objects, RockRenderer, SkyRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms,
+    compute_atmosphere, create_depth_texture, scatter_objects, GrassRenderer, RockRenderer,
+    SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms,
 };
 use wgpu::util::DeviceExt;
 
@@ -176,12 +176,14 @@ pub async fn render_frame(
     // --- Sky renderer ---
     let sky = SkyRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl);
 
-    // --- Scene objects (rocks + trees) ---
-    let (rock_instances, tree_instances) = scatter_objects(&heightmap_data);
+    // --- Scene objects (rocks + trees + grass) ---
+    let (rock_instances, tree_instances, grass_instances) = scatter_objects(&heightmap_data);
     let rock_renderer =
         RockRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &rock_instances);
     let tree_renderer =
         TreeRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &tree_instances);
+    let grass_renderer =
+        GrassRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &grass_instances);
 
     // --- Render pass ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -217,6 +219,7 @@ pub async fn render_frame(
 
         sky.draw(&mut pass, &uniform_bind_group);
         terrain.draw(&mut pass, &uniform_bind_group, camera_pos, &view_proj);
+        grass_renderer.draw(&mut pass, &uniform_bind_group);
         rock_renderer.draw(&mut pass, &uniform_bind_group);
         tree_renderer.draw(&mut pass, &uniform_bind_group);
     }
