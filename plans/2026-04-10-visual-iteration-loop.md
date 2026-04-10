@@ -148,7 +148,7 @@ Low-poly procedural meshes scattered on the terrain. Implemented in `game-render
 - [x] 3a: Procedural rock mesh generation + instanced rock renderer in `game-render`
 - [x] 3b: Procedural tree mesh generation + instanced tree renderer in `game-render`
 - [x] 3c: Deterministic scatter placement system (height/slope rules, seed-based)
-- [ ] 3d: Integrate into both snapshot CLI and browser client, verify visually
+- [x] 3d: Integrate into both snapshot CLI and browser client, verify visually
 
 ---
 

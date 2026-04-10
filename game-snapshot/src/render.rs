@@ -1,4 +1,6 @@
-use game_render::{create_depth_texture, TerrainRenderer, Uniforms};
+use game_render::{
+    create_depth_texture, scatter_objects, RockRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+};
 use wgpu::util::DeviceExt;
 
 const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -171,6 +173,13 @@ pub async fn render_frame(
         &heightmap_data,
     );
 
+    // --- Scene objects (rocks + trees) ---
+    let (rock_instances, tree_instances) = scatter_objects(&heightmap_data);
+    let rock_renderer =
+        RockRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &rock_instances);
+    let tree_renderer =
+        TreeRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &tree_instances);
+
     // --- Render pass ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
@@ -204,6 +213,8 @@ pub async fn render_frame(
         });
 
         terrain.draw(&mut pass, &uniform_bind_group, camera_pos, &view_proj);
+        rock_renderer.draw(&mut pass, &uniform_bind_group);
+        tree_renderer.draw(&mut pass, &uniform_bind_group);
     }
 
     // --- Pixel readback ---

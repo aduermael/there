@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 
 use crate::DEPTH_FORMAT;
 
-const MAX_ROCKS: usize = 512;
+const MAX_ROCKS: usize = 1024;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

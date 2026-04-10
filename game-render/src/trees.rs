@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 
 use crate::DEPTH_FORMAT;
 
-const MAX_TREES: usize = 512;
+const MAX_TREES: usize = 1536;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

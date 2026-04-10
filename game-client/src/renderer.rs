@@ -1,7 +1,10 @@
 use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
-use game_render::{PlayerInstance, PlayerRenderer, TerrainRenderer, Uniforms, create_depth_texture};
+use game_render::{
+    PlayerInstance, PlayerRenderer, RockRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    create_depth_texture, scatter_objects,
+};
 
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
@@ -13,6 +16,8 @@ pub struct Renderer {
     uniform_bind_group: wgpu::BindGroup,
     terrain: TerrainRenderer,
     players: PlayerRenderer,
+    rocks: RockRenderer,
+    trees: TreeRenderer,
 }
 
 impl Renderer {
@@ -152,6 +157,11 @@ impl Renderer {
         // Player renderer
         let players = PlayerRenderer::new(&device, format, &uniform_bgl);
 
+        // Scene objects (rocks + trees)
+        let (rock_instances, tree_instances) = scatter_objects(heightmap_data);
+        let rocks = RockRenderer::new(&device, &queue, format, &uniform_bgl, &rock_instances);
+        let trees = TreeRenderer::new(&device, &queue, format, &uniform_bgl, &tree_instances);
+
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
             width,
@@ -169,6 +179,8 @@ impl Renderer {
             uniform_bind_group,
             terrain,
             players,
+            rocks,
+            trees,
         }
     }
 
@@ -249,6 +261,8 @@ impl Renderer {
 
             self.terrain
                 .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
+            self.rocks.draw(&mut pass, &self.uniform_bind_group);
+            self.trees.draw(&mut pass, &self.uniform_bind_group);
             self.players.draw(
                 &mut pass,
                 &self.uniform_bind_group,
