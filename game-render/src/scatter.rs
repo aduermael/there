@@ -104,8 +104,8 @@ pub fn scatter_objects(
 
     // --- Grass: patch-based distribution with rock-aware placement ---
 
-    // Pass 1: Identify patch centers on a coarse grid
-    let patch_step = 10;
+    // Pass 1: Identify patch centers — fewer but larger for clearer meadow clusters
+    let patch_step = 12;
     let mut patches: Vec<(f32, f32, f32)> = Vec::new(); // (wx, wz, radius)
     for gz in (0..hm_res).step_by(patch_step) {
         for gx in (0..hm_res).step_by(patch_step) {
@@ -114,13 +114,13 @@ pub fn scatter_objects(
                 continue;
             }
             let hash = cell_hash(gx as u32, gz as u32, 0xFACE);
-            // ~45% of coarse cells become patch centers
-            if (hash & 0xFF) > 115 {
+            // ~35% acceptance — fewer patches with more bare ground between
+            if (hash & 0xFF) > 90 {
                 continue;
             }
             let wx = gx as f32 * texel_size;
             let wz = gz as f32 * texel_size;
-            let radius = 3.0 + ((hash >> 8) & 0xFF) as f32 / 255.0 * 3.0; // 3-6 texels
+            let radius = 4.0 + ((hash >> 8) & 0xFF) as f32 / 255.0 * 4.0; // 4-8 texels
             patches.push((wx, wz, radius * texel_size));
         }
     }
@@ -153,8 +153,8 @@ pub fn scatter_objects(
                 dx * dx + dz * dz < pr * pr
             });
 
-            // Inside patch: ~85% acceptance, outside: ~12%
-            let threshold = if in_patch { 217 } else { 30 };
+            // Inside patch: ~90% dense fill, outside: ~8% sparse strays
+            let threshold = if in_patch { 230 } else { 20 };
             if (hash & 0xFF) > threshold {
                 continue;
             }
@@ -166,15 +166,15 @@ pub fn scatter_objects(
             let wy = game_core::terrain::sample_height(heightmap, wx, wz);
 
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
-            let scale = 0.5 + size_hash * 0.8;
+            let scale = 0.7 + size_hash * 0.6; // 0.7-1.3 — all blades visible
 
-            // Match blade color to terrain color with green-ish variation
-            let terrain_col = terrain_color_at_height(wy);
+            // Match blade color to terrain — same noise-based color as terrain.wgsl
+            let terrain_col = terrain_color_at(wy, wx, wz);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let var = color_hash * 0.15 - 0.075; // ±7.5% variation
+            let var = color_hash * 0.08 - 0.04; // ±4% random per-blade variation
             let r = (terrain_col[0] + var).max(0.05);
-            let g = (terrain_col[1] + var + 0.06).max(0.10); // slightly greener
-            let b = (terrain_col[2] + var - 0.02).max(0.03);
+            let g = (terrain_col[1] + var + 0.03).max(0.10); // slight green push
+            let b = (terrain_col[2] + var - 0.01).max(0.03);
 
             let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
@@ -214,13 +214,13 @@ pub fn scatter_objects(
             let size_hash = ((hash >> 16) & 0xFF) as f32 / 255.0;
             let scale = 0.4 + size_hash * 0.6;
 
-            // Match blade color to terrain at rock base
-            let terrain_col = terrain_color_at_height(gy);
+            // Match blade color to terrain at rock base — same noise matching
+            let terrain_col = terrain_color_at(gy, gx, gz);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let var = color_hash * 0.12 - 0.06;
+            let var = color_hash * 0.08 - 0.04;
             let r = (terrain_col[0] + var).max(0.05);
-            let g = (terrain_col[1] + var + 0.04).max(0.10);
-            let b = (terrain_col[2] + var - 0.02).max(0.03);
+            let g = (terrain_col[1] + var + 0.03).max(0.10);
+            let b = (terrain_col[2] + var - 0.01).max(0.03);
 
             let rot_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
@@ -242,23 +242,95 @@ pub fn scatter_objects(
     (rocks, trees, grass)
 }
 
-/// Terrain color at a given height (matches terrain.wgsl height-based coloring).
-fn terrain_color_at_height(h: f32) -> [f32; 3] {
+/// Terrain color at a given position — matches terrain.wgsl noise-based coloring.
+/// Evaluates the same hash2/value_noise and per-biome hue/brightness shifts.
+fn terrain_color_at(h: f32, wx: f32, wz: f32) -> [f32; 3] {
     let sand = [0.76_f32, 0.70, 0.50];
     let grass = [0.32_f32, 0.54, 0.22];
     let rock = [0.50_f32, 0.45, 0.40];
     let sg = smoothstep_f32(8.0, 14.0, h);
     let gr = smoothstep_f32(18.0, 24.0, h);
-    let mid = [
-        sand[0] + (grass[0] - sand[0]) * sg,
-        sand[1] + (grass[1] - sand[1]) * sg,
-        sand[2] + (grass[2] - sand[2]) * sg,
+
+    let mut base = [
+        sand[0] + (grass[0] - sand[0]) * sg + (rock[0] - (sand[0] + (grass[0] - sand[0]) * sg)) * gr,
+        sand[1] + (grass[1] - sand[1]) * sg + (rock[1] - (sand[1] + (grass[1] - sand[1]) * sg)) * gr,
+        sand[2] + (grass[2] - sand[2]) * sg + (rock[2] - (sand[2] + (grass[2] - sand[2]) * sg)) * gr,
     ];
-    [
-        mid[0] + (rock[0] - mid[0]) * gr,
-        mid[1] + (rock[1] - mid[1]) * gr,
-        mid[2] + (rock[2] - mid[2]) * gr,
-    ]
+
+    // Same 3-scale noise as terrain.wgsl
+    let n_large = value_noise(wx * 0.12, wz * 0.12) * 2.0 - 1.0;
+    let n_med = value_noise(wx * 0.25 + 37.0, wz * 0.25 + 91.0) * 2.0 - 1.0;
+    let n_fine = value_noise(wx * 0.45, wz * 0.45) * 2.0 - 1.0;
+    let noise = n_large * 0.6 + n_med * 0.25 + n_fine * 0.15;
+
+    // Per-biome hue shifts (grass zone dominates for h 8-17)
+    let grass_hue = [
+        0.04 * n_large + (-0.02) * n_med,
+        -0.02 * n_large + 0.03 * n_med,
+        -0.03 * n_large + (-0.01) * n_med,
+    ];
+    let sand_hue = [
+        0.03 * n_large + (-0.02) * n_med,
+        0.01 * n_large + (-0.01) * n_med,
+        -0.04 * n_large + 0.03 * n_med,
+    ];
+    let grass_bright = noise * 0.12;
+    let sand_bright = noise * 0.10;
+
+    // Blend hue/brightness by biome
+    let hue = [
+        sand_hue[0] + (grass_hue[0] - sand_hue[0]) * sg,
+        sand_hue[1] + (grass_hue[1] - sand_hue[1]) * sg,
+        sand_hue[2] + (grass_hue[2] - sand_hue[2]) * sg,
+    ];
+    let brightness = sand_bright + (grass_bright - sand_bright) * sg;
+
+    base[0] = (base[0] + hue[0] + base[0] * brightness).max(0.02);
+    base[1] = (base[1] + hue[1] + base[1] * brightness).max(0.02);
+    base[2] = (base[2] + hue[2] + base[2] * brightness).max(0.02);
+
+    // Flat-terrain boost (grass is placed on flat terrain, so apply full boost)
+    let flat_boost = 0.08 * sg * (1.0 - gr);
+    base[0] = base[0] * (1.0 + flat_boost) + (-0.01) * flat_boost;
+    base[1] = base[1] * (1.0 + flat_boost) + 0.02 * flat_boost;
+    base[2] = base[2] * (1.0 + flat_boost) + (-0.01) * flat_boost;
+
+    base
+}
+
+/// WGSL-matching hash2 for noise
+fn hash2_f32(px: f32, py: f32) -> f32 {
+    let mut p3x = fract_f32(px * 0.1031);
+    let mut p3y = fract_f32(py * 0.1031);
+    let mut p3z = fract_f32(px * 0.1031);
+    let d = p3x * (p3y + 33.33) + p3y * (p3z + 33.33) + p3z * (p3x + 33.33);
+    p3x += d;
+    p3y += d;
+    p3z += d;
+    fract_f32((p3x + p3y) * p3z)
+}
+
+/// WGSL-matching value noise
+fn value_noise(px: f32, py: f32) -> f32 {
+    let ix = px.floor();
+    let iy = py.floor();
+    let fx = px - ix;
+    let fy = py - iy;
+    let sx = fx * fx * (3.0 - 2.0 * fx);
+    let sy = fy * fy * (3.0 - 2.0 * fy);
+
+    let a = hash2_f32(ix, iy);
+    let b = hash2_f32(ix + 1.0, iy);
+    let c = hash2_f32(ix, iy + 1.0);
+    let d = hash2_f32(ix + 1.0, iy + 1.0);
+
+    let ab = a + (b - a) * sx;
+    let cd = c + (d - c) * sx;
+    ab + (cd - ab) * sy
+}
+
+fn fract_f32(x: f32) -> f32 {
+    x - x.floor()
 }
 
 fn smoothstep_f32(edge0: f32, edge1: f32, x: f32) -> f32 {

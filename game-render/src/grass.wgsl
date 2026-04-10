@@ -60,7 +60,10 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let n = compute_flat_normal(in.world_pos);
+    // Bias normal upward for lighting: grass should catch sunlight like terrain,
+    // not be dark from horizontal face normals. Blend 60% up + 40% face normal.
+    let face_n = compute_flat_normal(in.world_pos);
+    let n = normalize(mix(face_n, vec3(0.0, 1.0, 0.0), 0.6));
 
     // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
     let grad = smoothstep(0.0, 0.3, in.bend_factor);

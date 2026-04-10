@@ -194,7 +194,7 @@ The current grass is thin rectangular blades that don't integrate well with the 
 
   **Open question**: Whether to use a curved 6-vertex blade (3 segments) or keep 4-vertex quads. 6-vertex gives nicer wind deformation but doubles triangle count. Curved may be needed for the "fluffy" feel — decide during implementation based on visual result.
 
-- [ ] 4b: Improve grass distribution, color matching, and ground integration
+- [x] 4b: Improve grass distribution, color matching, and ground integration
 
   **Context**: `scatter.rs` (lines 105-187) places grass in 3 passes: patch detection (45% of 10-texel grid), dense fill within patches (85%), sparse fill outside (12%), and rock rings. Blade color (lines 246-262) is computed from height-based terrain zones with ±7.5% variation.
 
