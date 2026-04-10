@@ -16,7 +16,7 @@ snapshot: snapshot-build
 	@ls -lh $(SNAPSHOT_DIR)/*.png
 
 client:
-	cd game-client && wasm-pack build --target web
+	cd game-client && wasm-pack build --target web --out-dir ../web/pkg
 
 server:
 	cargo build --release -p game-server

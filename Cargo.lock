@@ -614,6 +614,7 @@ dependencies = [
  "futures-util",
  "game-core",
  "glam",
+ "http",
  "log",
  "serde",
  "tokio",

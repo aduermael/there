@@ -11,6 +11,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 type SharedRoomManager = Arc<RwLock<RoomManager>>;
 
@@ -32,6 +33,10 @@ async fn main() {
         .route("/", get(handle_root))
         .route("/ws", get(handle_ws))
         .fallback_service(serve)
+        .layer(SetResponseHeaderLayer::overriding(
+            http::header::CACHE_CONTROL,
+            http::HeaderValue::from_static("no-cache, no-store, must-revalidate"),
+        ))
         .with_state(rooms);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 21617));
