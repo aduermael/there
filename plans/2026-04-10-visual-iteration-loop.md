@@ -84,7 +84,7 @@ Move platform-agnostic rendering code into a new workspace crate. This is a pure
 - `bytemuck` derive macros on `Uniforms` and `PlayerInstance` — need `bytemuck` dep in `game-render`
 
 - [x] 1a: Create `game-render` crate with terrain renderer, player renderer, shaders, and shared types
-- [ ] 1b: Refactor `game-client` to depend on `game-render`, verify browser build (`wasm-pack build`)
+- [x] 1b: Refactor `game-client` to depend on `game-render`, verify browser build (`wasm-pack build`)
 
 ---
 

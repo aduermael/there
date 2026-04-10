@@ -7,17 +7,14 @@ use wasm_bindgen::JsCast;
 mod camera;
 mod input;
 mod net;
-mod player;
 mod renderer;
-mod terrain;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
+use game_render::{player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
-use player::{player_color, PlayerInstance};
 use renderer::Renderer;
-use terrain::Uniforms;
 
 #[wasm_bindgen(inline_js = "
 export function hud_set_room(code) {

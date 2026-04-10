@@ -8,6 +8,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 game-core = { path = "../game-core" }
+game-render = { path = "../game-render" }
 bincode = { workspace = true }
 glam = { workspace = true }
 log = { workspace = true }

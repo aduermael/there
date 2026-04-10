@@ -1,8 +1,7 @@
 use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
-use crate::player::{PlayerInstance, PlayerRenderer};
-use crate::terrain::{self, TerrainRenderer, Uniforms};
+use game_render::{PlayerInstance, PlayerRenderer, TerrainRenderer, Uniforms, create_depth_texture};
 
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
@@ -114,7 +113,7 @@ impl Renderer {
             heightmap_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // Depth texture
-        let depth_view = terrain::create_depth_texture(&device, width, height);
+        let depth_view = create_depth_texture(&device, width, height);
 
         // Uniform buffer + bind group (shared across pipelines)
         let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -187,7 +186,7 @@ impl Renderer {
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
-            self.depth_view = terrain::create_depth_texture(&self.device, width, height);
+            self.depth_view = create_depth_texture(&self.device, width, height);
         }
     }
 
