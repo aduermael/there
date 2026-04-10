@@ -12,6 +12,7 @@ struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) bend_factor: f32,
 };
 
 @vertex
@@ -49,13 +50,22 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
     out.color = in.inst_color_rotation.rgb;
+    out.bend_factor = in.bend;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
-    let lit = hemisphere_lighting(n, in.color);
+
+    // Blade color gradient: darken base (ground shadow), brighten tips (sunlit)
+    let base_darken = smoothstep(0.0, 0.25, in.bend_factor); // 0→1 over bottom 25%
+    var blade_color = in.color * (0.6 + 0.4 * base_darken);  // base at 60%, tip at 100%
+    // Tips slightly more saturated
+    let tip_boost = smoothstep(0.6, 1.0, in.bend_factor) * 0.08;
+    blade_color.g += tip_boost;
+
+    let lit = hemisphere_lighting(n, blade_color);
     let color = apply_fog(in.world_pos, lit);
     return vec4(color, 1.0);
 }

@@ -168,10 +168,13 @@ pub fn scatter_objects(
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
             let scale = 0.5 + size_hash * 0.8;
 
+            // Match blade color to terrain color with green-ish variation
+            let terrain_col = terrain_color_at_height(wy);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let r = 0.25 + color_hash * 0.15;
-            let g = 0.45 + color_hash * 0.3;
-            let b = 0.12 + color_hash * 0.08;
+            let var = color_hash * 0.15 - 0.075; // ±7.5% variation
+            let r = (terrain_col[0] + var).max(0.05);
+            let g = (terrain_col[1] + var + 0.06).max(0.10); // slightly greener
+            let b = (terrain_col[2] + var - 0.02).max(0.03);
 
             let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
@@ -188,7 +191,7 @@ pub fn scatter_objects(
         let rx = rock.pos_scale[0];
         let rz = rock.pos_scale[2];
         let rock_scale = rock.pos_scale[3];
-        let ring_radius = 2.0 + rock_scale * 1.0; // 2-4 units around rock
+        let ring_radius = 2.0 + rock_scale * 1.0;
         let ring_samples = 12;
 
         for i in 0..ring_samples {
@@ -204,7 +207,6 @@ pub fn scatter_objects(
             let gz = rz + angle.sin() * dist;
             let gy = game_core::terrain::sample_height(heightmap, gx, gz);
 
-            // Relaxed height filter (rocks sit on higher terrain)
             if gy < 8.0 || gy > 20.0 {
                 continue;
             }
@@ -212,10 +214,13 @@ pub fn scatter_objects(
             let size_hash = ((hash >> 16) & 0xFF) as f32 / 255.0;
             let scale = 0.4 + size_hash * 0.6;
 
+            // Match blade color to terrain at rock base
+            let terrain_col = terrain_color_at_height(gy);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let r = 0.22 + color_hash * 0.12;
-            let g = 0.40 + color_hash * 0.25;
-            let b = 0.10 + color_hash * 0.08;
+            let var = color_hash * 0.12 - 0.06;
+            let r = (terrain_col[0] + var).max(0.05);
+            let g = (terrain_col[1] + var + 0.04).max(0.10);
+            let b = (terrain_col[2] + var - 0.02).max(0.03);
 
             let rot_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
@@ -235,6 +240,30 @@ pub fn scatter_objects(
     );
 
     (rocks, trees, grass)
+}
+
+/// Terrain color at a given height (matches terrain.wgsl height-based coloring).
+fn terrain_color_at_height(h: f32) -> [f32; 3] {
+    let sand = [0.76_f32, 0.70, 0.50];
+    let grass = [0.32_f32, 0.54, 0.22];
+    let rock = [0.50_f32, 0.45, 0.40];
+    let sg = smoothstep_f32(8.0, 14.0, h);
+    let gr = smoothstep_f32(18.0, 24.0, h);
+    let mid = [
+        sand[0] + (grass[0] - sand[0]) * sg,
+        sand[1] + (grass[1] - sand[1]) * sg,
+        sand[2] + (grass[2] - sand[2]) * sg,
+    ];
+    [
+        mid[0] + (rock[0] - mid[0]) * gr,
+        mid[1] + (rock[1] - mid[1]) * gr,
+        mid[2] + (rock[2] - mid[2]) * gr,
+    ]
+}
+
+fn smoothstep_f32(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// Compute terrain slope magnitude at a heightmap texel.

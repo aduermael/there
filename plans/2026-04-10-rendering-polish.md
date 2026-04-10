@@ -428,7 +428,7 @@ Three problems: blades are pointy triangles (should be simple rectangles), distr
 
   **Failure modes**: Patches too large = looks uniform again. Patches too small = looks spotted/diseased. Aim for natural meadow feel — some areas lush, some areas bare earth showing through terrain noise (Phase 3).
 
-- [ ] 11c: Improve grass-ground color blending
+- [x] 11c: Improve grass-ground color blending
 
   **Approach**: The disconnect comes from grass being fully opaque with colors that don't match the terrain beneath. Fix in two ways:
 
