@@ -357,7 +357,7 @@ The noon snapshot is washed out / burnt. Root cause: multiple compounding factor
 4. S-curve contrast at 0.5 strength flattens bright regions (smoothstep plateaus above 0.7)
 5. Vignette 0.4 edge darkening makes the center burn more obvious by contrast
 
-- [ ] 10a: Tune atmosphere and post-processing for balanced noon exposure
+- [x] 10a: Tune atmosphere and post-processing for balanced noon exposure
 
   **Approach**: Adjust in two places:
 

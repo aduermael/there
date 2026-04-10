@@ -41,14 +41,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Saturation boost (ACES desaturates, compensate)
     let grey = vec3(luminance);
-    color = mix(grey, color, 1.15);
+    color = mix(grey, color, 1.08);
 
     // Gentle S-curve contrast (half-strength to avoid crushing)
-    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.5);
+    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.3);
 
     // Vignette: smooth radial darkening at edges
     let center = in.uv - 0.5;
-    let vignette = 1.0 - dot(center, center) * 0.4;
+    let vignette = 1.0 - dot(center, center) * 0.3;
     color *= vignette;
 
     return vec4(color, 1.0);
