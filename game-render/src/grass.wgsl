@@ -39,13 +39,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     var local = rotated * scale * fade;
 
-    // Wind animation: displace tip vertex based on time + position hash
+    // Wind animation: wider blades sway more dramatically
     let wind_phase = base_pos.x * 0.15 + base_pos.z * 0.1;
-    let wind_base = sin(u.time * 1.8 + wind_phase) * 0.15;
-    let wind_detail = sin(u.time * 3.7 + wind_phase * 2.3) * 0.05;
-    let wind = (wind_base + wind_detail) * in.bend * fade;
+    let wind_base = sin(u.time * 1.8 + wind_phase) * 0.22;
+    let wind_detail = sin(u.time * 3.7 + wind_phase * 2.3) * 0.08;
+    let wind_gust = sin(u.time * 0.7 + wind_phase * 0.3) * 0.06; // slow gusts
+    let wind = (wind_base + wind_detail + wind_gust) * in.bend * fade;
     local.x += wind;
-    local.z += wind * 0.3;
+    local.z += wind * 0.4;
 
     let world_pos = local + base_pos;
 
@@ -61,12 +62,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
 
-    // Blade color gradient: darken base (ground shadow), brighten tips (sunlit)
-    let base_darken = smoothstep(0.0, 0.25, in.bend_factor); // 0→1 over bottom 25%
-    var blade_color = in.color * (0.6 + 0.4 * base_darken);  // base at 60%, tip at 100%
-    // Tips slightly more saturated
-    let tip_boost = smoothstep(0.6, 1.0, in.bend_factor) * 0.08;
-    blade_color.g += tip_boost;
+    // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
+    let grad = smoothstep(0.0, 0.3, in.bend_factor);
+    var blade_color = in.color * (0.85 + 0.25 * grad);  // base at 85%, tip at 110%
+    // Tips luminous — brighter and greener (sunlit translucent feel)
+    let tip_glow = smoothstep(0.3, 1.0, in.bend_factor);
+    blade_color.g += tip_glow * 0.18;
+    blade_color.r += tip_glow * 0.05;
+    blade_color.b += tip_glow * 0.03;
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, blade_color, shadow);

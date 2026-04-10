@@ -177,7 +177,7 @@ SSAO is "much better but still a bit dirty." The remaining issues are: blur blee
 
 The current grass is thin rectangular blades that don't integrate well with the ground. The user wants "fluffy, patchy, not everywhere" — like Breath of the Wild's iconic grass fields that sway in the wind as soft, luminous tufts.
 
-- [ ] 4a: Redesign grass blade geometry for a softer, tuftier look
+- [x] 4a: Redesign grass blade geometry for a softer, tuftier look
 
   **Context**: `grass.rs` (lines 183-198) generates a 4-vertex quad: base width 0.08, tip width 0.04, height 0.6. Each blade is a flat rectangle with wind bend. The grass.wgsl fragment applies hemisphere lighting + fog.
 

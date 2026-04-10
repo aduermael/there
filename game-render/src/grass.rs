@@ -179,20 +179,29 @@ impl GrassRenderer {
 /// Vertex with position and bend factor (0 at base, 1 at tip).
 type GrassVertex = [f32; 4]; // [x, y, z, bend]
 
-/// Generate a single grass blade as a rectangular quad (2 triangles), narrower at top.
+/// Generate a curved grass blade: 3 segments (base → mid → tip), 6 vertices, 4 triangles.
+/// Wider at base for a tuft-like silhouette, slight mid-height lean for natural curve.
 fn generate_grass_blade() -> (Vec<GrassVertex>, Vec<u32>) {
-    let base_hw = 0.04; // half-width at base (~0.08 total)
-    let top_hw = 0.02;  // half-width at top (~0.04 total)
-    let height = 0.6;
+    let base_hw = 0.14;  // half-width at base (~0.28 total)
+    let mid_hw = 0.10;   // half-width at mid (~0.20 total)
+    let tip_hw = 0.03;   // half-width at tip (~0.06 total)
+    let mid_h = 0.25;
+    let tip_h = 0.60;
+    let lean = 0.03;     // slight X offset at mid for natural curve
 
     let verts = vec![
-        [-base_hw, 0.0, 0.0, 0.0],   // 0: bottom-left (anchored)
-        [base_hw, 0.0, 0.0, 0.0],    // 1: bottom-right (anchored)
-        [-top_hw, height, 0.0, 1.0],  // 2: top-left (bends with wind)
-        [top_hw, height, 0.0, 1.0],   // 3: top-right (bends with wind)
+        [-base_hw, 0.0,   0.0, 0.0],  // 0: base-left  (anchored)
+        [ base_hw, 0.0,   0.0, 0.0],  // 1: base-right (anchored)
+        [-mid_hw + lean, mid_h, 0.0, 0.4],  // 2: mid-left  (partial bend)
+        [ mid_hw + lean, mid_h, 0.0, 0.4],  // 3: mid-right (partial bend)
+        [-tip_hw + lean, tip_h, 0.0, 1.0],  // 4: tip-left  (full bend)
+        [ tip_hw + lean, tip_h, 0.0, 1.0],  // 5: tip-right (full bend)
     ];
 
-    let indices = vec![0, 1, 2, 1, 3, 2];
+    let indices = vec![
+        0, 1, 2,  1, 3, 2,  // base quad
+        2, 3, 4,  3, 5, 4,  // tip quad
+    ];
 
     (verts, indices)
 }
