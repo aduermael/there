@@ -87,7 +87,7 @@ Noon looks washed out. The overall palette across all times of day lacks the ric
 
   **Failure modes**: Over-saturating noon makes it look like a mobile game ad. The goal is "oil painting vibrancy" not "candy." Test with all 4 snapshots.
 
-- [ ] 1b: Adjust postprocess color grading for richer output
+- [x] 1b: Adjust postprocess color grading for richer output
 
   **Context**: `postprocess.wgsl` (lines 57-69) applies ACES, then warm shadow shift (+0.02 red), saturation boost (1.08x), S-curve contrast (0.3 blend), and vignette (0.3).
 
