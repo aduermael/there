@@ -59,9 +59,31 @@ fn vs_main(@location(0) local_xz: vec2<f32>) -> VertexOutput {
     return out;
 }
 
+// --- Hash-based value noise ---
+
+fn hash2(p: vec2<f32>) -> f32 {
+    var p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
+    p3 += dot(p3, vec3(p3.y + 33.33, p3.z + 33.33, p3.x + 33.33));
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+fn value_noise(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    let f = fract(p);
+    let s = f * f * (3.0 - 2.0 * f);
+
+    let a = hash2(i);
+    let b = hash2(i + vec2(1.0, 0.0));
+    let c = hash2(i + vec2(0.0, 1.0));
+    let d = hash2(i + vec2(1.0, 1.0));
+
+    return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let h = in.world_pos.y;
+    let world_xz = in.world_pos.xz;
 
     // Height-based coloring: sand → grass → rock
     let sand  = vec3(0.76, 0.70, 0.50);
@@ -70,7 +92,38 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let sg = smoothstep(8.0, 14.0, h);
     let gr = smoothstep(18.0, 24.0, h);
-    let base_color = mix(mix(sand, grass, sg), rock, gr);
+    var base_color = mix(mix(sand, grass, sg), rock, gr);
+
+    // Procedural color noise: large patches + fine detail
+    // Large scale: patches of color variation (~8m wavelength)
+    let n_large = value_noise(world_xz * 0.12) * 2.0 - 1.0;
+    // Fine scale: per-meter variation
+    let n_fine = value_noise(world_xz * 0.45) * 2.0 - 1.0;
+    // Medium scale: in-between patches (~3m)
+    let n_med = value_noise(world_xz * 0.25 + vec2(37.0, 91.0)) * 2.0 - 1.0;
+
+    // Combined noise: large patches dominate, fine adds texture
+    let noise = n_large * 0.6 + n_med * 0.25 + n_fine * 0.15;
+
+    // Per-biome hue/brightness shifts
+    // Grass: warm green ↔ cool green, hints of yellow/brown
+    let grass_hue_shift = vec3(0.04, -0.02, -0.03) * n_large + vec3(-0.02, 0.03, -0.01) * n_med;
+    let grass_bright = noise * 0.12;
+
+    // Sand: warm sand ↔ cooler grey-sand
+    let sand_hue_shift = vec3(0.03, 0.01, -0.04) * n_large + vec3(-0.02, -0.01, 0.03) * n_med;
+    let sand_bright = noise * 0.10;
+
+    // Rock: grey ↔ brown ↔ slight blue-grey
+    let rock_hue_shift = vec3(0.02, -0.01, 0.03) * n_large + vec3(-0.01, 0.02, -0.02) * n_fine;
+    let rock_bright = noise * 0.08;
+
+    // Blend shifts based on biome zone
+    let hue_shift = mix(mix(sand_hue_shift, grass_hue_shift, sg), rock_hue_shift, gr);
+    let brightness = mix(mix(sand_bright, grass_bright, sg), rock_bright, gr);
+
+    base_color = base_color + hue_shift + base_color * brightness;
+    base_color = max(base_color, vec3(0.02));
 
     // Hemisphere ambient: sky from above, ground bounce from below
     let n = normalize(in.normal);

@@ -116,7 +116,7 @@ The current constant ambient makes everything look flat. Real outdoor scenes hav
 
 The terrain is the largest surface on screen. Breaking up its flat monotone biomes is essential.
 
-- [ ] 3a: Add procedural color noise to terrain fragment shader
+- [x] 3a: Add procedural color noise to terrain fragment shader
 
   **Approach**: In `terrain.wgsl`, modulate the base height-color with a procedural noise pattern. Use 2-3 octaves of value noise at different scales: one large-scale (patches of slightly different green), one fine-scale (per-meter variation). This creates the impression of flowers, soil patches, different grass species — like an impressionist painting.
 
