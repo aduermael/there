@@ -308,13 +308,318 @@ All rendering polish must work in the live multiplayer context — multiple brow
 
 ---
 
+## Phase 9: Shader DRY Consolidation
+
+All geometry shaders duplicate the same code: Uniforms struct (6×17 lines), fog computation (5×7 lines), hemisphere lighting (4×4 lines), rim/fresnel (3×4 lines), flat normal via derivatives (4×3 lines), hash/noise functions (2×18 lines). That's ~800 lines of duplication across shaders. Adding shadows and AO would multiply this. Consolidate first.
+
+- [ ] 9a: Create `common.wgsl` with all shared shader code and Rust-side concatenation
+
+  **Approach**: Create `game-render/src/common.wgsl` containing the shared Uniforms struct, binding declaration, and all shared utility functions. In Rust, concatenate `common.wgsl` as a prefix when loading each geometry shader via `format!("{}\n{}", include_str!("common.wgsl"), include_str!("terrain.wgsl"))`.
+
+  **Shared functions to extract**:
+  - `struct Uniforms` + `@group(0) @binding(0) var<uniform> u: Uniforms;` (currently copy-pasted in 6 shaders)
+  - `fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32>` — `dpdx`/`dpdy` cross product (used in grass, rocks, trees, player)
+  - `fn hash2(p: vec2<f32>) -> f32` — hash-based noise (used in terrain, sky)
+  - `fn value_noise(p: vec2<f32>) -> f32` — smooth value noise (used in terrain, sky)
+  - `fn fbm3(p: vec2<f32>) -> f32` — 3-octave FBM (used in sky, useful for future work)
+  - `fn hemisphere_lighting(normal: vec3<f32>, base_color: vec3<f32>) -> vec3<f32>` — hemisphere ambient + N·L diffuse (used in terrain, grass, rocks, trees, player)
+  - `fn rim_light(normal: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32>` — fresnel rim (used in terrain, rocks, trees)
+  - `fn apply_fog(world_pos: vec3<f32>, lit_color: vec3<f32>) -> vec3<f32>` — exponential height fog + atmospheric color shift (used in all 5 geometry shaders)
+
+  **Contracts**:
+  - All shared functions reference `u` (the uniform binding) directly — they are not pure functions, they depend on the global uniform
+  - `common.wgsl` must NOT contain `@vertex` or `@fragment` entry points
+  - Each shader removes its local Uniforms struct and duplicated functions, keeping only its entry points and shader-specific logic
+  - Sky shader is special: it uses Uniforms + noise but not lighting/fog — still benefits from shared struct and noise functions
+  - Postprocess shader is independent (different bind group, no Uniforms) — leave it alone
+
+  **Failure modes**: WGSL has no native `#include`. The Rust-side `format!()` concatenation is the simplest approach. Must ensure no name collisions between common functions and shader-local variables. Must verify all 6 shaders still compile and produce identical output.
+
+- [ ] 9b: Verify visual output is unchanged after consolidation
+
+  **Approach**: Run `make snapshot` before and after. Compare all 4 time-of-day images pixel-for-pixel (or visually). No rendering changes should be visible — this is a pure refactor.
+
+  **Contracts**:
+  - Dawn, noon, dusk, night snapshots look identical to pre-refactor
+  - `cd game-client && wasm-pack build --target web` still compiles
+  - Total duplicated shader lines reduced from ~800 to ~0
+
+---
+
+## Phase 10: Fix Noon Exposure
+
+The noon snapshot is washed out / burnt. Root cause: multiple compounding factors that together blow out highlights and kill contrast.
+
+**Analysis** (from atmosphere.rs and postprocess.wgsl):
+1. Noon sun color `[1.0, 0.98, 0.92]` — nearly pure white, too intense
+2. Noon ambient intensity 0.30 — adds ~50% luminance before sun contribution
+3. ACES saturation boost of 1.15× compensates for ACES desaturation but lifts greys at high luminance
+4. S-curve contrast at 0.5 strength flattens bright regions (smoothstep plateaus above 0.7)
+5. Vignette 0.4 edge darkening makes the center burn more obvious by contrast
+
+- [ ] 10a: Tune atmosphere and post-processing for balanced noon exposure
+
+  **Approach**: Adjust in two places:
+
+  1. `atmosphere.rs` — reduce noon sun intensity and ambient:
+     - Noon sun: `[1.0, 0.98, 0.92]` → `[0.90, 0.85, 0.78]` (warmer, less intense)
+     - Ambient formula: `0.15 + 0.15 * day_factor` → `0.12 + 0.10 * day_factor` (noon drops from 0.30 to 0.22)
+
+  2. `postprocess.wgsl` — soften post-processing:
+     - Saturation boost: 1.15 → 1.08 (less aggressive compensation)
+     - S-curve blend: 0.5 → 0.3 (gentler contrast, preserves highlight detail)
+     - Vignette: 0.4 → 0.3 (subtler edge darkening)
+
+  **Contracts**:
+  - Noon should have warm, rich colors — not blown out or grey
+  - Dawn and dusk should still be dramatic (they benefit from lower sun elevation)
+  - Night should remain dark and moody
+  - All 4 times of day must be visually verified after tuning
+  - This is a tuning pass — use the visual-iterate skill to iterate until all 4 presets look good
+
+  **Failure modes**: Reducing noon exposure too much makes it look overcast/dull. The goal is "warm sunny day" not "cloudy day." Iterate with snapshots.
+
+---
+
+## Phase 11: Grass Overhaul
+
+Three problems: blades are pointy triangles (should be simple rectangles), distribution is uniform (should be patchy), and grass doesn't appear near rocks. The grass-ground transition is also harsh because blades are fully opaque with no terrain color matching.
+
+- [ ] 11a: Change grass blade geometry from triangle to rectangle
+
+  **Approach**: In `grass.rs`, replace the 3-vertex triangle blade with a 4-vertex quad (2 triangles). The quad is slightly narrower at the top for a natural look, but **not** pointy — it should read as a simple rectangular blade.
+
+  **Current** (grass.rs ~line 178):
+  ```
+  3 vertices: bottom-left, bottom-right, tip → 1 triangle
+  ```
+
+  **New**:
+  ```
+  4 vertices: bottom-left, bottom-right, top-left, top-right → 2 triangles
+  Indices: [0, 1, 2, 1, 3, 2]
+  ```
+
+  Vertex layout stays the same: `[x, y, z, bend]` where `bend = 0.0` at base, `1.0` at top. Top vertices get `bend = 1.0` for wind animation (already in grass.wgsl).
+
+  **Contracts**:
+  - Blade shape: rectangular, width ~0.08 at base, ~0.04 at top
+  - Blade height: 0.6 (unchanged)
+  - Triangle count per blade: 1 → 2 (16K blades × 2 = 32K tris — still lightweight)
+  - Wind animation continues to work (top vertices bend, base anchored)
+  - `bend` attribute interpolates across quad for smoother wind deformation
+
+- [ ] 11b: Implement patch-based grass distribution with rock-aware placement
+
+  **Approach**: Replace the uniform grid placement in `scatter.rs` with a two-pass system:
+
+  **Pass 1 — Patch centers**: Iterate at a coarser grid (e.g., every 10-12 texels). Use hash to accept ~40-50% of positions as patch centers. Each patch has a random radius (3-6 texels).
+
+  **Pass 2 — Grass within patches**: For each active patch, iterate the fine grid (step 2) within the patch radius. Apply existing height/slope filters. Higher acceptance rate within patches (~80-90%) creates dense clumps. Sparse grass (10-15% acceptance) in non-patch areas prevents bald spots.
+
+  **Rock-aware placement**: After computing rocks, add dedicated grass rings around rock bases. For each rock, scatter grass within a 2-4 unit radius at slightly relaxed height/slope thresholds (rocks sit on high terrain, so grass can extend into the transition zone height 17-20, slope up to 0.5). This makes rocks feel grounded in vegetation rather than floating on bare terrain.
+
+  **Contracts**:
+  - Grass still deterministic (hash-based, no `rand`)
+  - Patches create visible clumps — not uniform green carpet
+  - Some rocks have grass at their base (foreground interest)
+  - Total instance count stays within MAX_GRASS (16384) — patches redistribute density, not increase it
+  - Distance-based density falloff still applies (50-80 units from camera)
+
+  **Failure modes**: Patches too large = looks uniform again. Patches too small = looks spotted/diseased. Aim for natural meadow feel — some areas lush, some areas bare earth showing through terrain noise (Phase 3).
+
+- [ ] 11c: Improve grass-ground color blending
+
+  **Approach**: The disconnect comes from grass being fully opaque with colors that don't match the terrain beneath. Fix in two ways:
+
+  1. **Match blade base color to terrain**: In `scatter.rs`, when placing grass, sample the terrain's height-based color at that position (same logic as terrain.wgsl's color bands). Set the blade's instance color to a variation of this terrain color, ensuring grass blends with its surroundings.
+
+  2. **Blade base darkening**: In `grass.wgsl` fragment shader, darken the bottom ~20% of each blade (where `bend` interpolant is near 0). This simulates the blade emerging from shadow at ground level and hides the seam.
+
+  **Contracts**:
+  - Blade base color is close to terrain color at that position (within 15% variation)
+  - Blade tips are lighter/more saturated (sunlit)
+  - No alpha blending needed — keep grass fully opaque (simpler pipeline, no sort issues)
+  - The visual transition from terrain to grass should feel gradual, not a hard line
+
+---
+
+## Phase 12: Shadow Mapping
+
+The scene has no cast shadows — everything is lit uniformly. A single directional shadow map from the sun transforms depth perception. Keep it lightweight for WebGPU mobile.
+
+- [ ] 12a: Add shadow depth pass and infrastructure
+
+  **Approach**: Add a depth-only render pass from the sun's point of view. This is a third render pass (shadow → scene → postprocess).
+
+  **New files**:
+  - `game-render/src/shadow.rs` — shadow map renderer: creates depth texture, manages shadow pipeline, computes sun-view-projection matrix
+  - `game-render/src/shadow.wgsl` — minimal vertex-only shader (transforms geometry to sun clip space, no fragment output, depth-only)
+
+  **Shadow map settings**:
+  - Resolution: 512×512 (single Depth32Float texture) — good quality/perf tradeoff
+  - Orthographic projection from sun direction, covering the visible scene area (~200×200 units centered on camera)
+  - Rendered geometry: terrain + rocks + trees (skip grass — too thin to cast meaningful shadows, skip players — dynamic but tiny)
+  - Bias: small constant + slope-scale to prevent shadow acne
+
+  **Uniforms expansion**: Add `sun_view_proj: mat4x4<f32>` (64 bytes) to the Uniforms struct. This pushes the struct past 256 bytes — pad to 512 bytes (next wgpu alignment boundary). Update the Uniforms struct in `terrain.rs`, `common.wgsl`, and both renderers.
+
+  **Render pass order**:
+  1. Shadow depth pass (sun POV → shadow depth texture)
+  2. Scene pass (camera POV → HDR intermediate, samples shadow texture)
+  3. Postprocess pass (HDR → surface)
+
+  **Bind group**: The shadow depth texture needs to be bound as a texture+sampler in the scene pass. Add a second bind group (group 1) for shadow resources, or extend the existing uniform bind group.
+
+  **Contracts**:
+  - Shadow map rendered every frame (sun moves with time of day)
+  - Shadow pass uses the same terrain/rock/tree geometry — reuses existing vertex/instance buffers
+  - Shadow depth texture created once, reused each frame
+  - At night (sun below horizon), skip shadow pass entirely
+
+  **Failure modes**: Shadow map too small (512px) can cause blocky shadows at distance — acceptable for stylized look. Shadow acne from insufficient bias — tune per-scene. Peter-panning from too much bias — keep bias minimal.
+
+- [ ] 12b: Sample shadow map in geometry shaders
+
+  **Approach**: Add a `sample_shadow(world_pos: vec3<f32>) -> f32` function in `common.wgsl`. All geometry shaders call this in their lighting calculation.
+
+  ```wgsl
+  fn sample_shadow(world_pos: vec3<f32>) -> f32 {
+      let light_clip = u.sun_view_proj * vec4(world_pos, 1.0);
+      let light_ndc = light_clip.xyz / light_clip.w;
+      let shadow_uv = light_ndc.xy * 0.5 + 0.5;
+      // Flip Y for texture coordinates
+      let uv = vec2(shadow_uv.x, 1.0 - shadow_uv.y);
+      // Out of shadow map bounds = fully lit
+      if uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 { return 1.0; }
+      let shadow_depth = textureSample(shadow_map, shadow_sampler, uv).r;
+      let current_depth = light_ndc.z;
+      let bias = 0.003;
+      return select(0.3, 1.0, current_depth - bias <= shadow_depth);
+  }
+  ```
+
+  Then modify `hemisphere_lighting()` in `common.wgsl` to factor in shadow:
+  ```wgsl
+  let shadow = sample_shadow(world_pos);
+  let lit = base_color * (ambient + ndl * u.sun_color * shadow);
+  ```
+
+  Ambient is NOT affected by shadows (it's sky light, not sun light). Only the N·L diffuse term gets shadow attenuation. This means shadowed areas keep their hemisphere ambient coloring (blue-ish from sky) — which looks correct.
+
+  **Shadow strength**: The `select(0.3, 1.0, ...)` means shadows darken to 30% of sun contribution, not pure black. This keeps the stylized, painterly feel.
+
+  **Contracts**:
+  - All geometry (terrain, grass, rocks, trees, players) receives shadows via the shared function
+  - Shadows are soft-edged due to low resolution (512px) — this is a feature, not a bug for stylized look
+  - Shadow darkness tunable via single constant in `common.wgsl`
+  - Both client and snapshot renderers get shadows (shared code via `game-render`)
+
+---
+
+## Phase 13: Ambient Occlusion
+
+Vertex-based AO computed at scatter time is the cheapest effective approach: ~0.05ms/frame vs ~2ms for SSAO. Perfect for mobile WebGPU.
+
+- [ ] 13a: Compute AO factor at scatter time and store in instance data
+
+  **Approach**: In `scatter.rs`, after placing each instance (rock, tree, grass), compute a local AO factor by sampling surrounding terrain heights. Higher neighbors = more occlusion.
+
+  ```rust
+  fn compute_local_ao(heightmap: &[f32], hm_res: usize, x: f32, z: f32, texel_size: f32) -> f32 {
+      let cx = (x / texel_size) as usize;
+      let cz = (z / texel_size) as usize;
+      let center_h = heightmap[cz * hm_res + cx];
+      let mut occlusion = 0.0;
+      // Sample 8 neighbors at ~2 unit radius
+      for &(dx, dz) in &[(-2,0),(2,0),(0,-2),(0,2),(-1,-1),(1,-1),(-1,1),(1,1)] {
+          let nx = (cx as i32 + dx).clamp(0, hm_res as i32 - 1) as usize;
+          let nz = (cz as i32 + dz).clamp(0, hm_res as i32 - 1) as usize;
+          let nh = heightmap[nz * hm_res + nx];
+          occlusion += (nh - center_h).max(0.0); // How much higher is neighbor
+      }
+      // Normalize: 0.0 = heavily occluded, 1.0 = fully open
+      (1.0 - (occlusion / 8.0).min(1.0)).max(0.3) // Never darker than 0.3
+  }
+  ```
+
+  **Storage**: All instance structs are currently 32 bytes (2×vec4). The 4th component of the second vec4 is used for rotation (grass) or is implicit padding (rocks, trees). Options:
+  - **Grass**: `color_rotation` = `[r, g, b, rotation]` — pack AO into the color by pre-multiplying: `color *= ao_factor`. No struct change needed.
+  - **Rocks/Trees**: Same approach — pre-multiply AO into instance color at scatter time.
+
+  This means AO is baked into vertex colors with zero per-frame cost.
+
+  **Contracts**:
+  - Instances in valleys/depressions are darker
+  - Instances on ridges/hilltops are brighter
+  - AO is subtle (min 0.3 factor) — avoids black patches
+  - No instance struct changes — AO baked into existing color channels
+  - Deterministic (same heightmap → same AO)
+
+- [ ] 13b: Add terrain self-occlusion in terrain shader
+
+  **Approach**: The terrain itself should also show AO in valleys and concavities. In `terrain.wgsl`, sample the heightmap at the current fragment's world position ± a small offset. If surrounding terrain is higher, darken.
+
+  This is similar to the scatter AO but computed per-fragment. Since terrain already samples the heightmap (it's in a texture bind group), this adds ~4 texture samples per terrain fragment.
+
+  ```wgsl
+  fn terrain_ao(world_pos: vec3<f32>) -> f32 {
+      let tc = world_pos.xz / u.world_size;
+      let texel = 2.0 / u.hm_res; // 2-texel radius
+      let center_h = world_pos.y;
+      var occ = 0.0;
+      occ += max(textureLoad(heightmap, tc + vec2(texel, 0.0)).r - center_h, 0.0);
+      occ += max(textureLoad(heightmap, tc - vec2(texel, 0.0)).r - center_h, 0.0);
+      occ += max(textureLoad(heightmap, tc + vec2(0.0, texel)).r - center_h, 0.0);
+      occ += max(textureLoad(heightmap, tc - vec2(0.0, texel)).r - center_h, 0.0);
+      return clamp(1.0 - occ * 0.5, 0.3, 1.0);
+  }
+  ```
+
+  **Contracts**:
+  - Valleys and terrain concavities get subtle darkening
+  - Ridges and peaks stay bright
+  - 4 extra texture samples per terrain fragment (~0.2ms cost)
+  - Complements instance AO (objects darken in same areas as terrain)
+
+---
+
+## Phase 14: Final Visual Pass & Browser Verification
+
+Verify everything works together across all 4 times of day and in the browser.
+
+- [ ] 14a: Full visual iteration and tuning
+
+  **Approach**: Use the visual-iterate skill to render all 4 times of day. Evaluate and tune:
+  - Shadow strength and bias across all times of day
+  - AO intensity (not too dark, not invisible)
+  - Grass patch density and distribution (natural meadow feel)
+  - Grass-rock interaction (grass visible around rocks in foreground)
+  - Overall color balance (noon no longer burnt, dawn/dusk still dramatic)
+
+  Iterate until all 4 snapshots look cohesive and polished.
+
+- [ ] 14b: Verify WASM build and browser rendering
+
+  **Approach**: Same as Phase 8 — build the client WASM and test in browser.
+  - `cd game-client && wasm-pack build --target web` must succeed
+  - Shadow map, AO, and grass changes must all render correctly in WebGPU browser context
+  - Run server + 2 browser tabs, verify visual consistency
+
+  **Contracts**:
+  - All new features (shadows, AO, patchy grass, rectangular blades) visible in browser
+  - Performance acceptable on mid-range hardware (target: 60fps at 1080p)
+  - No visual desync between clients
+
+---
+
 ## Snapshot Verification Process
 
 **Every phase must be visually verified before marking complete.** After implementing a phase:
 
 1. Run `make snapshot` to generate dawn/noon/dusk/night images
 2. View all four snapshots and compare against the previous phase
-3. Save to `snapshots/phaseN/` (never overwrite previous phases — accumulate history)
+3. Save to `snapshots/2026-04-10-rendering-polish/phaseN/` (plan-specific folder, never overwrite previous phases — accumulate history)
 4. Iterate on the code if the result doesn't meet the phase's success criteria below
 5. Only commit and move on once the visuals are genuinely ready to deliver
 
@@ -332,6 +637,12 @@ Do not skip this step. The snapshot tool is fast (~2s per cycle) and catching is
 - **Phase 6 done**: Trees have better silhouettes, gentle sway. Forest reads as natural.
 - **Phase 7 done**: Image has film-like quality — rich colors, gentle contrast, warm mood. Dawn/dusk are dramatic.
 - **Phase 8 done**: Two browser clients connected to the same server see the identical polished scene. Players see each other.
+- **Phase 9 done**: All duplicated shader code consolidated into `common.wgsl`. Shaders are short, focused, and easy to modify. Visual output identical to pre-refactor.
+- **Phase 10 done**: Noon is warm and rich, not washed out. All 4 times of day have balanced exposure.
+- **Phase 11 done**: Grass is rectangular blades in natural patches. Some grass grows around rock bases. Blades blend smoothly into terrain.
+- **Phase 12 done**: Objects cast sun shadows onto terrain and each other. Shadows are soft and stylized, not harsh.
+- **Phase 13 done**: Valleys and terrain concavities are subtly darker. Objects in depressions feel grounded. Ridges are bright.
+- **Phase 14 done**: All features verified in browser at 60fps. Two clients see the same polished scene.
 
 ### The Impressionist Test
 

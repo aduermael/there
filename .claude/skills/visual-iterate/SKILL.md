@@ -38,6 +38,21 @@ make snapshot
 
 The full cycle (code change → rebuild → render) takes ~2 seconds in release mode.
 
+## Snapshot storage within a plan
+
+When working within a plan (e.g., `plans/2026-04-10-rendering-polish.md`), store phase snapshots in a plan-specific folder:
+
+```
+snapshots/<plan-name>/phaseN/dawn.png
+snapshots/<plan-name>/phaseN/noon.png
+snapshots/<plan-name>/phaseN/dusk.png
+snapshots/<plan-name>/phaseN/night.png
+```
+
+For example: `snapshots/2026-04-10-rendering-polish/phase9/noon.png`
+
+This keeps snapshot history organized per-plan and avoids overwriting snapshots from other plans. Never overwrite previous phase snapshots — accumulate history so you can compare across phases.
+
 ## Architecture
 
 - **`game-render/`** — shared rendering crate used by both browser and snapshot. All visual changes go here.
