@@ -1,6 +1,6 @@
 use crate::DEPTH_FORMAT;
 
-pub const SHADOW_MAP_SIZE: u32 = 512;
+pub const SHADOW_MAP_SIZE: u32 = 1024;
 
 /// Create the shadow depth texture and its view.
 pub fn create_shadow_texture(device: &wgpu::Device) -> (wgpu::Texture, wgpu::TextureView) {
@@ -80,7 +80,7 @@ pub fn create_shadow_bind_group(
 /// Compute sun orthographic view-projection matrix.
 /// Covers a 200x200 unit area centered on the camera position.
 pub fn compute_sun_view_proj(sun_dir: glam::Vec3, camera_pos: glam::Vec3) -> glam::Mat4 {
-    let extent = 100.0;
+    let extent = 75.0;
     let depth = 200.0;
 
     // Sun "camera" positioned behind the scene along sun_dir

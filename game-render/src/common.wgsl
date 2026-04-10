@@ -73,9 +73,19 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     }
 
     let current_depth = light_ndc.z;
-    let bias = 0.005;
-    // comparison sampler returns 1.0 if current_depth - bias <= shadow_depth
-    return textureSampleCompare(shadow_map, shadow_sampler, shadow_uv, current_depth - bias);
+    let bias = 0.003;
+    let d = current_depth - bias;
+
+    // 4-tap PCF: each comparison sample gets hardware bilinear, giving ~4x4 coverage
+    let texel = 1.0 / 1024.0;
+    let s = texel * 1.2;
+    let shadow = (
+        textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s, -s), d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s, -s), d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s,  s), d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s,  s), d)
+    ) * 0.25;
+    return shadow;
 }
 
 fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32) -> vec3<f32> {

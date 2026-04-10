@@ -108,7 +108,7 @@ Noon looks washed out. The overall palette across all times of day lacks the ric
 
 Shadows provide critical depth cues and grounding. Currently they're barely visible — the 512x512 map over 200 units gives ~2.5 px/unit resolution, and the 30% shadow floor is too generous when combined with hemisphere ambient.
 
-- [ ] 2a: Increase shadow map resolution and improve sampling quality
+- [x] 2a: Increase shadow map resolution and improve sampling quality
 
   **Context**: `shadow.rs` (line 3) defines `SHADOW_MAP_SIZE = 512`. The shadow pass renders terrain (LOD1) + rocks + trees from an orthographic sun projection covering 200x200 units (lines 80-100). `common.wgsl` `sample_shadow()` uses a single comparison sample with bias 0.005.
 
