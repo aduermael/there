@@ -83,7 +83,7 @@ Move platform-agnostic rendering code into a new workspace crate. This is a pure
 - `log::info!` in terrain/player renderers needs `log` as a dependency of `game-render`
 - `bytemuck` derive macros on `Uniforms` and `PlayerInstance` — need `bytemuck` dep in `game-render`
 
-- [ ] 1a: Create `game-render` crate with terrain renderer, player renderer, shaders, and shared types
+- [x] 1a: Create `game-render` crate with terrain renderer, player renderer, shaders, and shared types
 - [ ] 1b: Refactor `game-client` to depend on `game-render`, verify browser build (`wasm-pack build`)
 
 ---

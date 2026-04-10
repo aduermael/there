@@ -1,0 +1,11 @@
+[package]
+name = "game-render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+game-core = { path = "../game-core" }
+glam = { workspace = true }
+log = { workspace = true }
+wgpu = "24"
+bytemuck = { version = "1", features = ["derive"] }
