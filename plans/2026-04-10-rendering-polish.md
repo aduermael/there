@@ -521,7 +521,7 @@ The scene has no cast shadows — everything is lit uniformly. A single directio
 
 Vertex-based AO computed at scatter time is the cheapest effective approach: ~0.05ms/frame vs ~2ms for SSAO. Perfect for mobile WebGPU.
 
-- [ ] 13a: Compute AO factor at scatter time and store in instance data
+- [x] 13a: ~~Baked AO~~ → SSAO post-processing pass (geometry-agnostic)
 
   **Approach**: In `scatter.rs`, after placing each instance (rock, tree, grass), compute a local AO factor by sampling surrounding terrain heights. Higher neighbors = more occlusion.
 
@@ -556,7 +556,7 @@ Vertex-based AO computed at scatter time is the cheapest effective approach: ~0.
   - No instance struct changes — AO baked into existing color channels
   - Deterministic (same heightmap → same AO)
 
-- [ ] 13b: Add terrain self-occlusion in terrain shader
+- [x] 13b: ~~Terrain self-occlusion~~ → covered by SSAO pass
 
   **Approach**: The terrain itself should also show AO in valleys and concavities. In `terrain.wgsl`, sample the heightmap at the current fragment's world position ± a small offset. If surrounding terrain is higher, darken.
 

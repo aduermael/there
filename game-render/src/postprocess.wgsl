@@ -1,5 +1,6 @@
 @group(0) @binding(0) var hdr_texture: texture_2d<f32>;
 @group(0) @binding(1) var hdr_sampler: sampler;
+@group(0) @binding(2) var ao_texture: texture_2d<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -30,6 +31,10 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(hdr_texture, hdr_sampler, in.uv).rgb;
+
+    // Apply SSAO
+    let ao = textureSample(ao_texture, hdr_sampler, in.uv).r;
+    color *= ao;
 
     // ACES tone mapping (HDR → LDR with filmic curve)
     color = aces_tonemap(color);

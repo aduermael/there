@@ -1,8 +1,8 @@
 use game_render::{
     compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, scatter_objects, GrassRenderer,
-    PostProcessRenderer, RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms,
-    INTERMEDIATE_FORMAT,
+    PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
+    Uniforms, INTERMEDIATE_FORMAT,
 };
 use wgpu::util::DeviceExt;
 
@@ -194,8 +194,11 @@ pub async fn render_frame(
     let grass_renderer =
         GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
 
+    // --- SSAO renderer ---
+    let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
+
     // --- Post-process renderer ---
-    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, width, height);
+    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, ssao.ao_view(), width, height);
 
     // --- Shadow pass: depth from sun POV ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -258,7 +261,26 @@ pub async fn render_frame(
         tree_renderer.draw(&mut pass, &uniform_bind_group, &shadow_bind_group);
     }
 
-    // --- Pass 2: Post-process → final output ---
+    // --- Pass 2: SSAO → AO texture ---
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("SSAO Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: ssao.ao_view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        ssao.draw(&mut pass, &uniform_bind_group);
+    }
+
+    // --- Pass 3: Post-process → final output ---
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("PostProcess Pass"),

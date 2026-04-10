@@ -8,6 +8,7 @@ mod atmosphere;
 mod sky;
 mod postprocess;
 mod shadow;
+mod ssao;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
 pub use player::{PlayerRenderer, PlayerInstance, player_color};
@@ -19,3 +20,4 @@ pub use atmosphere::{AtmosphereParams, compute_atmosphere};
 pub use sky::SkyRenderer;
 pub use postprocess::{PostProcessRenderer, INTERMEDIATE_FORMAT};
 pub use shadow::{create_shadow_texture, create_shadow_bgl, create_shadow_bind_group, compute_sun_view_proj};
+pub use ssao::SsaoRenderer;

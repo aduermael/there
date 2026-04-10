@@ -3,7 +3,7 @@ use web_sys::HtmlCanvasElement;
 
 use game_render::{
     GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
+    SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, scatter_objects, INTERMEDIATE_FORMAT,
 };
 
@@ -23,6 +23,7 @@ pub struct Renderer {
     rocks: RockRenderer,
     trees: TreeRenderer,
     grass: GrassRenderer,
+    ssao: SsaoRenderer,
     postprocess: PostProcessRenderer,
 }
 
@@ -172,8 +173,11 @@ impl Renderer {
         let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
         let grass = GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
 
+        // SSAO renderer
+        let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
+
         // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, width, height);
+        let postprocess = PostProcessRenderer::new(&device, format, ssao.ao_view(), width, height);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -198,6 +202,7 @@ impl Renderer {
             rocks,
             trees,
             grass,
+            ssao,
             postprocess,
         }
     }
@@ -217,7 +222,8 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
             self.depth_view = create_depth_texture(&self.device, width, height);
-            self.postprocess.resize(&self.device, width, height);
+            self.ssao.resize(&self.device, &self.depth_view, width, height);
+            self.postprocess.resize(&self.device, self.ssao.ao_view(), width, height);
         }
     }
 
@@ -315,7 +321,26 @@ impl Renderer {
             );
         }
 
-        // Pass 2: Post-process → surface
+        // Pass 2: SSAO → AO texture
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("SSAO Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: self.ssao.ao_view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            self.ssao.draw(&mut pass, &self.uniform_bind_group);
+        }
+
+        // Pass 3: Post-process → surface
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("PostProcess Pass"),
