@@ -86,21 +86,67 @@ pub fn scatter_objects(
             let wz = (gz as f32 + jz * tree_step as f32) * texel_size;
             let wy = game_core::terrain::sample_height(heightmap, wx, wz);
 
+            // Exponential distribution: more small trees, fewer large
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
-            let scale = 1.0 + size_hash * 1.0; // 1.0 to 2.0
+            let scale = 0.6 + size_hash * size_hash * 2.4; // 0.6-3.0, biased small
 
-            // Green foliage with slight variation
+            // Wider green variation: blue-green to yellow-green
             let green_var = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let r = 0.25 + green_var * 0.1;
-            let g = 0.50 + green_var * 0.25;
-            let b = 0.15 + green_var * 0.1;
+            let blue_var = ((hash >> 12) & 0xFF) as f32 / 255.0;
+            let r = 0.20 + green_var * 0.15;
+            let g = 0.45 + green_var * 0.30;
+            let b = 0.10 + blue_var * 0.18;
+
+            // Crown shape factor: 0=narrow, 1=wide/bushy
+            let shape = ((hash >> 20) & 0xFF) as f32 / 255.0;
 
             trees.push(TreeInstance {
                 pos_scale: [wx, wy, wz, scale],
-                foliage_color: [r, g, b, 0.0],
+                foliage_color: [r, g, b, shape],
             });
         }
     }
+
+    // --- Tree clustering: spawn companions near some trees ---
+    let primary_tree_count = trees.len();
+    let mut cluster_trees = Vec::new();
+    for i in 0..primary_tree_count {
+        let tx = trees[i].pos_scale[0];
+        let ty = trees[i].pos_scale[1];
+        let tz = trees[i].pos_scale[2];
+        let cluster_hash = cell_hash((tx * 100.0) as u32, (tz * 100.0) as u32, 0xCEED);
+        // ~25% of trees become cluster seeds
+        if (cluster_hash & 0xFF) > 64 {
+            continue;
+        }
+        let companions = 2 + (cluster_hash >> 8) as usize % 3; // 2-4 companions
+        for j in 0..companions {
+            let ch = cell_hash(j as u32, cluster_hash, 0xACE0);
+            let angle = ((ch & 0xFF) as f32 / 255.0) * std::f32::consts::TAU;
+            let dist = 2.0 + ((ch >> 8) & 0xFF) as f32 / 255.0 * 3.0; // 2-5 units away
+            let cx = tx + angle.cos() * dist;
+            let cz = tz + angle.sin() * dist;
+            let cy = game_core::terrain::sample_height(heightmap, cx, cz);
+            if cy < 10.0 || cy > 17.0 || (cy - ty).abs() > 3.0 {
+                continue;
+            }
+            // Companions are typically smaller
+            let sh = ((ch >> 16) & 0xFF) as f32 / 255.0;
+            let scale = 0.5 + sh * sh * 1.5; // 0.5-2.0, biased small
+            let gv = ((ch >> 4) & 0xFF) as f32 / 255.0;
+            let bv = ((ch >> 12) & 0xFF) as f32 / 255.0;
+            let r = 0.20 + gv * 0.15;
+            let g = 0.45 + gv * 0.30;
+            let b = 0.10 + bv * 0.18;
+            let shape = ((ch >> 24) & 0xFF) as f32 / 255.0;
+            cluster_trees.push(TreeInstance {
+                pos_scale: [cx, cy, cz, scale],
+                foliage_color: [r, g, b, shape],
+            });
+        }
+    }
+    let remaining = crate::trees::MAX_TREES.saturating_sub(trees.len());
+    trees.extend_from_slice(&cluster_trees[..cluster_trees.len().min(remaining)]);
 
     // --- Grass: patch-based distribution with rock-aware placement ---
 

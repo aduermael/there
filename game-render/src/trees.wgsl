@@ -24,6 +24,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     // Wind sway: foliage vertices displaced based on height above ground.
     let is_foliage = step(2.0, in.vert_color.r + in.vert_color.g + in.vert_color.b);
+
+    // Crown shape variation: narrow-to-wide per instance
+    let shape = in.inst_foliage_color.a;
+    let crown_w = mix(0.75, 1.4, shape);
+    local_pos.x *= mix(1.0, crown_w, is_foliage);
+    local_pos.z *= mix(1.0, crown_w, is_foliage);
+
     let height_factor = saturate(in.position.y / 2.5);
     let sway_strength = is_foliage * height_factor * height_factor;
 
@@ -59,6 +66,13 @@ fn vs_shadow(
 
     // Wind sway (must match scene VS so shadows align)
     let is_foliage = step(2.0, vert_color.r + vert_color.g + vert_color.b);
+
+    // Crown shape variation (must match scene VS)
+    let shape = inst_foliage_color.a;
+    let crown_w = mix(0.75, 1.4, shape);
+    local_pos.x *= mix(1.0, crown_w, is_foliage);
+    local_pos.z *= mix(1.0, crown_w, is_foliage);
+
     let height_factor = saturate(position.y / 2.5);
     let sway_strength = is_foliage * height_factor * height_factor;
     let tree_pos = inst_pos_scale.xyz;

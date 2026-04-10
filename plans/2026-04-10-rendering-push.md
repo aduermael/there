@@ -219,7 +219,7 @@ The current grass is thin rectangular blades that don't integrate well with the 
 
 All trees currently use the same mesh with uniform 1.0-2.0 scale. This creates a "tree factory" look. Real forests have character — large anchor trees, small saplings, bushy specimens, tall narrow ones.
 
-- [ ] 5a: Add size, shape, and color variety to tree generation
+- [x] 5a: Add size, shape, and color variety to tree generation
 
   **Context**: `trees.rs` (lines 280-359) builds a single mesh: cylinder trunk + 3 stacked cones. All instances use this same mesh at uniform scale. `scatter.rs` (lines 64-103) places trees at 6-texel grid, height 10-17, 35% acceptance, scale 1.0-2.0 with green color variation.
 
