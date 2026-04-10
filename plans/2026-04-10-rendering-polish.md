@@ -163,7 +163,7 @@ Grass transforms the ground plane from dead to alive. The user specifically requ
 
   **Open question**: Billboard quads vs. geometry (3-vertex triangles with slight curve). Billboards are cheaper but less natural. Suggest starting with simple triangles.
 
-- [ ] 4b: Add wind animation to grass in vertex shader
+- [x] 4b: Add wind animation to grass in vertex shader
 
   **Approach**: In `grass.wgsl` vertex shader, displace the top vertex of each blade using a sine wave based on `(world_pos.xz + time * wind_speed)`. The base vertex stays anchored to terrain.
 

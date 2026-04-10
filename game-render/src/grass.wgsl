@@ -35,6 +35,7 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     let scale = in.inst_pos_scale.w;
     let angle = in.inst_color_rotation.w;
+    let base_pos = in.inst_pos_scale.xyz;
 
     // Rotate blade around Y axis
     let cos_a = cos(angle);
@@ -45,7 +46,18 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         in.position.x * sin_a + in.position.z * cos_a,
     );
 
-    let world_pos = rotated * scale + in.inst_pos_scale.xyz;
+    var local = rotated * scale;
+
+    // Wind animation: displace tip vertex based on time + position hash
+    // Wind blows from the west (positive X direction)
+    let wind_phase = base_pos.x * 0.15 + base_pos.z * 0.1;
+    let wind_base = sin(u.time * 1.8 + wind_phase) * 0.15;
+    let wind_detail = sin(u.time * 3.7 + wind_phase * 2.3) * 0.05;
+    let wind = (wind_base + wind_detail) * in.bend;
+    local.x += wind;
+    local.z += wind * 0.3;
+
+    let world_pos = local + base_pos;
 
     var out: VertexOutput;
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
