@@ -409,7 +409,7 @@ Three problems: blades are pointy triangles (should be simple rectangles), distr
   - Wind animation continues to work (top vertices bend, base anchored)
   - `bend` attribute interpolates across quad for smoother wind deformation
 
-- [ ] 11b: Implement patch-based grass distribution with rock-aware placement
+- [x] 11b: Implement patch-based grass distribution with rock-aware placement
 
   **Approach**: Replace the uniform grid placement in `scatter.rs` with a two-pass system:
 

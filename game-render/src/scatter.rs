@@ -102,23 +102,60 @@ pub fn scatter_objects(
         }
     }
 
-    // Grass: height 8–17 (grass zones), gentle slopes, high density
+    // --- Grass: patch-based distribution with rock-aware placement ---
+
+    // Pass 1: Identify patch centers on a coarse grid
+    let patch_step = 10;
+    let mut patches: Vec<(f32, f32, f32)> = Vec::new(); // (wx, wz, radius)
+    for gz in (0..hm_res).step_by(patch_step) {
+        for gx in (0..hm_res).step_by(patch_step) {
+            let h = heightmap[gz * hm_res + gx];
+            if h < 8.0 || h > 17.0 {
+                continue;
+            }
+            let hash = cell_hash(gx as u32, gz as u32, 0xFACE);
+            // ~45% of coarse cells become patch centers
+            if (hash & 0xFF) > 115 {
+                continue;
+            }
+            let wx = gx as f32 * texel_size;
+            let wz = gz as f32 * texel_size;
+            let radius = 3.0 + ((hash >> 8) & 0xFF) as f32 / 255.0 * 3.0; // 3-6 texels
+            patches.push((wx, wz, radius * texel_size));
+        }
+    }
+
+    // Pass 2: Place grass on fine grid, density depends on proximity to patch centers
     let grass_step = 2;
     for gz in (0..hm_res).step_by(grass_step) {
         for gx in (0..hm_res).step_by(grass_step) {
+            if grass.len() >= crate::grass::MAX_GRASS {
+                break;
+            }
             let h = heightmap[gz * hm_res + gx];
             if h < 8.0 || h > 17.0 {
                 continue;
             }
 
-            let hash = cell_hash(gx as u32, gz as u32, 0xCAFE);
-            // ~78% acceptance rate for dense coverage
-            if (hash & 0xFF) > 200 {
+            let slope = sample_slope(heightmap, hm_res, gx, gz, texel_size);
+            if slope > 0.3 {
                 continue;
             }
 
-            let slope = sample_slope(heightmap, hm_res, gx, gz, texel_size);
-            if slope > 0.3 {
+            let hash = cell_hash(gx as u32, gz as u32, 0xCAFE);
+            let wx_base = gx as f32 * texel_size;
+            let wz_base = gz as f32 * texel_size;
+
+            // Check if inside any patch
+            let in_patch = patches.iter().any(|&(px, pz, pr)| {
+                let dx = wx_base - px;
+                let dz = wz_base - pz;
+                dx * dx + dz * dz < pr * pr
+            });
+
+            // Inside patch: ~85% acceptance, outside: ~12%
+            let threshold = if in_patch { 217 } else { 30 };
+            if (hash & 0xFF) > threshold {
                 continue;
             }
 
@@ -129,20 +166,62 @@ pub fn scatter_objects(
             let wy = game_core::terrain::sample_height(heightmap, wx, wz);
 
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
-            let scale = 0.5 + size_hash * 0.8; // 0.5 to 1.3
+            let scale = 0.5 + size_hash * 0.8;
 
-            // Green color with variation
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
             let r = 0.25 + color_hash * 0.15;
             let g = 0.45 + color_hash * 0.3;
             let b = 0.12 + color_hash * 0.08;
 
-            // Random Y rotation
             let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
 
             grass.push(GrassInstance {
                 pos_scale: [wx, wy, wz, scale],
+                color_rotation: [r, g, b, rotation],
+            });
+        }
+    }
+
+    // Pass 3: Scatter grass rings around rock bases
+    for rock in &rocks {
+        let rx = rock.pos_scale[0];
+        let rz = rock.pos_scale[2];
+        let rock_scale = rock.pos_scale[3];
+        let ring_radius = 2.0 + rock_scale * 1.0; // 2-4 units around rock
+        let ring_samples = 12;
+
+        for i in 0..ring_samples {
+            if grass.len() >= crate::grass::MAX_GRASS {
+                break;
+            }
+            let hash = cell_hash(i as u32, (rx * 100.0) as u32, 0xF00D);
+            let angle = (i as f32 / ring_samples as f32) * std::f32::consts::TAU
+                + ((hash & 0xFF) as f32 / 255.0) * 0.5;
+            let dist = ring_radius * 0.5
+                + ((hash >> 8) & 0xFF) as f32 / 255.0 * ring_radius * 0.5;
+            let gx = rx + angle.cos() * dist;
+            let gz = rz + angle.sin() * dist;
+            let gy = game_core::terrain::sample_height(heightmap, gx, gz);
+
+            // Relaxed height filter (rocks sit on higher terrain)
+            if gy < 8.0 || gy > 20.0 {
+                continue;
+            }
+
+            let size_hash = ((hash >> 16) & 0xFF) as f32 / 255.0;
+            let scale = 0.4 + size_hash * 0.6;
+
+            let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
+            let r = 0.22 + color_hash * 0.12;
+            let g = 0.40 + color_hash * 0.25;
+            let b = 0.10 + color_hash * 0.08;
+
+            let rot_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
+            let rotation = rot_hash * std::f32::consts::TAU;
+
+            grass.push(GrassInstance {
+                pos_scale: [gx, gy, gz, scale],
                 color_rotation: [r, g, b, rotation],
             });
         }

@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 
 use crate::DEPTH_FORMAT;
 
-const MAX_GRASS: usize = 16384;
+pub const MAX_GRASS: usize = 16384;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
