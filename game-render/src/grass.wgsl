@@ -67,15 +67,26 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
     let grad = smoothstep(0.0, 0.3, in.bend_factor);
-    var blade_color = in.color * (0.85 + 0.25 * grad);  // base at 85%, tip at 110%
-    // Tips luminous — brighter and greener (sunlit translucent feel)
+    var blade_color = in.color * (0.90 + 0.20 * grad);  // base at 90%, tip at 110%
+    // Tips warmer yellow-green (sunlit, not lime)
     let tip_glow = smoothstep(0.3, 1.0, in.bend_factor);
-    blade_color.g += tip_glow * 0.18;
-    blade_color.r += tip_glow * 0.05;
-    blade_color.b += tip_glow * 0.03;
+    blade_color.g += tip_glow * 0.10;
+    blade_color.r += tip_glow * 0.07;  // warmer tips
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, blade_color, shadow);
-    let color = apply_fog(in.world_pos, lit);
+
+    // Translucency: backlit blades glow warm when sun is behind them (dawn/dusk)
+    // Gate on sun elevation — no translucency at night
+    let sun_up = smoothstep(-0.05, 0.1, u.sun_dir.y);
+    let view_dir = normalize(in.world_pos - u.camera_pos);
+    let backlit = max(dot(view_dir, u.sun_dir), 0.0);
+    let translucency = backlit * backlit * in.bend_factor * sun_up * 0.8;
+    let trans_color = blade_color * u.sun_color * translucency;
+
+    // Slight brightness lift so blades stand out from terrain under heavy atmosphere
+    let lift = blade_color * 0.06 * sun_up;
+
+    let color = apply_fog(in.world_pos, lit + trans_color + lift);
     return vec4(color, 1.0);
 }

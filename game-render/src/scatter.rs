@@ -104,8 +104,8 @@ pub fn scatter_objects(
 
     // --- Grass: patch-based distribution with rock-aware placement ---
 
-    // Pass 1: Identify patch centers — fewer but larger for clearer meadow clusters
-    let patch_step = 12;
+    // Pass 1: Identify patch centers — meadow clusters with bare ground between
+    let patch_step = 10;
     let mut patches: Vec<(f32, f32, f32)> = Vec::new(); // (wx, wz, radius)
     for gz in (0..hm_res).step_by(patch_step) {
         for gx in (0..hm_res).step_by(patch_step) {
@@ -114,13 +114,13 @@ pub fn scatter_objects(
                 continue;
             }
             let hash = cell_hash(gx as u32, gz as u32, 0xFACE);
-            // ~35% acceptance — fewer patches with more bare ground between
-            if (hash & 0xFF) > 90 {
+            // ~45% acceptance — enough patches for coverage, with visible gaps
+            if (hash & 0xFF) > 115 {
                 continue;
             }
             let wx = gx as f32 * texel_size;
             let wz = gz as f32 * texel_size;
-            let radius = 4.0 + ((hash >> 8) & 0xFF) as f32 / 255.0 * 4.0; // 4-8 texels
+            let radius = 5.0 + ((hash >> 8) & 0xFF) as f32 / 255.0 * 5.0; // 5-10 texels
             patches.push((wx, wz, radius * texel_size));
         }
     }
@@ -153,8 +153,8 @@ pub fn scatter_objects(
                 dx * dx + dz * dz < pr * pr
             });
 
-            // Inside patch: ~90% dense fill, outside: ~8% sparse strays
-            let threshold = if in_patch { 230 } else { 20 };
+            // Inside patch: ~90% dense fill, outside: ~15% sparse strays
+            let threshold = if in_patch { 230 } else { 38 };
             if (hash & 0xFF) > threshold {
                 continue;
             }
@@ -166,15 +166,15 @@ pub fn scatter_objects(
             let wy = game_core::terrain::sample_height(heightmap, wx, wz);
 
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
-            let scale = 0.7 + size_hash * 0.6; // 0.7-1.3 — all blades visible
+            let scale = 0.6 + size_hash * 0.9; // 0.6-1.5 — varied heights
 
             // Match blade color to terrain — same noise-based color as terrain.wgsl
             let terrain_col = terrain_color_at(wy, wx, wz);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
             let var = color_hash * 0.08 - 0.04; // ±4% random per-blade variation
             let r = (terrain_col[0] + var).max(0.05);
-            let g = (terrain_col[1] + var + 0.03).max(0.10); // slight green push
-            let b = (terrain_col[2] + var - 0.01).max(0.03);
+            let g = (terrain_col[1] + var).max(0.10);
+            let b = (terrain_col[2] + var).max(0.03);
 
             let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;
@@ -219,8 +219,8 @@ pub fn scatter_objects(
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
             let var = color_hash * 0.08 - 0.04;
             let r = (terrain_col[0] + var).max(0.05);
-            let g = (terrain_col[1] + var + 0.03).max(0.10);
-            let b = (terrain_col[2] + var - 0.01).max(0.03);
+            let g = (terrain_col[1] + var).max(0.10);
+            let b = (terrain_col[2] + var).max(0.03);
 
             let rot_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
             let rotation = rot_hash * std::f32::consts::TAU;

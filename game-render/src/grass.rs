@@ -182,12 +182,12 @@ type GrassVertex = [f32; 4]; // [x, y, z, bend]
 /// Generate a curved grass blade: 3 segments (base → mid → tip), 6 vertices, 4 triangles.
 /// Wider at base for a tuft-like silhouette, slight mid-height lean for natural curve.
 fn generate_grass_blade() -> (Vec<GrassVertex>, Vec<u32>) {
-    let base_hw = 0.14;  // half-width at base (~0.28 total)
-    let mid_hw = 0.10;   // half-width at mid (~0.20 total)
+    let base_hw = 0.16;  // half-width at base (~0.32 total)
+    let mid_hw = 0.11;   // half-width at mid (~0.22 total)
     let tip_hw = 0.03;   // half-width at tip (~0.06 total)
-    let mid_h = 0.25;
-    let tip_h = 0.60;
-    let lean = 0.03;     // slight X offset at mid for natural curve
+    let mid_h = 0.40;
+    let tip_h = 1.0;
+    let lean = 0.04;     // slight X offset at mid for natural curve
 
     let verts = vec![
         [-base_hw, 0.0,   0.0, 0.0],  // 0: base-left  (anchored)
