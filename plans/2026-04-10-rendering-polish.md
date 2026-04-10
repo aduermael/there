@@ -479,7 +479,7 @@ The scene has no cast shadows — everything is lit uniformly. A single directio
 
   **Failure modes**: Shadow map too small (512px) can cause blocky shadows at distance — acceptable for stylized look. Shadow acne from insufficient bias — tune per-scene. Peter-panning from too much bias — keep bias minimal.
 
-- [ ] 12b: Sample shadow map in geometry shaders
+- [x] 12b: Sample shadow map in geometry shaders
 
   **Approach**: Add a `sample_shadow(world_pos: vec3<f32>) -> f32` function in `common.wgsl`. All geometry shaders call this in their lighting calculation.
 

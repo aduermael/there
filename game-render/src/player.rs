@@ -43,6 +43,7 @@ impl PlayerRenderer {
         device: &wgpu::Device,
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
+        shadow_bgl: &wgpu::BindGroupLayout,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Player Shader"),
@@ -80,7 +81,7 @@ impl PlayerRenderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Player Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl],
+            bind_group_layouts: &[uniform_bgl, shadow_bgl],
             push_constant_ranges: &[],
         });
 
@@ -173,6 +174,7 @@ impl PlayerRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
+        shadow_bg: &'a wgpu::BindGroup,
         instance_count: u32,
     ) {
         if instance_count == 0 {
@@ -180,6 +182,7 @@ impl PlayerRenderer {
         }
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_bind_group(1, shadow_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);

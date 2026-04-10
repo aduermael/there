@@ -26,6 +26,7 @@ impl GrassRenderer {
         queue: &wgpu::Queue,
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
+        shadow_bgl: &wgpu::BindGroupLayout,
         instances: &[GrassInstance],
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -68,7 +69,7 @@ impl GrassRenderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Grass Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl],
+            bind_group_layouts: &[uniform_bgl, shadow_bgl],
             push_constant_ranges: &[],
         });
 
@@ -160,12 +161,14 @@ impl GrassRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
+        shadow_bg: &'a wgpu::BindGroup,
     ) {
         if self.instance_count == 0 {
             return;
         }
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_bind_group(1, shadow_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);

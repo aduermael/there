@@ -18,4 +18,4 @@ pub use scatter::scatter_objects;
 pub use atmosphere::{AtmosphereParams, compute_atmosphere};
 pub use sky::SkyRenderer;
 pub use postprocess::{PostProcessRenderer, INTERMEDIATE_FORMAT};
-pub use shadow::{create_shadow_texture, compute_sun_view_proj};
+pub use shadow::{create_shadow_texture, create_shadow_bgl, create_shadow_bind_group, compute_sun_view_proj};

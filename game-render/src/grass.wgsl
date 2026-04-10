@@ -1,6 +1,9 @@
 // Grass-specific: instanced blades with wind animation and distance fade.
 // Uniforms, lighting, and fog provided by common.wgsl prefix.
 
+@group(1) @binding(0) var shadow_map: texture_depth_2d;
+@group(1) @binding(1) var shadow_sampler: sampler_comparison;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) bend: f32,
@@ -65,7 +68,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tip_boost = smoothstep(0.6, 1.0, in.bend_factor) * 0.08;
     blade_color.g += tip_boost;
 
-    let lit = hemisphere_lighting(n, blade_color);
+    let shadow = sample_shadow(in.world_pos);
+    let lit = hemisphere_lighting(n, blade_color, shadow);
     let color = apply_fog(in.world_pos, lit);
     return vec4(color, 1.0);
 }

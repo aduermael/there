@@ -1,7 +1,8 @@
 use game_render::{
-    compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_texture,
-    scatter_objects, GrassRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_bgl,
+    create_shadow_bind_group, create_shadow_texture, scatter_objects, GrassRenderer,
+    PostProcessRenderer, RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    INTERMEDIATE_FORMAT,
 };
 use wgpu::util::DeviceExt;
 
@@ -168,27 +169,30 @@ pub async fn render_frame(
         }],
     });
 
+    // --- Shadow resources ---
+    let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+    let shadow_bgl = create_shadow_bgl(&device);
+    let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_depth_view);
+
     // --- Scene renderers (all target HDR intermediate) ---
     let terrain = TerrainRenderer::new(
         &device,
         INTERMEDIATE_FORMAT,
         &uniform_bgl,
+        &shadow_bgl,
         &heightmap_view,
         &heightmap_data,
     );
 
-    let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
+    let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
     let (rock_instances, tree_instances, grass_instances) = scatter_objects(&heightmap_data);
     let rock_renderer =
-        RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &rock_instances);
+        RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &rock_instances);
     let tree_renderer =
-        TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &tree_instances);
+        TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
     let grass_renderer =
-        GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &grass_instances);
-
-    // --- Shadow depth texture ---
-    let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+        GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
 
     // --- Post-process renderer ---
     let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, width, height);
@@ -247,11 +251,11 @@ pub async fn render_frame(
             ..Default::default()
         });
 
-        sky.draw(&mut pass, &uniform_bind_group);
-        terrain.draw(&mut pass, &uniform_bind_group, camera_pos, &view_proj);
-        grass_renderer.draw(&mut pass, &uniform_bind_group);
-        rock_renderer.draw(&mut pass, &uniform_bind_group);
-        tree_renderer.draw(&mut pass, &uniform_bind_group);
+        sky.draw(&mut pass, &uniform_bind_group, &shadow_bind_group);
+        terrain.draw(&mut pass, &uniform_bind_group, &shadow_bind_group, camera_pos, &view_proj);
+        grass_renderer.draw(&mut pass, &uniform_bind_group, &shadow_bind_group);
+        rock_renderer.draw(&mut pass, &uniform_bind_group, &shadow_bind_group);
+        tree_renderer.draw(&mut pass, &uniform_bind_group, &shadow_bind_group);
     }
 
     // --- Pass 2: Post-process → final output ---

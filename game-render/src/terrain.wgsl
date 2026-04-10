@@ -7,6 +7,8 @@ struct ChunkOffset {
 
 @group(1) @binding(0) var heightmap: texture_2d<f32>;
 @group(2) @binding(0) var<uniform> chunk: ChunkOffset;
+@group(3) @binding(0) var shadow_map: texture_depth_2d;
+@group(3) @binding(1) var shadow_sampler: sampler_comparison;
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
@@ -103,7 +105,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     base_color = max(base_color, vec3(0.02));
 
-    let lit = hemisphere_lighting(n, base_color);
+    let shadow = sample_shadow(in.world_pos);
+    let lit = hemisphere_lighting(n, base_color, shadow);
     let rim = rim_light(n, in.world_pos);
     let color = apply_fog(in.world_pos, lit + rim);
 

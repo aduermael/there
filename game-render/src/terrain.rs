@@ -53,6 +53,7 @@ impl TerrainRenderer {
         device: &wgpu::Device,
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
+        shadow_bgl: &wgpu::BindGroupLayout,
         heightmap_view: &wgpu::TextureView,
         heightmap_data: &[f32],
     ) -> Self {
@@ -161,9 +162,16 @@ impl TerrainRenderer {
             }],
         });
 
-        // Pipeline
+        // Pipeline (scene: groups 0=uniforms, 1=heightmap, 2=chunks, 3=shadow)
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Terrain Pipeline Layout"),
+            bind_group_layouts: &[uniform_bgl, &heightmap_bgl, &chunk_bgl, shadow_bgl],
+            push_constant_ranges: &[],
+        });
+
+        // Shadow pipeline layout (no shadow sampling needed)
+        let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Terrain Shadow Pipeline Layout"),
             bind_group_layouts: &[uniform_bgl, &heightmap_bgl, &chunk_bgl],
             push_constant_ranges: &[],
         });
@@ -216,7 +224,7 @@ impl TerrainRenderer {
         // Shadow pipeline (depth-only, uses vs_shadow entry point)
         let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Terrain Shadow Pipeline"),
-            layout: Some(&pipeline_layout),
+            layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_shadow"),
@@ -283,6 +291,7 @@ impl TerrainRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
+        shadow_bg: &'a wgpu::BindGroup,
         camera_pos: glam::Vec3,
         vp: &glam::Mat4,
     ) {
@@ -292,6 +301,7 @@ impl TerrainRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
         pass.set_bind_group(1, &self.heightmap_bind_group, &[]);
+        pass.set_bind_group(3, shadow_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
         let mut drawn = 0u32;

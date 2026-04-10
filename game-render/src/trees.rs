@@ -27,6 +27,7 @@ impl TreeRenderer {
         queue: &wgpu::Queue,
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
+        shadow_bgl: &wgpu::BindGroupLayout,
         instances: &[TreeInstance],
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -69,6 +70,12 @@ impl TreeRenderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Tree Pipeline Layout"),
+            bind_group_layouts: &[uniform_bgl, shadow_bgl],
+            push_constant_ranges: &[],
+        });
+
+        let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Tree Shadow Pipeline Layout"),
             bind_group_layouts: &[uniform_bgl],
             push_constant_ranges: &[],
         });
@@ -148,7 +155,7 @@ impl TreeRenderer {
         // Shadow pipeline (depth-only)
         let shadow_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Tree Shadow Pipeline"),
-            layout: Some(&pipeline_layout),
+            layout: Some(&shadow_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_shadow"),
@@ -233,12 +240,14 @@ impl TreeRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
+        shadow_bg: &'a wgpu::BindGroup,
     ) {
         if self.instance_count == 0 {
             return;
         }
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_bind_group(1, shadow_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);

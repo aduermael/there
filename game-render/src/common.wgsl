@@ -62,11 +62,29 @@ fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
     return normalize(cross(dx, dy));
 }
 
-fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>) -> vec3<f32> {
+fn sample_shadow(world_pos: vec3<f32>) -> f32 {
+    let light_clip = u.sun_view_proj * vec4(world_pos, 1.0);
+    let light_ndc = light_clip.xyz / light_clip.w;
+    let shadow_uv = vec2(light_ndc.x * 0.5 + 0.5, 1.0 - (light_ndc.y * 0.5 + 0.5));
+
+    // Out of shadow map bounds = fully lit
+    if shadow_uv.x < 0.0 || shadow_uv.x > 1.0 || shadow_uv.y < 0.0 || shadow_uv.y > 1.0 {
+        return 1.0;
+    }
+
+    let current_depth = light_ndc.z;
+    let bias = 0.005;
+    // comparison sampler returns 1.0 if current_depth - bias <= shadow_depth
+    return textureSampleCompare(shadow_map, shadow_sampler, shadow_uv, current_depth - bias);
+}
+
+fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32) -> vec3<f32> {
     let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    return base_color * (ambient + ndl * u.sun_color);
+    // Shadow only affects direct sun light, not ambient
+    let sun_shadow = mix(0.3, 1.0, shadow); // shadowed areas keep 30% sun
+    return base_color * (ambient + ndl * u.sun_color * sun_shadow);
 }
 
 fn rim_light(n: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {

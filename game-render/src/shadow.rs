@@ -22,6 +22,61 @@ pub fn create_shadow_texture(device: &wgpu::Device) -> (wgpu::Texture, wgpu::Tex
     (texture, view)
 }
 
+/// Create the bind group layout for shadow map sampling (texture + comparison sampler).
+pub fn create_shadow_bgl(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Shadow BGL"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Depth,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                count: None,
+            },
+        ],
+    })
+}
+
+/// Create the shadow bind group (texture view + comparison sampler).
+pub fn create_shadow_bind_group(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    shadow_view: &wgpu::TextureView,
+) -> wgpu::BindGroup {
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("Shadow Sampler"),
+        compare: Some(wgpu::CompareFunction::LessEqual),
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    });
+
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("Shadow BG"),
+        layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(shadow_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler),
+            },
+        ],
+    })
+}
+
 /// Compute sun orthographic view-projection matrix.
 /// Covers a 200x200 unit area centered on the camera position.
 pub fn compute_sun_view_proj(sun_dir: glam::Vec3, camera_pos: glam::Vec3) -> glam::Mat4 {

@@ -1,6 +1,9 @@
 // Player-specific: instanced capsule with yaw rotation.
 // Uniforms, lighting, and fog provided by common.wgsl prefix.
 
+@group(1) @binding(0) var shadow_map: texture_depth_2d;
+@group(1) @binding(1) var shadow_sampler: sampler_comparison;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) inst_pos_yaw: vec4<f32>,
@@ -37,7 +40,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
-    let lit = hemisphere_lighting(n, in.color);
+    let shadow = sample_shadow(in.world_pos);
+    let lit = hemisphere_lighting(n, in.color, shadow);
     let color = apply_fog(in.world_pos, lit);
     return vec4(color, 1.0);
 }

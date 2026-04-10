@@ -3,8 +3,8 @@ use web_sys::HtmlCanvasElement;
 
 use game_render::{
     GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_texture,
-    scatter_objects, INTERMEDIATE_FORMAT,
+    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
+    create_shadow_bind_group, create_shadow_texture, scatter_objects, INTERMEDIATE_FORMAT,
 };
 
 pub struct Renderer {
@@ -16,6 +16,7 @@ pub struct Renderer {
     shadow_depth_view: wgpu::TextureView,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    shadow_bind_group: wgpu::BindGroup,
     sky: SkyRenderer,
     terrain: TerrainRenderer,
     players: PlayerRenderer,
@@ -125,8 +126,10 @@ impl Renderer {
         // Depth texture
         let depth_view = create_depth_texture(&device, width, height);
 
-        // Shadow depth texture
+        // Shadow depth texture + bind group
         let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+        let shadow_bgl = create_shadow_bgl(&device);
+        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_depth_view);
 
         // Uniform buffer + bind group (shared across pipelines)
         let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -159,15 +162,15 @@ impl Renderer {
         });
 
         // Scene renderers (all target HDR intermediate)
-        let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
+        let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
         let terrain =
-            TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &heightmap_view, heightmap_data);
-        let players = PlayerRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
+            TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data);
+        let players = PlayerRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
         let (rock_instances, tree_instances, grass_instances) = scatter_objects(heightmap_data);
-        let rocks = RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &rock_instances);
-        let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &tree_instances);
-        let grass = GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &grass_instances);
+        let rocks = RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &rock_instances);
+        let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
+        let grass = GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
 
         // Post-process renderer (HDR intermediate → surface)
         let postprocess = PostProcessRenderer::new(&device, format, width, height);
@@ -188,6 +191,7 @@ impl Renderer {
             shadow_depth_view,
             uniform_buffer,
             uniform_bind_group,
+            shadow_bind_group,
             sky,
             terrain,
             players,
@@ -297,15 +301,16 @@ impl Renderer {
                 ..Default::default()
             });
 
-            self.sky.draw(&mut pass, &self.uniform_bind_group);
+            self.sky.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
             self.terrain
-                .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
-            self.grass.draw(&mut pass, &self.uniform_bind_group);
-            self.rocks.draw(&mut pass, &self.uniform_bind_group);
-            self.trees.draw(&mut pass, &self.uniform_bind_group);
+                .draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group, camera_pos, view_proj);
+            self.grass.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
+            self.rocks.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
+            self.trees.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
             self.players.draw(
                 &mut pass,
                 &self.uniform_bind_group,
+                &self.shadow_bind_group,
                 player_instances.len() as u32,
             );
         }
