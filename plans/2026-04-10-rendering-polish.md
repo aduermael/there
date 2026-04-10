@@ -335,7 +335,7 @@ All geometry shaders duplicate the same code: Uniforms struct (6×17 lines), fog
 
   **Failure modes**: WGSL has no native `#include`. The Rust-side `format!()` concatenation is the simplest approach. Must ensure no name collisions between common functions and shader-local variables. Must verify all 6 shaders still compile and produce identical output.
 
-- [ ] 9b: Verify visual output is unchanged after consolidation
+- [x] 9b: Verify visual output is unchanged after consolidation
 
   **Approach**: Run `make snapshot` before and after. Compare all 4 time-of-day images pixel-for-pixel (or visually). No rendering changes should be visible — this is a pure refactor.
 
