@@ -32,8 +32,14 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(hdr_texture, hdr_sampler, in.uv).rgb;
 
-    // Apply SSAO
-    let ao = textureSample(ao_texture, hdr_sampler, in.uv).r;
+    // Apply SSAO (4-tap bilinear blur on half-res AO texture)
+    let ao_t = 1.5 / vec2<f32>(textureDimensions(ao_texture));
+    let ao = (
+        textureSample(ao_texture, hdr_sampler, in.uv + vec2(-ao_t.x, -ao_t.y)).r
+        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(ao_t.x, -ao_t.y)).r
+        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(-ao_t.x, ao_t.y)).r
+        + textureSample(ao_texture, hdr_sampler, in.uv + vec2(ao_t.x, ao_t.y)).r
+    ) * 0.25;
     color *= ao;
 
     // ACES tone mapping (HDR → LDR with filmic curve)

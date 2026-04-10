@@ -42,8 +42,8 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
 const NEAR: f32 = 0.1;
 const FAR: f32 = 500.0;
 const SAMPLES: u32 = 8;
-const RADIUS: f32 = 3.0;
-const STRENGTH: f32 = 1.5;
+const RADIUS: f32 = 4.0;
+const STRENGTH: f32 = 1.2;
 
 fn linearize(d: f32) -> f32 {
     return NEAR * FAR / (FAR - d * (FAR - NEAR));
@@ -120,7 +120,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             // Occluded if actual surface is closer than our sample point
             let diff = expected_linear - actual_linear;
             let range_ok = smoothstep(RADIUS, 0.0, diff);
-            occ += step(0.05, diff) * range_ok;
+            occ += step(0.15, diff) * range_ok;
         }
     }
 

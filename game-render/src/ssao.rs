@@ -8,6 +8,7 @@ pub struct SsaoRenderer {
 }
 
 impl SsaoRenderer {
+    /// Creates SSAO renderer. AO texture is half-resolution for natural smoothing.
     pub fn new(
         device: &wgpu::Device,
         uniform_bgl: &wgpu::BindGroupLayout,
@@ -70,7 +71,7 @@ impl SsaoRenderer {
         });
 
         let depth_bind_group = Self::create_depth_bg(device, &depth_bgl, depth_view);
-        let ao_view = Self::create_ao_texture(device, width, height);
+        let ao_view = Self::create_ao_texture(device, (width / 2).max(1), (height / 2).max(1));
 
         Self {
             pipeline,
@@ -121,7 +122,7 @@ impl SsaoRenderer {
         height: u32,
     ) {
         self.depth_bind_group = Self::create_depth_bg(device, &self.depth_bgl, depth_view);
-        self.ao_view = Self::create_ao_texture(device, width, height);
+        self.ao_view = Self::create_ao_texture(device, (width / 2).max(1), (height / 2).max(1));
     }
 
     pub fn ao_view(&self) -> &wgpu::TextureView {

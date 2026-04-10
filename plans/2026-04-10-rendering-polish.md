@@ -588,7 +588,7 @@ Vertex-based AO computed at scatter time is the cheapest effective approach: ~0.
 
 Verify everything works together across all 4 times of day and in the browser.
 
-- [ ] 14a: Full visual iteration and tuning
+- [x] 14a: Full visual iteration and tuning
 
   **Approach**: Use the visual-iterate skill to render all 4 times of day. Evaluate and tune:
   - Shadow strength and bias across all times of day
