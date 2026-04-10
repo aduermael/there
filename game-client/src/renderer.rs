@@ -2,8 +2,9 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    GrassRenderer, PlayerInstance, PlayerRenderer, RockRenderer, SkyRenderer, TerrainRenderer,
-    TreeRenderer, Uniforms, create_depth_texture, scatter_objects,
+    GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
+    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, scatter_objects,
+    INTERMEDIATE_FORMAT,
 };
 
 pub struct Renderer {
@@ -20,6 +21,7 @@ pub struct Renderer {
     rocks: RockRenderer,
     trees: TreeRenderer,
     grass: GrassRenderer,
+    postprocess: PostProcessRenderer,
 }
 
 impl Renderer {
@@ -152,21 +154,19 @@ impl Renderer {
             }],
         });
 
-        // Sky renderer
-        let sky = SkyRenderer::new(&device, format, &uniform_bgl);
-
-        // Terrain renderer
+        // Scene renderers (all target HDR intermediate)
+        let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
         let terrain =
-            TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view, heightmap_data);
+            TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &heightmap_view, heightmap_data);
+        let players = PlayerRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
 
-        // Player renderer
-        let players = PlayerRenderer::new(&device, format, &uniform_bgl);
-
-        // Scene objects (rocks + trees + grass)
         let (rock_instances, tree_instances, grass_instances) = scatter_objects(heightmap_data);
-        let rocks = RockRenderer::new(&device, &queue, format, &uniform_bgl, &rock_instances);
-        let trees = TreeRenderer::new(&device, &queue, format, &uniform_bgl, &tree_instances);
-        let grass = GrassRenderer::new(&device, &queue, format, &uniform_bgl, &grass_instances);
+        let rocks = RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &rock_instances);
+        let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &tree_instances);
+        let grass = GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &grass_instances);
+
+        // Post-process renderer (HDR intermediate → surface)
+        let postprocess = PostProcessRenderer::new(&device, format, width, height);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -189,6 +189,7 @@ impl Renderer {
             rocks,
             trees,
             grass,
+            postprocess,
         }
     }
 
@@ -207,6 +208,7 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
             self.depth_view = create_depth_texture(&self.device, width, height);
+            self.postprocess.resize(&self.device, width, height);
         }
     }
 
@@ -240,11 +242,12 @@ impl Renderer {
                 label: Some("Render"),
             });
 
+        // Pass 1: Scene → HDR intermediate
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Main Pass"),
+                label: Some("Scene Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view: self.postprocess.intermediate_view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -278,6 +281,25 @@ impl Renderer {
                 &self.uniform_bind_group,
                 player_instances.len() as u32,
             );
+        }
+
+        // Pass 2: Post-process → surface
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("PostProcess Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            self.postprocess.draw(&mut pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

@@ -1,6 +1,6 @@
 use game_render::{
-    compute_atmosphere, create_depth_texture, scatter_objects, GrassRenderer, RockRenderer,
-    SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    compute_atmosphere, create_depth_texture, scatter_objects, GrassRenderer, PostProcessRenderer,
+    RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 use wgpu::util::DeviceExt;
 
@@ -164,37 +164,38 @@ pub async fn render_frame(
         }],
     });
 
-    // --- Terrain renderer ---
+    // --- Scene renderers (all target HDR intermediate) ---
     let terrain = TerrainRenderer::new(
         &device,
-        TEXTURE_FORMAT,
+        INTERMEDIATE_FORMAT,
         &uniform_bgl,
         &heightmap_view,
         &heightmap_data,
     );
 
-    // --- Sky renderer ---
-    let sky = SkyRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl);
+    let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
 
-    // --- Scene objects (rocks + trees + grass) ---
     let (rock_instances, tree_instances, grass_instances) = scatter_objects(&heightmap_data);
     let rock_renderer =
-        RockRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &rock_instances);
+        RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &rock_instances);
     let tree_renderer =
-        TreeRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &tree_instances);
+        TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &tree_instances);
     let grass_renderer =
-        GrassRenderer::new(&device, &queue, TEXTURE_FORMAT, &uniform_bgl, &grass_instances);
+        GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &grass_instances);
 
-    // --- Render pass ---
+    // --- Post-process renderer ---
+    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, width, height);
+
+    // --- Pass 1: Scene → HDR intermediate ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
     });
 
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Snapshot Pass"),
+            label: Some("Scene Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &render_view,
+                view: postprocess.intermediate_view(),
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -222,6 +223,25 @@ pub async fn render_frame(
         grass_renderer.draw(&mut pass, &uniform_bind_group);
         rock_renderer.draw(&mut pass, &uniform_bind_group);
         tree_renderer.draw(&mut pass, &uniform_bind_group);
+    }
+
+    // --- Pass 2: Post-process → final output ---
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("PostProcess Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &render_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        postprocess.draw(&mut pass);
     }
 
     // --- Pixel readback ---

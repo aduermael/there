@@ -245,7 +245,7 @@ Better tree shapes and subtle animation make the forest feel like a living place
 
 The final polish layer. Currently the renderer writes directly to the swapchain. Adding an intermediate render target enables tone mapping and color grading — the difference between "technically correct" and "beautiful."
 
-- [ ] 7a: Add intermediate render target and post-processing pipeline
+- [x] 7a: Add intermediate render target and post-processing pipeline
 
   **Approach**: Render the scene to an intermediate RGBA16Float texture instead of directly to the surface. Then draw a fullscreen quad with a post-processing shader that reads from this texture.
 
