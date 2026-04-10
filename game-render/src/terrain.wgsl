@@ -123,10 +123,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let brightness = mix(mix(sand_bright, grass_bright, sg), rock_bright, gr);
 
     base_color = base_color + hue_shift + base_color * brightness;
+
+    // Slope-based darkening and color shift
+    let n = normalize(in.normal);
+    let slope = 1.0 - n.y; // 0 = flat, 1 = vertical
+    let slope_factor = smoothstep(0.15, 0.7, slope);
+
+    // Steep grass → darker, browner (exposed soil/dirt)
+    let steep_grass = mix(base_color, vec3(0.28, 0.36, 0.18), slope_factor * 0.6 * sg * (1.0 - gr));
+    // Steep sand → slightly darker, more grey
+    let steep_sand = mix(base_color, vec3(0.55, 0.50, 0.42), slope_factor * 0.4 * (1.0 - sg));
+    // Steep rock → darker crevices
+    let steep_rock = mix(base_color, vec3(0.38, 0.34, 0.32), slope_factor * 0.5 * gr);
+    base_color = steep_grass + steep_sand + steep_rock - base_color * 2.0;
+
+    // Flat areas: slightly brighter, more saturated (lush growth)
+    let flat_boost = (1.0 - slope_factor) * 0.08 * sg * (1.0 - gr);
+    base_color = base_color * (1.0 + flat_boost) + vec3(-0.01, 0.02, -0.01) * flat_boost;
+
     base_color = max(base_color, vec3(0.02));
 
     // Hemisphere ambient: sky from above, ground bounce from below
-    let n = normalize(in.normal);
     let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
 

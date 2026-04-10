@@ -128,7 +128,7 @@ The terrain is the largest surface on screen. Breaking up its flat monotone biom
   - Variation amplitude: ~15-25% of base color
   - Must use world-space coordinates (not screen-space) so it's stable as camera moves
 
-- [ ] 3b: Add slope-based darkening and detail to terrain
+- [x] 3b: Add slope-based darkening and detail to terrain
 
   **Approach**: Use the existing normal to detect steep slopes. Darken steep areas (exposed dirt/rock), brighten flat areas (lush grass). Also add slight color shift: steep = more brown, flat = more saturated green.
 
