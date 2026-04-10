@@ -185,4 +185,4 @@ Time-of-day driven atmosphere. A single `sun_angle` parameter (0.0 = dawn, 0.25 
 End-to-end validation that the render loop is fast, scriptable, and produces meaningful visual differences.
 
 - [x] 5a: Makefile target `make snapshot` that builds + runs `game-snapshot` for multiple times of day (dawn, noon, dusk, night → 4 PNGs)
-- [ ] 5b: Verify iteration speed: modify a visual parameter (e.g., fog distance, tree density, sun color), re-run `make snapshot`, confirm the output changes. Document the workflow.
+- [x] 5b: Verify iteration speed: modify a visual parameter (e.g., fog distance, tree density, sun color), re-run `make snapshot`, confirm the output changes. Document the workflow.
