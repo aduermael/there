@@ -385,7 +385,7 @@ The noon snapshot is washed out / burnt. Root cause: multiple compounding factor
 
 Three problems: blades are pointy triangles (should be simple rectangles), distribution is uniform (should be patchy), and grass doesn't appear near rocks. The grass-ground transition is also harsh because blades are fully opaque with no terrain color matching.
 
-- [ ] 11a: Change grass blade geometry from triangle to rectangle
+- [x] 11a: Change grass blade geometry from triangle to rectangle
 
   **Approach**: In `grass.rs`, replace the 3-vertex triangle blade with a 4-vertex quad (2 triangles). The quad is slightly narrower at the top for a natural look, but **not** pointy — it should read as a simple rectangular blade.
 

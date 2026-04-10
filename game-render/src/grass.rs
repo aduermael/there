@@ -176,18 +176,20 @@ impl GrassRenderer {
 /// Vertex with position and bend factor (0 at base, 1 at tip).
 type GrassVertex = [f32; 4]; // [x, y, z, bend]
 
-/// Generate a single grass blade triangle.
+/// Generate a single grass blade as a rectangular quad (2 triangles), narrower at top.
 fn generate_grass_blade() -> (Vec<GrassVertex>, Vec<u32>) {
-    let half_width = 0.04;
+    let base_hw = 0.04; // half-width at base (~0.08 total)
+    let top_hw = 0.02;  // half-width at top (~0.04 total)
     let height = 0.6;
 
     let verts = vec![
-        [-half_width, 0.0, 0.0, 0.0], // bottom-left (anchored)
-        [half_width, 0.0, 0.0, 0.0],  // bottom-right (anchored)
-        [0.0, height, 0.0, 1.0],      // tip (bends with wind)
+        [-base_hw, 0.0, 0.0, 0.0],   // 0: bottom-left (anchored)
+        [base_hw, 0.0, 0.0, 0.0],    // 1: bottom-right (anchored)
+        [-top_hw, height, 0.0, 1.0],  // 2: top-left (bends with wind)
+        [top_hw, height, 0.0, 1.0],   // 3: top-right (bends with wind)
     ];
 
-    let indices = vec![0, 1, 2];
+    let indices = vec![0, 1, 2, 1, 3, 2];
 
     (verts, indices)
 }
