@@ -11,10 +11,10 @@ mod renderer;
 mod terrain;
 
 use camera::OrbitCamera;
-use game_core::protocol::ServerMsg;
+use game_core::protocol::{PlayerId, ServerMsg};
 use input::InputState;
 use net::Connection;
-use player::PlayerInstance;
+use player::{player_color, PlayerInstance};
 use renderer::Renderer;
 use terrain::Uniforms;
 
@@ -25,6 +25,7 @@ struct GameState {
     players: Vec<PlayerInstance>,
     input: InputState,
     local_pos: glam::Vec3,
+    local_player_id: Option<PlayerId>,
     last_send_time: f64,
     last_frame_time: f64,
 }
@@ -85,6 +86,7 @@ async fn run() {
         players: vec![local_player],
         input: InputState::new(),
         local_pos,
+        local_player_id: None,
         last_send_time: 0.0,
         last_frame_time: js_sys::Date::now(),
     }));
@@ -179,7 +181,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 fn start_render_loop(
     state: Rc<RefCell<GameState>>,
     connection: Option<Connection>,
-    _incoming: Rc<RefCell<Vec<ServerMsg>>>,
+    incoming: Rc<RefCell<Vec<ServerMsg>>>,
 ) {
     let f: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
     let g = f.clone();
@@ -193,6 +195,54 @@ fn start_render_loop(
             let dt = ((now - state.last_frame_time) / 1000.0) as f32;
             let dt = dt.clamp(0.0, 0.1); // cap at 100ms to avoid jumps
             state.last_frame_time = now;
+
+            // Process incoming server messages
+            let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
+            for msg in messages {
+                match msg {
+                    ServerMsg::Welcome { your_id } => {
+                        log::info!("Assigned player ID: {your_id}");
+                        state.local_player_id = Some(your_id);
+                        // Update local player color based on server-assigned ID
+                        let c = player_color(your_id);
+                        if let Some(p) = state.players.first_mut() {
+                            p.color = [c[0], c[1], c[2], 0.0];
+                        }
+                    }
+                    ServerMsg::Snapshot { players } => {
+                        let local_id = state.local_player_id;
+                        let local_pos = state.local_pos;
+                        let yaw = state.camera.yaw;
+
+                        // Rebuild players list: local player first, then remotes
+                        state.players.clear();
+
+                        // Local player always at index 0
+                        let local_color = local_id
+                            .map(|id| player_color(id))
+                            .unwrap_or([0.90, 0.30, 0.25]);
+                        state.players.push(PlayerInstance {
+                            pos_yaw: [local_pos.x, local_pos.y, local_pos.z, yaw],
+                            color: [local_color[0], local_color[1], local_color[2], 0.0],
+                        });
+
+                        // Remote players from snapshot
+                        for ps in &players {
+                            if Some(ps.id) == local_id {
+                                continue; // skip self
+                            }
+                            let c = player_color(ps.id);
+                            state.players.push(PlayerInstance {
+                                pos_yaw: [ps.x, ps.y, ps.z, ps.yaw],
+                                color: [c[0], c[1], c[2], 0.0],
+                            });
+                        }
+                    }
+                    ServerMsg::PlayerLeft { id } => {
+                        log::info!("Player {id} left");
+                    }
+                }
+            }
 
             // Local player movement (client prediction)
             let forward = state.input.forward();
