@@ -5,6 +5,13 @@
 
 **Iteration protocol**: Each phase allows up to 5 iterations. Each iteration runs `make snapshot`, then 3 critic sub-agents review the output (art direction, technical quality, comparative improvement). Feedback is synthesized and applied before the next iteration. Stop when critics agree the phase is shippable (7+/10).
 
+**Snapshot archiving**: After each phase is complete (all tasks in the phase committed), copy the final snapshots into a phase-specific directory so the user can follow the visual evolution:
+```
+mkdir -p snapshots/2026-04-10-rendering-push/phase-N
+cp snapshots/*.png snapshots/2026-04-10-rendering-push/phase-N/
+```
+Where N is the phase number (1, 2, 3…). Include this copy in the phase's final commit. The `snapshots/` root always holds the latest state; the plan subdirectory preserves history.
+
 ---
 
 ## Current State (Phase 15 baseline)
