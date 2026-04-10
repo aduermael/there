@@ -226,7 +226,19 @@ fn start_render_loop(
 
                         for ps in &players {
                             if Some(ps.id) == local_id {
-                                continue; // skip self
+                                // Snap-correction: compare server position to predicted
+                                let server_pos =
+                                    glam::Vec3::new(ps.x, ps.y, ps.z);
+                                let delta = server_pos - state.local_pos;
+                                let dist = delta.length();
+                                if dist > 5.0 {
+                                    // Large mismatch — snap directly
+                                    state.local_pos = server_pos;
+                                } else if dist > 0.1 {
+                                    // Small mismatch — blend toward server
+                                    state.local_pos += delta * 0.3;
+                                }
+                                continue;
                             }
                             seen.insert(ps.id);
                             let new_pos = [ps.x, ps.y, ps.z, ps.yaw];
