@@ -56,7 +56,9 @@ impl TerrainRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Terrain Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("terrain.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("common.wgsl"), include_str!("terrain.wgsl")).into(),
+            ),
         });
 
         let chunk_size = game_core::WORLD_SIZE / CHUNK_COUNT as f32;

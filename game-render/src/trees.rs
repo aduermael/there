@@ -30,7 +30,9 @@ impl TreeRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Tree Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("trees.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("common.wgsl"), include_str!("trees.wgsl")).into(),
+            ),
         });
 
         let (vertices, indices) = generate_tree_mesh(12);

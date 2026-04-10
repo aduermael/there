@@ -12,7 +12,9 @@ impl SkyRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Sky Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("sky.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("common.wgsl"), include_str!("sky.wgsl")).into(),
+            ),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

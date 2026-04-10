@@ -30,7 +30,9 @@ impl RockRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Rock Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("rocks.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("common.wgsl"), include_str!("rocks.wgsl")).into(),
+            ),
         });
 
         let (vertices, indices) = generate_rock_mesh(1.0, 1, 42);

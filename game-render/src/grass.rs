@@ -30,7 +30,9 @@ impl GrassRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Grass Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("grass.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("common.wgsl"), include_str!("grass.wgsl")).into(),
+            ),
         });
 
         let (vertices, indices) = generate_grass_blade();

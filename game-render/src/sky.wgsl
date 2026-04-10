@@ -1,22 +1,5 @@
-struct Uniforms {
-    view_proj: mat4x4<f32>,
-    camera_pos: vec3<f32>,
-    sun_dir: vec3<f32>,
-    fog_color: vec3<f32>,
-    fog_density: f32,
-    world_size: f32,
-    hm_res: f32,
-    fog_height_falloff: f32,
-    time: f32,
-    sun_color: vec3<f32>,
-    sky_zenith: vec3<f32>,
-    sky_horizon: vec3<f32>,
-    inv_view_proj: mat4x4<f32>,
-    sky_ambient: vec3<f32>,
-    ground_ambient: vec3<f32>,
-};
-
-@group(0) @binding(0) var<uniform> u: Uniforms;
+// Sky-specific: gradient, sun disc/glow, procedural clouds.
+// Uniforms and noise provided by common.wgsl prefix.
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
@@ -33,38 +16,6 @@ fn vs_main(@builtin(vertex_index) id: u32) -> VertexOutput {
     out.clip_pos = vec4(x, y, 1.0, 1.0); // z=1.0 (far plane)
     out.uv = vec2(x * 0.5 + 0.5, -y * 0.5 + 0.5);
     return out;
-}
-
-// --- Hash-based value noise ---
-
-fn hash2(p: vec2<f32>) -> f32 {
-    var p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
-    p3 += dot(p3, vec3(p3.y + 33.33, p3.z + 33.33, p3.x + 33.33));
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-fn value_noise(p: vec2<f32>) -> f32 {
-    let i = floor(p);
-    let f = fract(p);
-    let s = f * f * (3.0 - 2.0 * f); // smoothstep interpolation
-
-    let a = hash2(i);
-    let b = hash2(i + vec2(1.0, 0.0));
-    let c = hash2(i + vec2(0.0, 1.0));
-    let d = hash2(i + vec2(1.0, 1.0));
-
-    return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
-}
-
-fn fbm3(p: vec2<f32>) -> f32 {
-    var val = 0.0;
-    var amp = 0.5;
-    var pos = p;
-    // 3 octaves
-    val += amp * value_noise(pos); pos *= 2.03; amp *= 0.5;
-    val += amp * value_noise(pos); pos *= 2.03; amp *= 0.5;
-    val += amp * value_noise(pos);
-    return val;
 }
 
 @fragment
@@ -115,7 +66,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let horizon_fade = smoothstep(0.005, 0.2, ray_dir.y);
         cloud_density *= horizon_fade;
 
-        // Distance fade — very far clouds become hazy
+        // Distance fade
         let cloud_dist_fade = 1.0 - smoothstep(800.0, 2000.0, dist_to_cloud);
         cloud_density *= cloud_dist_fade;
 
@@ -123,15 +74,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let sun_up = max(u.sun_dir.y, 0.0);
         let illumination = sun_up * 0.7 + 0.3;
 
-        // Bright top, darker base
         let cloud_bright = u.sun_color * illumination * 1.1;
         let cloud_shadow = mix(u.sky_zenith * 0.4, u.sky_horizon * 0.5, 0.5);
 
-        // Self-shadowing proxy
         let shade_factor = smoothstep(0.0, 0.6, cloud_density);
         let cloud_color = mix(cloud_bright, cloud_shadow, shade_factor * 0.4);
 
-        // Sun visible through thin clouds, hidden by thick
         let cloud_silver = pow(max(sun_dot, 0.0), 8.0) * (1.0 - cloud_density) * 0.3;
         let lit_cloud = cloud_color + u.sun_color * cloud_silver;
 

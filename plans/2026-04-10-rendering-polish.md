@@ -312,7 +312,7 @@ All rendering polish must work in the live multiplayer context — multiple brow
 
 All geometry shaders duplicate the same code: Uniforms struct (6×17 lines), fog computation (5×7 lines), hemisphere lighting (4×4 lines), rim/fresnel (3×4 lines), flat normal via derivatives (4×3 lines), hash/noise functions (2×18 lines). That's ~800 lines of duplication across shaders. Adding shadows and AO would multiply this. Consolidate first.
 
-- [ ] 9a: Create `common.wgsl` with all shared shader code and Rust-side concatenation
+- [x] 9a: Create `common.wgsl` with all shared shader code and Rust-side concatenation
 
   **Approach**: Create `game-render/src/common.wgsl` containing the shared Uniforms struct, binding declaration, and all shared utility functions. In Rust, concatenate `common.wgsl` as a prefix when loading each geometry shader via `format!("{}\n{}", include_str!("common.wgsl"), include_str!("terrain.wgsl"))`.
 
