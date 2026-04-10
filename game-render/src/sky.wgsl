@@ -77,8 +77,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let t = pow(1.0 - up_factor, 2.0);
     var color = mix(u.sky_zenith, u.sky_horizon, t);
 
+    // --- Sun disc and glow ---
+    let sun_dot = dot(ray_dir, u.sun_dir);
+
+    // Glow halo: soft falloff around sun, bigger at horizon for dawn/dusk drama
+    let horizon_boost = 1.0 + (1.0 - max(u.sun_dir.y, 0.0)) * 2.0;
+    let glow = pow(max(sun_dot, 0.0), 64.0 / horizon_boost) * 0.6 * horizon_boost;
+    color += u.sun_color * glow;
+
+    // Sun disc: small bright circle
+    let disc = smoothstep(0.9994, 0.9997, sun_dot);
+    let sun_intensity = mix(vec3(1.0, 0.95, 0.85), u.sun_color, 0.3) * 2.0;
+
     // --- Procedural clouds ---
     let cloud_altitude = 120.0;
+    var cloud_density = 0.0;
 
     if (ray_dir.y > 0.005) {
         // Intersect ray with cloud plane
@@ -90,7 +103,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let drift = vec2(u.time * 6.0, u.time * 2.0);
         let sample_pos = (cloud_xz + drift) / cloud_scale;
 
-        var cloud_density = fbm3(sample_pos);
+        cloud_density = fbm3(sample_pos);
 
         // Shape clouds: threshold + smooth falloff
         let coverage = 0.35;
@@ -106,18 +119,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         // Cloud lighting: sun illumination on cloud tops
         let sun_up = max(u.sun_dir.y, 0.0);
-        let illumination = sun_up * 0.7 + 0.3; // even at dusk, some ambient
+        let illumination = sun_up * 0.7 + 0.3;
 
         // Bright top, darker base
         let cloud_bright = u.sun_color * illumination * 1.1;
         let cloud_shadow = mix(u.sky_zenith * 0.4, u.sky_horizon * 0.5, 0.5);
 
-        // Use density itself as a soft self-shadowing proxy (thicker = darker base)
+        // Self-shadowing proxy
         let shade_factor = smoothstep(0.0, 0.6, cloud_density);
         let cloud_color = mix(cloud_bright, cloud_shadow, shade_factor * 0.4);
 
-        color = mix(color, cloud_color, cloud_density);
+        // Sun visible through thin clouds, hidden by thick
+        let cloud_silver = pow(max(sun_dot, 0.0), 8.0) * (1.0 - cloud_density) * 0.3;
+        let lit_cloud = cloud_color + u.sun_color * cloud_silver;
+
+        color = mix(color, lit_cloud, cloud_density);
     }
+
+    // Sun disc attenuated by cloud density
+    color = mix(color, sun_intensity, disc * (1.0 - cloud_density * 0.85));
 
     return vec4(color, 1.0);
 }

@@ -71,7 +71,7 @@ The single biggest visual upgrade. An empty sky screams "prototype." Clouds crea
 
   **Failure modes**: Noise banding if resolution too low — use smooth interpolation. Performance on mobile — keep octave count ≤ 3. Cloud plane intersection can miss at extreme pitch — clamp ray direction.
 
-- [ ] 1b: Add sun disc and glow halo to sky shader
+- [x] 1b: Add sun disc and glow halo to sky shader
 
   **Approach**: In `sky.wgsl`, compute the dot product between the view ray and `sun_dir`. Sun disc = hard threshold. Glow = soft falloff around disc using `pow(dot, exponent)`.
 
