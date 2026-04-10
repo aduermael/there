@@ -116,7 +116,7 @@ New native binary crate. Renders one frame to an offscreen RGBA8 texture, copies
 - [x] 2a: Create `game-snapshot` crate with native wgpu headless device + offscreen render target
 - [x] 2b: Wire up `game-render` pipelines, render terrain to offscreen texture
 - [x] 2c: Pixel readback (copy texture → staging buffer → map → read) and PNG save
-- [ ] 2d: CLI argument parsing (`clap`), sun-angle → uniforms, verify end-to-end: one command produces a PNG
+- [x] 2d: CLI argument parsing (`clap`), sun-angle → uniforms, verify end-to-end: one command produces a PNG
 
 ---
 

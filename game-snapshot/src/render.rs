@@ -3,12 +3,25 @@ use wgpu::util::DeviceExt;
 
 const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
+/// Compute sun direction from sun_angle (0.0=dawn, 0.25=noon, 0.5=dusk, 0.75=night, 1.0=dawn)
+fn sun_direction_from_angle(sun_angle: f32) -> glam::Vec3 {
+    let theta = sun_angle * std::f32::consts::TAU; // full orbit
+    // Sun orbits east-west: x = cos(theta), y = sin(theta) (above horizon when y>0)
+    let dir = glam::Vec3::new(theta.cos(), theta.sin(), 0.3).normalize();
+    // At night (y < 0.05), clamp to just above horizon so lighting doesn't go fully black
+    if dir.y < 0.05 {
+        glam::Vec3::new(dir.x, 0.05, dir.z).normalize()
+    } else {
+        dir
+    }
+}
+
 pub async fn render_frame(
     width: u32,
     height: u32,
     camera_pos: glam::Vec3,
     camera_target: glam::Vec3,
-    _sun_angle: f32,
+    sun_angle: f32,
 ) -> Vec<u8> {
     // --- Create headless wgpu device ---
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -119,7 +132,7 @@ pub async fn render_frame(
     let aspect = width as f32 / height as f32;
     let proj = glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_4, aspect, 0.1, 500.0);
     let view_proj = proj * view;
-    let sun_dir = glam::Vec3::new(0.5, 0.8, 0.3).normalize();
+    let sun_dir = sun_direction_from_angle(sun_angle);
 
     let uniforms = Uniforms {
         view_proj: view_proj.to_cols_array(),
