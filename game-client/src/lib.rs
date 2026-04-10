@@ -19,6 +19,21 @@ use player::{player_color, PlayerInstance};
 use renderer::Renderer;
 use terrain::Uniforms;
 
+#[wasm_bindgen(inline_js = "
+export function hud_set_room(code) {
+    const el = document.querySelector('game-hud');
+    if (el) el.roomCode = code;
+}
+export function hud_set_players(n) {
+    const el = document.querySelector('game-hud');
+    if (el) el.playerCount = n;
+}
+")]
+extern "C" {
+    fn hud_set_room(code: &str);
+    fn hud_set_players(n: u32);
+}
+
 struct RemotePlayer {
     prev: [f32; 4],   // [x, y, z, yaw] from previous snapshot
     target: [f32; 4], // [x, y, z, yaw] from latest snapshot
@@ -81,6 +96,7 @@ async fn run() {
     let room_code = pathname.trim_start_matches('/');
     let connection = if !room_code.is_empty() {
         log::info!("Room code: {room_code}");
+        hud_set_room(room_code);
         Some(Connection::new(room_code, incoming.clone()))
     } else {
         log::info!("No room code — offline mode");
@@ -219,6 +235,7 @@ fn start_render_loop(
                         }
                     }
                     ServerMsg::Snapshot { players } => {
+                        hud_set_players(players.len() as u32);
                         let local_id = state.local_player_id;
 
                         // Track which remote IDs are in this snapshot
