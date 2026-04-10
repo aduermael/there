@@ -228,7 +228,7 @@ Better tree shapes and subtle animation make the forest feel like a living place
   - Same instance data format (no changes to shader bindings)
   - Each foliage layer can have slightly different green for depth
 
-- [ ] 6b: Add wind sway to trees in vertex shader
+- [x] 6b: Add wind sway to trees in vertex shader
 
   **Approach**: In `trees.wgsl`, apply sinusoidal displacement to foliage vertices based on height above trunk base. Trunk stays mostly still, crown sways more. Use `time` uniform + instance position for phase variation.
 

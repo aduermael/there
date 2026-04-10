@@ -34,7 +34,26 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     let scale = in.inst_pos_scale.w;
-    let world_pos = in.position * scale + in.inst_pos_scale.xyz;
+    var local_pos = in.position * scale;
+
+    // Wind sway: foliage vertices displaced based on height above ground.
+    // Trunk verts have brown color (sum < 2.0), foliage verts are near-white (sum >= 2.0).
+    let is_foliage = step(2.0, in.vert_color.r + in.vert_color.g + in.vert_color.b);
+    let height_factor = saturate(in.position.y / 2.5); // 0 at base, 1 at crown tip
+    let sway_strength = is_foliage * height_factor * height_factor; // quadratic falloff
+
+    // Per-tree phase offset from world position
+    let tree_pos = in.inst_pos_scale.xyz;
+    let phase = tree_pos.x * 0.73 + tree_pos.z * 1.37;
+
+    // Two-frequency wind: slow primary sway + faster secondary flutter
+    let wind_x = sin(u.time * 0.8 + phase) * 0.2 + sin(u.time * 1.9 + phase * 2.1) * 0.07;
+    let wind_z = sin(u.time * 0.6 + phase * 1.5) * 0.08;
+
+    local_pos.x += wind_x * sway_strength * scale;
+    local_pos.z += wind_z * sway_strength * scale;
+
+    let world_pos = local_pos + in.inst_pos_scale.xyz;
 
     // Modulate white foliage verts by instance color; trunk verts pass through
     let color = in.vert_color * in.inst_foliage_color.rgb;
