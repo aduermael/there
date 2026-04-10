@@ -2,8 +2,8 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    PlayerInstance, PlayerRenderer, RockRenderer, TerrainRenderer, TreeRenderer, Uniforms,
-    create_depth_texture, scatter_objects,
+    PlayerInstance, PlayerRenderer, RockRenderer, SkyRenderer, TerrainRenderer, TreeRenderer,
+    Uniforms, create_depth_texture, scatter_objects,
 };
 
 pub struct Renderer {
@@ -14,6 +14,7 @@ pub struct Renderer {
     depth_view: wgpu::TextureView,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    sky: SkyRenderer,
     terrain: TerrainRenderer,
     players: PlayerRenderer,
     rocks: RockRenderer,
@@ -150,6 +151,9 @@ impl Renderer {
             }],
         });
 
+        // Sky renderer
+        let sky = SkyRenderer::new(&device, format, &uniform_bgl);
+
         // Terrain renderer
         let terrain =
             TerrainRenderer::new(&device, format, &uniform_bgl, &heightmap_view, heightmap_data);
@@ -177,6 +181,7 @@ impl Renderer {
             depth_view,
             uniform_buffer,
             uniform_bind_group,
+            sky,
             terrain,
             players,
             rocks,
@@ -259,6 +264,7 @@ impl Renderer {
                 ..Default::default()
             });
 
+            self.sky.draw(&mut pass, &self.uniform_bind_group);
             self.terrain
                 .draw(&mut pass, &self.uniform_bind_group, camera_pos, view_proj);
             self.rocks.draw(&mut pass, &self.uniform_bind_group);

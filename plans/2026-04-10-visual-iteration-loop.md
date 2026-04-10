@@ -175,8 +175,8 @@ Time-of-day driven atmosphere. A single `sun_angle` parameter (0.0 = dawn, 0.25 
 
 - [x] 4a: Atmosphere parameter computation from `sun_angle` (sun direction, colors, ambient) in `game-render`
 - [x] 4b: Update terrain + player shaders for dynamic sun color, ambient, and sky-aware fog
-- [ ] 4c: Sky gradient rendering (fullscreen quad or clear-color approach)
-- [ ] 4d: Integrate in both browser (default noon) and snapshot CLI (already has `--sun-angle`), verify across dawn/noon/dusk/night
+- [x] 4c: Sky gradient rendering (fullscreen quad or clear-color approach)
+- [x] 4d: Integrate in both browser (default noon) and snapshot CLI (already has `--sun-angle`), verify across dawn/noon/dusk/night
 
 ---
 

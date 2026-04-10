@@ -1,6 +1,6 @@
 use game_render::{
-    compute_atmosphere, create_depth_texture, scatter_objects, RockRenderer, TerrainRenderer,
-    TreeRenderer, Uniforms,
+    compute_atmosphere, create_depth_texture, scatter_objects, RockRenderer, SkyRenderer,
+    TerrainRenderer, TreeRenderer, Uniforms,
 };
 use wgpu::util::DeviceExt;
 
@@ -168,6 +168,9 @@ pub async fn render_frame(
         &heightmap_data,
     );
 
+    // --- Sky renderer ---
+    let sky = SkyRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl);
+
     // --- Scene objects (rocks + trees) ---
     let (rock_instances, tree_instances) = scatter_objects(&heightmap_data);
     let rock_renderer =
@@ -207,6 +210,7 @@ pub async fn render_frame(
             ..Default::default()
         });
 
+        sky.draw(&mut pass, &uniform_bind_group);
         terrain.draw(&mut pass, &uniform_bind_group, camera_pos, &view_proj);
         rock_renderer.draw(&mut pass, &uniform_bind_group);
         tree_renderer.draw(&mut pass, &uniform_bind_group);
