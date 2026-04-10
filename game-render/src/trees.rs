@@ -180,30 +180,24 @@ impl TreeRenderer {
 /// that gets multiplied by instance foliage_color in the shader).
 type TreeVertex = [f32; 6]; // [x, y, z, r, g, b]
 
-/// Generate combined trunk (cylinder) + foliage (cone) mesh.
+/// Generate combined trunk (cylinder) + multi-layered foliage (3 stacked cones) mesh.
 /// `segments` controls circular resolution.
 fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
     let trunk_radius = 0.15;
     let trunk_height = 1.0;
-    let foliage_radius = 0.8;
-    let foliage_height = 2.0;
     let trunk_color = [0.45, 0.30, 0.15];
-    // Foliage base color — gets modulated by instance foliage_color
-    let foliage_color = [1.0, 1.0, 1.0];
 
     let mut verts: Vec<TreeVertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
 
     // --- Trunk (open cylinder) ---
     let base_idx = verts.len() as u32;
-    // Bottom ring
     for i in 0..=segments {
         let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
         let x = trunk_radius * theta.cos();
         let z = trunk_radius * theta.sin();
         verts.push([x, 0.0, z, trunk_color[0], trunk_color[1], trunk_color[2]]);
     }
-    // Top ring
     for i in 0..=segments {
         let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
         let x = trunk_radius * theta.cos();
@@ -224,37 +218,47 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
         indices.push(t1);
     }
 
-    // --- Foliage (cone) ---
-    let cone_base_y = trunk_height * 0.6; // foliage starts partway up trunk
-    let cone_tip_y = cone_base_y + foliage_height;
+    // --- Foliage: 3 stacked cones (spruce/pine silhouette) ---
+    // Each layer: (base_y, radius, height, shade)
+    // shade < 1.0 makes lower layers slightly darker for depth
+    let layers: [(f32, f32, f32, f32); 3] = [
+        (0.5, 0.85, 1.3, 0.82),  // bottom: widest, darkest
+        (1.1, 0.60, 1.1, 0.91),  // middle
+        (1.6, 0.35, 0.9, 1.00),  // top: narrowest, brightest
+    ];
 
-    // Tip vertex
-    let tip_idx = verts.len() as u32;
-    verts.push([0.0, cone_tip_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+    for (base_y, radius, height, shade) in layers {
+        let tip_y = base_y + height;
+        let foliage_color = [shade, shade, shade];
 
-    // Base ring
-    let ring_start = verts.len() as u32;
-    for i in 0..=segments {
-        let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
-        let x = foliage_radius * theta.cos();
-        let z = foliage_radius * theta.sin();
-        verts.push([x, cone_base_y, z, foliage_color[0], foliage_color[1], foliage_color[2]]);
-    }
+        // Tip vertex
+        let tip_idx = verts.len() as u32;
+        verts.push([0.0, tip_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
 
-    // Cone sides
-    for i in 0..segments {
-        indices.push(tip_idx);
-        indices.push(ring_start + i + 1);
-        indices.push(ring_start + i);
-    }
+        // Base ring
+        let ring_start = verts.len() as u32;
+        for i in 0..=segments {
+            let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
+            let x = radius * theta.cos();
+            let z = radius * theta.sin();
+            verts.push([x, base_y, z, foliage_color[0], foliage_color[1], foliage_color[2]]);
+        }
 
-    // Cone bottom cap
-    let center_idx = verts.len() as u32;
-    verts.push([0.0, cone_base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
-    for i in 0..segments {
-        indices.push(center_idx);
-        indices.push(ring_start + i);
-        indices.push(ring_start + i + 1);
+        // Cone sides
+        for i in 0..segments {
+            indices.push(tip_idx);
+            indices.push(ring_start + i + 1);
+            indices.push(ring_start + i);
+        }
+
+        // Cone bottom cap
+        let center_idx = verts.len() as u32;
+        verts.push([0.0, base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+        for i in 0..segments {
+            indices.push(center_idx);
+            indices.push(ring_start + i);
+            indices.push(ring_start + i + 1);
+        }
     }
 
     (verts, indices)

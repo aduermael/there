@@ -217,7 +217,7 @@ Linear fog is boring. Real atmosphere has exponential falloff and height-depende
 
 Better tree shapes and subtle animation make the forest feel like a living place.
 
-- [ ] 6a: Improve tree mesh to multi-layered foliage
+- [x] 6a: Improve tree mesh to multi-layered foliage
 
   **Approach**: In `trees.rs`, replace the single cone with 2-3 stacked cones of decreasing radius and slight offset. This creates a spruce/pine silhouette that reads much better. Each cone can have slight random tilt.
 
@@ -281,9 +281,48 @@ The final polish layer. Currently the renderer writes directly to the swapchain.
 
 ---
 
-## Success Criteria
+## Phase 8: Multiplayer Scene Verification
 
-Take snapshots at all four times of day after each phase. Compare against current snapshots.
+All rendering polish must work in the live multiplayer context — multiple browser clients connected to the server, all seeing the same world with the same visual quality as the snapshots.
+
+- [ ] 8a: Fix client WASM build and verify it compiles with all rendering changes
+
+  **Approach**: The client (`game-client`) targets `wasm32-unknown-unknown` via `wasm-pack`. All shader and uniform changes from Phases 1-7 must compile cleanly for the browser. Fix any web-target-specific issues (e.g. `SurfaceTarget` API differences, missing features).
+
+  **Contracts**:
+  - `cd game-client && wasm-pack build --target web` succeeds
+  - All rendering polish (clouds, hemisphere lighting, terrain noise, grass, fog, trees, post-processing) is present in the browser build
+
+- [ ] 8b: Verify server + client scene consistency
+
+  **Approach**: Run the server (`make server`), open two browser tabs connecting to the same room. Verify both clients render the identical scene — same terrain, same rock/tree/grass placement, same atmosphere. Confirm players see each other moving.
+
+  **Contracts**:
+  - Heightmap is deterministic (already shared via `game-core::generate_heightmap()`)
+  - Object scatter is deterministic (same `scatter_objects()` from heightmap data)
+  - Both clients render all visual polish (clouds, grass, fog, etc.)
+  - Players appear at correct positions and move smoothly
+  - No visual desync between clients (same rocks, trees, grass in same locations)
+
+  **Failure modes**: If any randomness crept into scatter or rendering (e.g. using `rand` instead of hash-based placement), clients would see different object layouts. If uniform struct sizes differ between snapshot and client builds, rendering will break.
+
+---
+
+## Snapshot Verification Process
+
+**Every phase must be visually verified before marking complete.** After implementing a phase:
+
+1. Run `make snapshot` to generate dawn/noon/dusk/night images
+2. View all four snapshots and compare against the previous phase
+3. Save to `snapshots/phaseN/` (never overwrite previous phases — accumulate history)
+4. Iterate on the code if the result doesn't meet the phase's success criteria below
+5. Only commit and move on once the visuals are genuinely ready to deliver
+
+Do not skip this step. The snapshot tool is fast (~2s per cycle) and catching issues early avoids compounding problems across phases.
+
+---
+
+## Success Criteria
 
 - **Phase 1 done**: Sky has clouds + sun glow. Scene immediately reads as "outdoors" not "tech demo."
 - **Phase 2 done**: Shadows have color (blue-ish in shade, warm in light). Objects have visible form even in shadow.
@@ -292,6 +331,7 @@ Take snapshots at all four times of day after each phase. Compare against curren
 - **Phase 5 done**: Distant terrain has blue atmospheric haze. Valleys are mistier than peaks.
 - **Phase 6 done**: Trees have better silhouettes, gentle sway. Forest reads as natural.
 - **Phase 7 done**: Image has film-like quality — rich colors, gentle contrast, warm mood. Dawn/dusk are dramatic.
+- **Phase 8 done**: Two browser clients connected to the same server see the identical polished scene. Players see each other.
 
 ### The Impressionist Test
 
