@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -18,11 +19,18 @@ use player::{player_color, PlayerInstance};
 use renderer::Renderer;
 use terrain::Uniforms;
 
+struct RemotePlayer {
+    prev: [f32; 4],   // [x, y, z, yaw] from previous snapshot
+    target: [f32; 4], // [x, y, z, yaw] from latest snapshot
+    recv_time: f64,    // ms timestamp when target was received
+}
+
 struct GameState {
     renderer: Renderer,
     camera: OrbitCamera,
     heightmap_data: Vec<f32>,
     players: Vec<PlayerInstance>,
+    remotes: HashMap<PlayerId, RemotePlayer>,
     input: InputState,
     local_pos: glam::Vec3,
     local_player_id: Option<PlayerId>,
@@ -84,6 +92,7 @@ async fn run() {
         camera,
         heightmap_data,
         players: vec![local_player],
+        remotes: HashMap::new(),
         input: InputState::new(),
         local_pos,
         local_player_id: None,
@@ -211,35 +220,37 @@ fn start_render_loop(
                     }
                     ServerMsg::Snapshot { players } => {
                         let local_id = state.local_player_id;
-                        let local_pos = state.local_pos;
-                        let yaw = state.camera.yaw;
 
-                        // Rebuild players list: local player first, then remotes
-                        state.players.clear();
+                        // Track which remote IDs are in this snapshot
+                        let mut seen = std::collections::HashSet::new();
 
-                        // Local player always at index 0
-                        let local_color = local_id
-                            .map(|id| player_color(id))
-                            .unwrap_or([0.90, 0.30, 0.25]);
-                        state.players.push(PlayerInstance {
-                            pos_yaw: [local_pos.x, local_pos.y, local_pos.z, yaw],
-                            color: [local_color[0], local_color[1], local_color[2], 0.0],
-                        });
-
-                        // Remote players from snapshot
                         for ps in &players {
                             if Some(ps.id) == local_id {
                                 continue; // skip self
                             }
-                            let c = player_color(ps.id);
-                            state.players.push(PlayerInstance {
-                                pos_yaw: [ps.x, ps.y, ps.z, ps.yaw],
-                                color: [c[0], c[1], c[2], 0.0],
-                            });
+                            seen.insert(ps.id);
+                            let new_pos = [ps.x, ps.y, ps.z, ps.yaw];
+                            if let Some(rp) = state.remotes.get_mut(&ps.id) {
+                                // Shift target → prev, set new target
+                                rp.prev = rp.target;
+                                rp.target = new_pos;
+                                rp.recv_time = now;
+                            } else {
+                                // New remote player — no interpolation on first frame
+                                state.remotes.insert(ps.id, RemotePlayer {
+                                    prev: new_pos,
+                                    target: new_pos,
+                                    recv_time: now,
+                                });
+                            }
                         }
+
+                        // Remove remotes no longer in snapshot
+                        state.remotes.retain(|id, _| seen.contains(id));
                     }
                     ServerMsg::PlayerLeft { id } => {
                         log::info!("Player {id} left");
+                        state.remotes.remove(&id);
                     }
                 }
             }
@@ -262,11 +273,43 @@ fn start_render_loop(
             // Update camera to follow player
             state.camera.target = state.local_pos;
 
-            // Update local player visual
+            // Rebuild players list: local player + interpolated remotes
+            state.players.clear();
+            let local_color = state
+                .local_player_id
+                .map(|id| player_color(id))
+                .unwrap_or([0.90, 0.30, 0.25]);
             let pos = state.local_pos;
-            if let Some(p) = state.players.first_mut() {
-                p.pos_yaw = [pos.x, pos.y, pos.z, yaw];
-            }
+            state.players.push(PlayerInstance {
+                pos_yaw: [pos.x, pos.y, pos.z, yaw],
+                color: [local_color[0], local_color[1], local_color[2], 0.0],
+            });
+
+            // Interpolate remote players between prev and target
+            let tick_ms = (game_core::TICK_INTERVAL_SECS * 1000.0) as f64;
+            let remote_instances: Vec<PlayerInstance> = state
+                .remotes
+                .iter()
+                .map(|(&id, rp)| {
+                    let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
+                    let x = rp.prev[0] + (rp.target[0] - rp.prev[0]) * t;
+                    let y = rp.prev[1] + (rp.target[1] - rp.prev[1]) * t;
+                    let z = rp.prev[2] + (rp.target[2] - rp.prev[2]) * t;
+                    let mut dyaw = rp.target[3] - rp.prev[3];
+                    if dyaw > std::f32::consts::PI {
+                        dyaw -= std::f32::consts::TAU;
+                    } else if dyaw < -std::f32::consts::PI {
+                        dyaw += std::f32::consts::TAU;
+                    }
+                    let interp_yaw = rp.prev[3] + dyaw * t;
+                    let c = player_color(id);
+                    PlayerInstance {
+                        pos_yaw: [x, y, z, interp_yaw],
+                        color: [c[0], c[1], c[2], 0.0],
+                    }
+                })
+                .collect();
+            state.players.extend(remote_instances);
 
             // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
