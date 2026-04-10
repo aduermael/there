@@ -113,9 +113,9 @@ New native binary crate. Renders one frame to an offscreen RGBA8 texture, copies
 - CI/headless Linux needs a Vulkan-capable GPU or `llvmpipe` (Mesa software renderer). Document this.
 - Async `buffer.map_async()` — use `pollster::block_on` for native.
 
-- [ ] 2a: Create `game-snapshot` crate with native wgpu headless device + offscreen render target
-- [ ] 2b: Wire up `game-render` pipelines, render terrain to offscreen texture
-- [ ] 2c: Pixel readback (copy texture → staging buffer → map → read) and PNG save
+- [x] 2a: Create `game-snapshot` crate with native wgpu headless device + offscreen render target
+- [x] 2b: Wire up `game-render` pipelines, render terrain to offscreen texture
+- [x] 2c: Pixel readback (copy texture → staging buffer → map → read) and PNG save
 - [ ] 2d: CLI argument parsing (`clap`), sun-angle → uniforms, verify end-to-end: one command produces a PNG
 
 ---
