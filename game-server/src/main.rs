@@ -34,7 +34,7 @@ async fn main() {
         .fallback_service(serve)
         .with_state(rooms);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 21617));
     log::info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
