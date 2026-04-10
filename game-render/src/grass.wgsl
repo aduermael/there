@@ -46,14 +46,18 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         in.position.x * sin_a + in.position.z * cos_a,
     );
 
-    var local = rotated * scale;
+    // Distance fade: shrink blades between 50-80 units from camera
+    let cam_dist = length(base_pos - u.camera_pos);
+    let fade = 1.0 - smoothstep(50.0, 80.0, cam_dist);
+
+    var local = rotated * scale * fade;
 
     // Wind animation: displace tip vertex based on time + position hash
     // Wind blows from the west (positive X direction)
     let wind_phase = base_pos.x * 0.15 + base_pos.z * 0.1;
     let wind_base = sin(u.time * 1.8 + wind_phase) * 0.15;
     let wind_detail = sin(u.time * 3.7 + wind_phase * 2.3) * 0.05;
-    let wind = (wind_base + wind_detail) * in.bend;
+    let wind = (wind_base + wind_detail) * in.bend * fade;
     local.x += wind;
     local.z += wind * 0.3;
 

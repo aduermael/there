@@ -174,7 +174,7 @@ Grass transforms the ground plane from dead to alive. The user specifically requ
   - Phase varies per blade (use instance hash) to prevent synchronized swaying
   - `time` uniform needed (already added in Phase 1)
 
-- [ ] 4c: Add distance fade and density falloff for grass
+- [x] 4c: Add distance fade and density falloff for grass
 
   **Approach**: Grass alpha/scale fades to zero between 50-80 units from camera. Beyond that, terrain color noise (from Phase 3) carries the visual weight.
 
