@@ -3,7 +3,13 @@
 **Date**: 2026-04-10
 **Goal**: Push the renderer from "solid POC" to "beautiful and immersive." Each visual element should convey light, atmosphere, and mood — like an impressionist painting or RDR2's timeless approach. Every surface should feel intentional. Runs on higher-end mobile WebGPU (no need to support low-end).
 
-**Iteration protocol**: Each phase allows up to 5 iterations. Each iteration runs `make snapshot`, then 3 critic sub-agents review the output (art direction, technical quality, comparative improvement). Feedback is synthesized and applied before the next iteration. Stop when critics agree the phase is shippable (7+/10).
+**⚠️ MANDATORY Iteration protocol — run this at EVERY phase boundary, no exceptions:**
+1. Run `make snapshot` to capture all 4 times of day
+2. Launch **3 critic sub-agents in parallel** (art direction, technical quality, comparative improvement vs previous phase)
+3. Each critic scores 1-10 and gives specific feedback
+4. If any critic < 7: synthesize feedback, iterate (up to 5 iterations per phase)
+5. All 3 critics ≥ 7: phase is shippable, commit + archive + move on
+Do NOT skip the critic loop. Do NOT commit the phase as done before critics have passed.
 
 **Snapshot archiving**: After each phase is complete (all tasks in the phase committed), copy the final snapshots into a phase-specific directory so the user can follow the visual evolution:
 ```
