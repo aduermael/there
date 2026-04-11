@@ -15,6 +15,7 @@ async function init() {
         // Expose WASM functions for web components
         window.setJoystickInput = wasm.set_joystick_input;
         window.onCameraDrag = wasm.on_camera_drag;
+        window.onJumpPressed = wasm.on_jump_pressed;
 
         screen.hide();
     } catch (e) {
