@@ -45,16 +45,38 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     let bias = 0.003;
     let d = current_depth - bias;
 
-    // 4-tap PCF: each comparison sample gets hardware bilinear, giving ~4x4 coverage
+    // 8-tap rotated Poisson disk PCF
+    // Poisson disk sample offsets within unit circle
+    const POISSON: array<vec2<f32>, 8> = array(
+        vec2(-0.326, -0.406),
+        vec2(-0.840, -0.074),
+        vec2(-0.696,  0.457),
+        vec2(-0.203,  0.621),
+        vec2( 0.962, -0.195),
+        vec2( 0.473, -0.480),
+        vec2( 0.519,  0.767),
+        vec2( 0.185, -0.893),
+    );
+
+    // Per-pixel rotation angle via IGN (breaks up regular pattern for smoother edges)
+    let clip = u.view_proj * vec4(world_pos, 1.0);
+    let screen_pos = clip.xy / clip.w * 512.0;
+    let angle = ign(screen_pos) * 6.283185;
+    let cs = cos(angle);
+    let sn = sin(angle);
+
     let texel = 1.0 / 1024.0;
-    let s = texel * 1.2;
-    let shadow = (
-        textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s, -s), cascade, d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s, -s), cascade, d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s,  s), cascade, d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s,  s), cascade, d)
-    ) * 0.25;
-    return shadow;
+    let radius = texel * 2.5;
+
+    var shadow = 0.0;
+    for (var i = 0u; i < 8u; i++) {
+        let offset = vec2(
+            POISSON[i].x * cs - POISSON[i].y * sn,
+            POISSON[i].x * sn + POISSON[i].y * cs,
+        ) * radius;
+        shadow += textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + offset, cascade, d);
+    }
+    return shadow * 0.125;
 }
 
 fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
