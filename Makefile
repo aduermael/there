@@ -1,4 +1,4 @@
-.PHONY: snapshot snapshot-build client server
+.PHONY: snapshot snapshot-build client server dev
 
 SNAPSHOT_BIN = cargo run --release -p game-snapshot --
 SNAPSHOT_DIR = snapshots
@@ -20,3 +20,6 @@ client:
 
 server:
 	cargo build --release -p game-server
+
+dev: client server
+	cargo run --release -p game-server
