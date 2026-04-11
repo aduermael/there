@@ -29,9 +29,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let lumaMin = min(lumaM, min(min(lumaN, lumaS), min(lumaW, lumaE)));
     let lumaMax = max(lumaM, max(max(lumaN, lumaS), max(lumaW, lumaE)));
     let lumaRange = lumaMax - lumaMin;
-    if lumaRange < max(EDGE_THRESHOLD_MIN, lumaMax * EDGE_THRESHOLD) {
-        return vec4(rgbM, 1.0);
-    }
+    let is_edge = lumaRange >= max(EDGE_THRESHOLD_MIN, lumaMax * EDGE_THRESHOLD);
 
     // 4 diagonal neighbors for edge direction + sub-pixel detection
     let lumaNW = luma(textureSample(fxaa_tex, fxaa_sampler, uv + vec2(-t.x, -t.y)).rgb);
@@ -41,7 +39,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Sub-pixel aliasing factor
     let lumaAvg = (lumaN + lumaS + lumaW + lumaE) * 0.25;
-    let subpixA = saturate(abs(lumaAvg - lumaM) / lumaRange);
+    let subpixA = saturate(abs(lumaAvg - lumaM) / max(lumaRange, 0.001));
     let subpixC = (-2.0 * subpixA + 3.0) * subpixA * subpixA * SUBPIX_QUALITY;
 
     // Edge direction: horizontal if vertical gradient dominates
@@ -74,6 +72,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ss = select(vec2(0.0, t.y), vec2(t.x, 0.0), isH);
 
     // Search both directions for the edge end (12 steps)
+    // Always sample unconditionally to maintain uniform control flow.
     var uvN = uvE - ss;
     var uvP = uvE + ss;
     var endN = luma(textureSample(fxaa_tex, fxaa_sampler, uvN).rgb) - lumaEdge;
@@ -82,17 +81,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var reachedP = abs(endP) >= gradScaled;
 
     for (var i = 0; i < 12; i++) {
+        // No break — loop must run uniformly for textureSample compliance
         if !reachedN { uvN -= ss; }
         if !reachedP { uvP += ss; }
+        // Always sample both unconditionally
+        let sN = luma(textureSample(fxaa_tex, fxaa_sampler, uvN).rgb) - lumaEdge;
+        let sP = luma(textureSample(fxaa_tex, fxaa_sampler, uvP).rgb) - lumaEdge;
         if !reachedN {
-            endN = luma(textureSample(fxaa_tex, fxaa_sampler, uvN).rgb) - lumaEdge;
+            endN = sN;
             reachedN = abs(endN) >= gradScaled;
         }
         if !reachedP {
-            endP = luma(textureSample(fxaa_tex, fxaa_sampler, uvP).rgb) - lumaEdge;
+            endP = sP;
             reachedP = abs(endP) >= gradScaled;
         }
-        if reachedN && reachedP { break; }
     }
 
     // Edge blend: offset based on distance to closest edge end
@@ -115,5 +117,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if isH { finalUV.y += perpSign * finalOffset * stepLen; }
     else   { finalUV.x += perpSign * finalOffset * stepLen; }
 
-    return textureSample(fxaa_tex, fxaa_sampler, finalUV);
+    let fxaaResult = textureSample(fxaa_tex, fxaa_sampler, finalUV);
+
+    // Select: passthrough for low-contrast pixels, FXAA result for edges
+    return select(vec4(rgbM, 1.0), fxaaResult, is_edge);
 }

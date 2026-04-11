@@ -124,24 +124,23 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
     for (var i = 0; i < NUM_STEPS; i++) {
         sample_uv += step_delta;
 
-        // Skip out-of-bounds samples
-        if sample_uv.x < 0.0 || sample_uv.x > 1.0 || sample_uv.y < 0.0 || sample_uv.y > 1.0 {
-            continue;
-        }
+        // Clamp to valid range; mask out-of-bounds contributions
+        let in_bounds = f32(sample_uv.x >= 0.0 && sample_uv.x <= 1.0 && sample_uv.y >= 0.0 && sample_uv.y <= 1.0);
+        let safe_uv = clamp(sample_uv, vec2(0.0), vec2(1.0));
 
         // Depth-based occlusion: sky pixels (depth ~1.0) pass light, geometry blocks
-        let d_pixel = vec2<i32>(sample_uv * depth_dims);
+        let d_pixel = vec2<i32>(safe_uv * depth_dims);
         let d = textureLoad(depth_texture, d_pixel, 0);
         let is_sky = smoothstep(0.998, 0.9999, d);
 
         // Also weight by scene brightness (sun glow is brighter than plain sky)
-        let sample_color = textureSample(hdr_texture, hdr_sampler, sample_uv).rgb;
+        let sample_color = textureSample(hdr_texture, hdr_sampler, safe_uv).rgb;
         let brightness = min(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)), 2.0);
 
         // Sky contributes light, geometry occludes. Weight decays along march.
         let w = 1.0 - f32(i) * step_size * 0.7;
-        accumulation += is_sky * brightness * w;
-        weight_sum += w;
+        accumulation += is_sky * brightness * w * in_bounds;
+        weight_sum += w * in_bounds;
     }
 
     if weight_sum > 0.0 {

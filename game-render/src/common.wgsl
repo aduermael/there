@@ -16,8 +16,10 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     let dist = length(world_pos - u.camera_pos);
 
     // Select cascade based on distance from camera
-    var cascade: i32;
-    var light_vp: mat4x4<f32>;
+    // Avoid early returns so textureSampleCompare stays in uniform control flow.
+    var cascade: i32 = 0;
+    var light_vp: mat4x4<f32> = u.cascade_vp0;
+    var in_range = true;
 
     if dist < u.cascade_splits.x {
         cascade = 0;
@@ -29,7 +31,7 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
         cascade = 2;
         light_vp = u.cascade_vp2;
     } else {
-        return 1.0; // beyond shadow distance
+        in_range = false; // beyond shadow distance
     }
 
     let light_clip = light_vp * vec4(world_pos, 1.0);
@@ -38,7 +40,7 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
 
     // Out of shadow map bounds = fully lit
     if shadow_uv.x < 0.0 || shadow_uv.x > 1.0 || shadow_uv.y < 0.0 || shadow_uv.y > 1.0 {
-        return 1.0;
+        in_range = false;
     }
 
     let current_depth = light_ndc.z;
@@ -68,6 +70,7 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     let texel = 1.0 / 1024.0;
     let radius = texel * 2.5;
 
+    // Always sample (uniform control flow), select result afterward
     var shadow = 0.0;
     for (var i = 0u; i < 8u; i++) {
         let offset = vec2(
@@ -76,7 +79,9 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
         ) * radius;
         shadow += textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + offset, cascade, d);
     }
-    return shadow * 0.125;
+
+    // If out of range, return fully lit; otherwise return PCF result
+    return select(shadow * 0.125, 1.0, !in_range);
 }
 
 fn cloud_shadow(world_pos: vec3<f32>) -> f32 {

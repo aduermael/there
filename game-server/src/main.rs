@@ -22,7 +22,7 @@ struct WsQuery {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let rooms: SharedRoomManager = Arc::new(RwLock::new(RoomManager::new()));
 
@@ -40,7 +40,7 @@ async fn main() {
         .with_state(rooms);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 21617));
-    log::info!("Server listening on {}", addr);
+    log::info!("Server listening on http://localhost:{}", addr.port());
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
