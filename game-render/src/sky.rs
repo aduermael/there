@@ -1,5 +1,3 @@
-use crate::DEPTH_FORMAT;
-
 pub struct SkyRenderer {
     pipeline: wgpu::RenderPipeline,
 }
@@ -24,41 +22,12 @@ impl SkyRenderer {
             push_constant_ranges: &[],
         });
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Sky Pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            // Write at max depth so terrain/objects always draw in front
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: Default::default(),
-            multiview: None,
-            cache: None,
-        });
+        // Sky writes at max depth so terrain/objects always draw in front
+        let pipeline = crate::pipeline::create_scene_pipeline(
+            device, "Sky Pipeline", &shader, &pipeline_layout,
+            &[], surface_format,
+            None, wgpu::CompareFunction::LessEqual,
+        );
 
         Self { pipeline }
     }
