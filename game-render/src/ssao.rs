@@ -18,7 +18,9 @@ impl SsaoRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("SSAO Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("ssao.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("uniforms.wgsl"), include_str!("ssao.wgsl")).into(),
+            ),
         });
 
         let depth_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

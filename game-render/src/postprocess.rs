@@ -20,7 +20,9 @@ impl PostProcessRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("PostProcess Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("postprocess.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}\n{}", include_str!("uniforms.wgsl"), include_str!("postprocess.wgsl")).into(),
+            ),
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

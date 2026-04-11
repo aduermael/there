@@ -60,7 +60,7 @@ impl TerrainRenderer {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Terrain Shader"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}\n{}", include_str!("common.wgsl"), include_str!("terrain.wgsl")).into(),
+                format!("{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("common.wgsl"), include_str!("terrain.wgsl")).into(),
             ),
         });
 
