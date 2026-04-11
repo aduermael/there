@@ -12,6 +12,13 @@ struct TreeInstanceData {
 // Shadow pass reads instances from group 1 (shadow pipeline has no shadow map bind group)
 @group(1) @binding(0) var<storage, read> shadow_instances: array<TreeInstanceData>;
 
+// Material atlas (group 3, scene pass only)
+@group(3) @binding(0) var atlas: texture_2d_array<f32>;
+@group(3) @binding(1) var atlas_sampler: sampler;
+
+const MAT_BARK: i32 = 4;
+const MAT_FOLIAGE: i32 = 5;
+
 struct VertexInput {
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
@@ -22,6 +29,7 @@ struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) is_foliage: f32,
 };
 
 fn apply_tree_transform(position: vec3<f32>, vert_color: vec3<f32>, inst: TreeInstanceData) -> vec3<f32> {
@@ -62,11 +70,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let inst = instances[in.instance_id];
     let world_pos = apply_tree_transform(in.position, in.vert_color, inst);
     let color = in.vert_color * inst.foliage_color.rgb;
+    let is_foliage = step(2.0, in.vert_color.r + in.vert_color.g + in.vert_color.b);
 
     var out: VertexOutput;
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
     out.color = color;
+    out.is_foliage = is_foliage;
     return out;
 }
 
@@ -81,12 +91,33 @@ fn vs_shadow(
     return u.sun_view_proj * vec4(world_pos, 1.0);
 }
 
+/// Triplanar sample: blend 3 axis-aligned projections weighted by normal.
+fn triplanar_sample(world_pos: vec3<f32>, n: vec3<f32>, layer: i32) -> vec3<f32> {
+    let scale = 0.8; // ~1 tile per 1.25 world units
+    let blend = abs(n);
+    let w = blend / (blend.x + blend.y + blend.z + 0.001);
+
+    let tx = textureSample(atlas, atlas_sampler, fract(world_pos.yz * scale), layer).rgb;
+    let ty = textureSample(atlas, atlas_sampler, fract(world_pos.xz * scale), layer).rgb;
+    let tz = textureSample(atlas, atlas_sampler, fract(world_pos.xy * scale), layer).rgb;
+
+    return tx * w.x + ty * w.y + tz * w.z;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
+
+    // Select material: bark for trunk, foliage for canopy
+    let layer = select(MAT_BARK, MAT_FOLIAGE, in.is_foliage > 0.5);
+    let tex = triplanar_sample(in.world_pos, n, layer);
+
+    // Blend: texture detail modulated by instance/vertex color
+    let color = tex * in.color * 2.2;
+
     let shadow = sample_shadow(in.world_pos);
-    let lit = hemisphere_lighting(n, in.color, shadow, in.world_pos);
+    let lit = hemisphere_lighting(n, color, shadow, in.world_pos);
     let rim = rim_light(n, in.world_pos);
-    let color = apply_fog(in.world_pos, lit + rim);
-    return vec4(color, 1.0);
+    let final_color = apply_fog(in.world_pos, lit + rim);
+    return vec4(final_color, 1.0);
 }

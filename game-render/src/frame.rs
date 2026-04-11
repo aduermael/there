@@ -39,6 +39,7 @@ pub fn encode_frame(
     output_view: &wgpu::TextureView,
     camera_pos: glam::Vec3,
     view_proj: &glam::Mat4,
+    atlas_bg: &wgpu::BindGroup,
 ) {
     // Pass 0: Compute passes (instance generation)
     scene.grass.compute(encoder);
@@ -97,8 +98,8 @@ pub fn encode_frame(
         scene.sky.draw(&mut pass, uniform_bg, shadow_bg);
         scene.terrain.draw(&mut pass, uniform_bg, shadow_bg, camera_pos, view_proj);
         scene.grass.draw(&mut pass, uniform_bg, shadow_bg);
-        scene.rocks.draw(&mut pass, uniform_bg, shadow_bg);
-        scene.trees.draw(&mut pass, uniform_bg, shadow_bg);
+        scene.rocks.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
+        scene.trees.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
         if let Some(players) = scene.players {
             players.draw(&mut pass, uniform_bg, shadow_bg, 0);
         }

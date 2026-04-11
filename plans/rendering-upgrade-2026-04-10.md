@@ -92,7 +92,7 @@ Add low-res pixel art textures. No external asset pipeline — generate procedur
 
 - [x] 5a: Texture atlas infrastructure — procedurally generate 16x16 / 32x32 pixel art material tiles in Rust code (grass, dirt, sand, rock, bark, foliage). Create a `Texture2DArray` with Nearest filtering + Repeat addressing. Upload via `queue.write_texture()` following the heightmap pattern.
 - [x] 5b: Terrain texturing — world-space UV tiling in terrain.wgsl fragment shader. Sample pixel texture atlas using scaled world XZ coordinates. Blend texture with existing procedural color (texture provides detail, procedural provides biome variation). Height/slope-based material selection.
-- [ ] 5c: Tree & rock texturing — triplanar mapping in fragment shaders (compute UVs from world position + surface normal, no mesh UV changes needed). Apply bark texture to tree trunks, foliage texture to canopy, rock texture to boulders. Instance color variation still modulates the result.
+- [x] 5c: Tree & rock texturing — triplanar mapping in fragment shaders (compute UVs from world position + surface normal, no mesh UV changes needed). Apply bark texture to tree trunks, foliage texture to canopy, rock texture to boulders. Instance color variation still modulates the result.
 
 ## Phase 6: Water & Atmosphere
 

@@ -41,6 +41,7 @@ impl TreeRenderer {
         shadow_bgl: &wgpu::BindGroupLayout,
         uniform_buffer: &wgpu::Buffer,
         heightmap_view: &wgpu::TextureView,
+        atlas_bgl: &wgpu::BindGroupLayout,
     ) -> Self {
         // --- Tree geometry ---
         let (vertices, indices) = generate_tree_mesh(12);
@@ -242,11 +243,11 @@ impl TreeRenderer {
             ],
         }];
 
-        // Scene pipeline: group 0=uniforms, 1=shadow, 2=instances
+        // Scene pipeline: group 0=uniforms, 1=shadow, 2=instances, 3=atlas
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Tree Render Layout"),
-                bind_group_layouts: &[uniform_bgl, shadow_bgl, &render_instance_bgl],
+                bind_group_layouts: &[uniform_bgl, shadow_bgl, &render_instance_bgl, atlas_bgl],
                 push_constant_ranges: &[],
             });
 
@@ -308,11 +309,13 @@ impl TreeRenderer {
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
         shadow_bg: &'a wgpu::BindGroup,
+        atlas_bg: &'a wgpu::BindGroup,
     ) {
         pass.set_pipeline(&self.render_pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
         pass.set_bind_group(1, shadow_bg, &[]);
         pass.set_bind_group(2, &self.render_instance_bg, &[]);
+        pass.set_bind_group(3, atlas_bg, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         pass.draw_indexed_indirect(&self.indirect_buffer, 0);
