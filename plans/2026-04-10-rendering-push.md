@@ -338,3 +338,112 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
   - Elevate the moon direction at night so it's higher in the sky (illuminates upward-facing surfaces)
   - Smooth transition from sun to moon as day_factor drops (no discontinuity at twilight)
   - Result: rocks and terrain tops catch cool moonlight, creating silhouette separation against darker shadow sides
+
+---
+
+## Phase 9: Night Lighting Overhaul — Dark Blue, Not Green/Purple
+
+**Problem**: Night grass is still visibly green — unrealistic. Overall palette leans purple when it should be cool desaturated blue-gray. Reference (RDR2 night): nearly monochrome dark blue, grass is dark silhouettes barely visible, moon casts cool silver-blue highlights on terrain tops. The scene should be **dark and mysterious**, not a purple-washed version of daytime.
+
+**Root causes**: (1) Grass base color is baked green at scatter time — `hemisphere_lighting` multiplies green by blue-purple ambient, so green survives because ambient.g is nonzero. (2) Night sun color `[0.24, 0.32, 0.58]` is too purple — should be silver-blue. (3) Night ground ambient `[0.14, 0.12, 0.22]` leans purple (high blue, low green). (4) Postprocess dark fill `[0.018, 0.024, 0.055]` adds purple to dark pixels. (5) Saturation boost (1.28×) amplifies any remaining hue differences at night when everything should be nearly monochrome. (6) Night sky zenith/horizon are purple-tinted (`[0.12, 0.10, 0.35]` / `[0.10, 0.08, 0.24]`).
+
+- [x] 9a: Rework night atmosphere for cold blue moonlight
+
+  **Context**: `atmosphere.rs` lines 42 (night_sun), 52 (night_zenith), 64 (night_horizon), 88 (night_ground). All lean purple.
+
+  **Contracts**:
+  - Night sun (moonlight): shift from `[0.24, 0.32, 0.58]` toward cold silver-blue `[0.18, 0.22, 0.38]` — less intensity overall, cooler, no purple
+  - Night sky zenith: shift from `[0.12, 0.10, 0.35]` toward dark navy `[0.04, 0.06, 0.18]` — much darker, less purple
+  - Night sky horizon: shift from `[0.10, 0.08, 0.24]` toward `[0.03, 0.04, 0.12]` — very dark
+  - Night ground ambient: shift from `[0.14, 0.12, 0.22]` toward cold blue-gray `[0.06, 0.07, 0.12]` — cooler, darker, no purple
+  - Reduce overall ambient_intensity at night from 0.20 toward 0.12-0.15 range (much darker shadows)
+  - Moon lift: keep elevated moon direction from Phase 8 — it provides good silhouette separation
+  - Fog at night: reduce density (night fog is thinner in RDR2), shift fog color toward dark blue-gray
+  - Must maintain smooth dawn↔night transition (no color pops)
+
+  **Failure modes**: Too dark = unreadable. RDR2 reference shows that terrain is barely visible with moonlight hitting tops — dark but not pitch black. Key is silhouette separation via moonlight on upward surfaces vs very dark shadow sides.
+
+- [ ] 9b: Night-aware postprocess and grass desaturation
+
+  **Context**: `postprocess.wgsl` lines 192-194 (dark fill), 188-190 (saturation boost). `grass.wgsl` lines 68-74 (base-to-tip gradient), 79-85 (translucency). Grass has no night-specific color correction.
+
+  **Contracts**:
+  - Postprocess dark fill: change from purple `[0.018, 0.024, 0.055]` to cold blue `[0.010, 0.014, 0.030]` — subtler, bluer, less purple
+  - Night desaturation: when scene luminance is very low (night), reduce the saturation boost. Currently 1.28× always. At night, drop toward 0.8-1.0× (scotopic vision = less color perception). Gate on average scene luminance or pass a `day_factor` uniform to postprocess.
+  - Grass shader: the `lift` variable (line 88) already gates on `sun_up` which is good. But translucency should be completely off at night (already gated). The tip warmth (+0.10 green, +0.07 red on tips) should fade at night — tips shouldn't glow warm under moonlight.
+  - Consider passing `day_factor` as a new uniform field so both grass.wgsl and postprocess.wgsl can condition on time of day
+  - Alternative: use existing `sun_dir.y` as a proxy for day/night in shaders (elevation < 0.1 = night)
+
+  **Success criteria**: Night snapshot shows a dark, near-monochrome blue scene. Grass reads as dark shapes on dark terrain — barely any green visible. Moonlit terrain tops have cool silver highlights. Rocks are dark silhouettes with subtle top-lit edges. The mood is "quiet, mysterious night" like the RDR2 reference — not "purple disco."
+
+---
+
+## Phase 10: Noon Terrain & Grass Saturation — Richer Greens
+
+**Problem**: The ground still appears too light/sandy in places at noon. The grass should be more vividly green (like the RDR2 daytime reference: warm golden-green grass, earthy brown paths, deep green trees). Dawn/dusk grass color is good — the issue is specifically noon.
+
+**Root causes**: (1) Terrain sand albedo `[0.38, 0.42, 0.22]` is pale olive — needs to be darker/earthier. (2) Terrain grass albedo `[0.28, 0.52, 0.18]` could use more saturation. (3) Scatter `terrain_color_at` uses different sand values `[0.76, 0.70, 0.50]` (line 295) — these are much paler than the shader's sand, causing bright blades on darker terrain. (4) Sand-grass transition `smoothstep(4.0, 10.0, h)` means terrain below height 7 is still mostly sand — camera at noon likely shows mid-elevation terrain that's in this transition zone.
+
+- [ ] 10a: Darken and enrich terrain colors (shader + scatter sync)
+
+  **Context**: `terrain.wgsl` lines 63-65 (sand/grass/rock albedos), `scatter.rs` lines 295-297 (terrain_color_at sand/grass/rock) — these MUST stay in sync.
+
+  **Contracts**:
+  - Terrain grass albedo: boost green saturation — shift from `[0.28, 0.52, 0.18]` toward `[0.22, 0.56, 0.14]` (deeper, more saturated green)
+  - Terrain sand: darken and make earthier — shift from `[0.38, 0.42, 0.22]` toward `[0.32, 0.34, 0.16]` (darker olive-brown, less pale)
+  - **Critical**: `scatter.rs` `terrain_color_at()` lines 295-297 must use matching values. Currently sand is `[0.76, 0.70, 0.50]` in scatter (2× the shader value!) — this is a color mismatch bug. Align scatter sand/grass/rock to match shader values exactly.
+  - Sand-grass transition: consider lowering from `smoothstep(4.0, 10.0, h)` to `smoothstep(3.0, 8.0, h)` in both shader and scatter — more grass coverage at lower elevations
+  - Flat terrain boost (terrain.wgsl line 103): increase from 0.08 to 0.10-0.12 for greener flats
+  - All changes must be mirrored between `terrain.wgsl` and `scatter.rs::terrain_color_at()`
+
+  **Failure modes**: Over-saturating grass makes it look like AstroTurf. The RDR2 reference shows warm, natural greens — not neon. Sand becoming too dark removes the path/clearing contrast. Keep sand lighter than grass but earthier.
+
+- [ ] 10b: Grass blade color enrichment
+
+  **Context**: `grass.wgsl` lines 68-74 (base-to-tip gradient), `scatter.rs` lines 218-224 (blade color from terrain).
+
+  **Contracts**:
+  - Blade base: currently 90% of terrain color — keep
+  - Blade tip: shift tip warmth from +0.10 green / +0.07 red toward +0.12 green / +0.04 red (more green, less warm at noon — warmer at dawn/dusk is fine, that's already good)
+  - Gate tip warmth on sun elevation: at noon (high sun), tips should be bright green; at dawn/dusk (low sun), tips warm amber-gold (current behavior, which the user likes)
+  - Per-blade color variation in scatter: increase from ±4% to ±6% for more natural variety
+  - Consider a slight green boost for in-patch grass (denser patches = lusher green) vs sparse strays (slightly drier/yellower)
+  - Result: noon grass should read as lush, saturated green meadow — "summer afternoon" like the RDR2 reference
+
+  **Success criteria**: Noon snapshot shows rich green terrain with clearly differentiated grass/soil. Grass meadows are lush and green. Sandy paths between them are earthy brown (not pale). The impression is "warm summer day in a green valley" — not "sandy plains with green spots."
+
+---
+
+## Phase 11: Dense Grass Fields — BotW-Style Fluffy Volume
+
+**Problem**: Grass looks sparse — individual blades are visible rather than forming a lush carpet. The BotW reference shows extremely dense, fluffy grass that reads as a continuous field with visible individual blades only up close. This is the biggest visual gap between our scene and a polished game.
+
+**Technique**: The standard approach for dense grass in games is **massive GPU instancing with multi-blade tufts**. Each scatter point spawns 3-5 blades at slight offsets (a "tuft"), and the total instance count increases significantly. Performance stays manageable because: grass is already view-distance culled (50-80 unit fade), the vertex shader is simple, and each blade is only 4 triangles. WebGPU handles 48k-64k instances easily on modern hardware.
+
+- [ ] 11a: Multi-blade tufts and increased density
+
+  **Context**: `scatter.rs` lines 176-234 (grass placement), `grass.rs` line 5 (`MAX_GRASS = 24000`), lines 184-207 (blade geometry). Each scatter point currently places 1 blade.
+
+  **Contracts**:
+  - Increase `MAX_GRASS` from 24,000 to 64,000 (conservative for WebGPU; 64k instances × 6 verts × 4 tris = 256k tris, well within budget)
+  - Multi-blade tufts: each scatter point that passes the acceptance check spawns 2-4 blades (tuft) at slight position offsets (0.1-0.3 unit radius). Each blade in the tuft gets a random rotation + slight height variation.
+  - In-patch density: inside patch, spawn 3-4 blades per point. Outside patch (sparse strays): spawn 1-2.
+  - Height variety within tuft: mix of shorter (0.5-0.7 scale) and taller (0.9-1.3 scale) blades for volume
+  - Blade width: slightly narrower for dense fields — reduce base_hw from 0.16 to 0.12, mid_hw from 0.11 to 0.08, tip_hw from 0.03 to 0.02. More numerous thinner blades = fluffy rather than chunky.
+  - Keep distance fade at 50-80 units (critical for performance)
+  - Scatter grid step: may need to increase from 2 to 3 texels to compensate for multi-blade (same spatial density, more blades per point)
+  - Instance buffer size must match new MAX_GRASS
+
+  **Failure modes**: 64k instances may slow lower-end devices. If `make snapshot` shows frame time > 30ms, reduce to 48k. Multi-blade tufts with bad offsets → visible repeating patterns. Use per-blade hash for variety. Too narrow blades at distance = z-fighting shimmer — tune with critics.
+
+- [ ] 11b: Grass LOD and ground coverage blending
+
+  **Context**: `grass.wgsl` lines 36-38 (distance fade), `terrain.wgsl` lines 62-69 (ground color).
+
+  **Contracts**:
+  - Distance LOD: between 30-50 units, reduce blades per tuft (far tufts = 1-2 blades, close = 3-4). This can be done in scatter by encoding a priority byte, or simply by distance-based instance rejection.
+  - Ground color integration: terrain beneath dense grass should be slightly greener (grass roots tint the soil). Add a subtle green shift to terrain.wgsl for areas within the grass height band (h 8-17) on flat terrain — so when grass fades at distance, the ground beneath "takes over" with a tint that matches.
+  - Blade alpha: consider a soft alpha falloff at blade tips (bend_factor > 0.8) for softer silhouettes at distance — but only if performance allows (alpha blending requires sorting or OIT, may be too complex). Skip if too expensive.
+  - Alternatively, use the existing tip-narrowing (tip_hw = 0.02) as a natural soft fade — no alpha needed.
+
+  **Success criteria**: Close-up shots show dense, fluffy grass tufts with visible volume — blades overlap and create depth. Mid-range shows a continuous grassy meadow (individual blades merge into texture). Distance shows smooth terrain color taking over. The BotW reference's lush, carpet-like grass feel is achieved. Performance stays under 16ms per frame on target hardware (higher-end mobile WebGPU).
