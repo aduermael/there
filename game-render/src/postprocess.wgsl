@@ -18,6 +18,65 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
+// Screen-space contact shadows: short-range ray march along sun direction
+fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
+    // Skip when sun is below horizon
+    if u.sun_dir.y < 0.01 {
+        return 1.0;
+    }
+
+    let depth_dims = vec2<f32>(textureDimensions(depth_texture));
+    let d_pixel = vec2<i32>(uv * depth_dims);
+    let raw_depth = textureLoad(depth_texture, d_pixel, 0);
+
+    // Skip sky pixels
+    if raw_depth > 0.999 {
+        return 1.0;
+    }
+
+    // Reconstruct world position from depth
+    let ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, raw_depth, 1.0);
+    let world_h = u.inv_view_proj * ndc;
+    let world_pos = world_h.xyz / world_h.w;
+
+    // March a short distance along sun direction in world space, project each step to screen
+    let march_distance = 1.5; // world units — short range for fine contact detail
+    let step_world = u.sun_dir * march_distance / 12.0;
+
+    // Per-pixel jitter to break banding
+    let jitter = ign(pixel) * 0.5 + 0.5;
+
+    var occluded = 0.0;
+    var pos = world_pos + step_world * jitter;
+
+    for (var i = 0; i < 12; i++) {
+        pos += step_world;
+
+        // Project to screen
+        let clip = u.view_proj * vec4(pos, 1.0);
+        if clip.w <= 0.0 { continue; }
+        let proj_ndc = clip.xyz / clip.w;
+        let proj_uv = vec2(proj_ndc.x * 0.5 + 0.5, 1.0 - (proj_ndc.y * 0.5 + 0.5));
+
+        if proj_uv.x < 0.0 || proj_uv.x > 1.0 || proj_uv.y < 0.0 || proj_uv.y > 1.0 {
+            continue;
+        }
+
+        // Compare projected depth with scene depth
+        let sample_pixel = vec2<i32>(proj_uv * depth_dims);
+        let scene_depth = textureLoad(depth_texture, sample_pixel, 0);
+        let march_depth = proj_ndc.z;
+
+        // Occluded if scene is closer than our marched point (with small bias)
+        let depth_diff = march_depth - scene_depth;
+        if depth_diff > 0.0002 && depth_diff < 0.01 {
+            occluded += 1.0;
+        }
+    }
+
+    return 1.0 - saturate(occluded / 4.0) * 0.6;
+}
+
 // Screen-space radial god rays using depth-based occlusion
 fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
     // Compute sun screen position from sun_dir (place sun far away along direction)
@@ -100,6 +159,10 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(hdr_texture, hdr_sampler, in.uv).rgb;
+
+    // --- Contact shadows (fine detail near geometry edges) ---
+    let cs = contact_shadow(in.uv, in.position.xy);
+    color *= cs;
 
     // Night detection from sun color intensity (scotopic vision = less color)
     let sun_intensity = dot(u.sun_color, vec3(0.333));

@@ -64,7 +64,7 @@ Refactor before adding features. Every subsequent phase adds shaders, compute pa
 Small shader changes, no new passes or pipelines. Outsized visual impact.
 
 - [x] 2a: Cloud shadows on terrain — in hemisphere_lighting (common.wgsl), project fragment world_pos onto cloud plane from sun_dir, sample FBM cloud density, attenuate direct sun lighting. Moving cloud shadows across the landscape for near-zero cost.
-- [ ] 2b: Contact shadows — short-range screen-space ray march (8-16 steps) along light direction in common.wgsl. Requires adding depth texture binding to geometry shader bind groups. Catches fine shadow detail (grass/rock contact lines) that the shadow map resolution misses.
+- [x] 2b: Contact shadows — short-range screen-space ray march (12 steps) along light direction in postprocess.wgsl (depth texture already available). Catches fine shadow detail (grass/rock contact lines) that the shadow map resolution misses.
 - [ ] 2c: Better sun halo — replace `pow(sun_dot, 64)` with Henyey-Greenstein phase function in sky.wgsl. Dual-lobe (g=0.76 forward, g=-0.3 back) for physically correct Mie scattering glow. Especially better at dawn/dusk.
 - [ ] 2d: View-dependent fog color — blend fog color toward sun_color based on `dot(view_dir, sun_dir)` in apply_fog(). Adds atmospheric directionality — looking toward the sun gets a warm haze, looking away stays cool.
 
