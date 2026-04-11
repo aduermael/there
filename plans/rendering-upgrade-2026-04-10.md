@@ -57,7 +57,7 @@ Refactor before adding features. Every subsequent phase adds shaders, compute pa
 - [x] 1e: Standardize bind group layouts — restructure terrain to put shadow map at group 1 (matching all other geometry shaders). Move heightmap to group 2, chunk offset to group 3. Move shadow binding declarations into common.wgsl. Update uniform BGL to include COMPUTE visibility so grass_compute can reuse the shared BGL.
 - [x] 1f: Pipeline builder helpers — extract `create_scene_pipeline()` and `create_shadow_pipeline()` helper functions with options (cull mode, depth compare, bias, vertex layouts). Extract `SHADOW_DEPTH_BIAS` constant. Reduce 11 pipeline creation blocks to helper calls.
 - [x] 1g: InstancedMeshRenderer — extract shared abstraction for trees, rocks, player covering: struct fields (pipeline, shadow_pipeline, vertex/index/instance buffers, counts), buffer creation, draw(), draw_shadow(). Parameterized by vertex layout and instance type. Target: collapse ~500 lines of near-identical code.
-- [ ] 1h: Unify renderer orchestration — extract the 5-pass frame pipeline into a shared function or module in game-render that both game-client renderer.rs and game-snapshot render.rs call. New passes only need to be added in one place.
+- [x] 1h: Unify renderer orchestration — extract the 5-pass frame pipeline into a shared function or module in game-render that both game-client renderer.rs and game-snapshot render.rs call. New passes only need to be added in one place.
 
 ## Phase 2: Quick Visual Wins
 

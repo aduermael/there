@@ -45,6 +45,7 @@ pub struct TerrainRenderer {
     lod1_index_count: u32,
     heightmap_bind_group: wgpu::BindGroup,
     chunk_bind_group: wgpu::BindGroup,
+    shadow_placeholder_bg: wgpu::BindGroup,
     chunk_bounds: Vec<(f32, f32)>, // per-chunk (min_y, max_y)
 }
 
@@ -169,10 +170,21 @@ impl TerrainRenderer {
             push_constant_ranges: &[],
         });
 
-        // Shadow pipeline layout (shadow BGL at group 1 for layout compatibility, not sampled)
+        // Shadow pipeline: group 1 is a placeholder (shadow texture can't be bound
+        // while it's also the depth attachment). Empty BGL satisfies the layout slot.
+        let shadow_placeholder_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Terrain Shadow Placeholder BGL"),
+            entries: &[],
+        });
+        let shadow_placeholder_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Terrain Shadow Placeholder BG"),
+            layout: &shadow_placeholder_bgl,
+            entries: &[],
+        });
+
         let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Terrain Shadow Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl, shadow_bgl, &heightmap_bgl, &chunk_bgl],
+            bind_group_layouts: &[uniform_bgl, &shadow_placeholder_bgl, &heightmap_bgl, &chunk_bgl],
             push_constant_ranges: &[],
         });
 
@@ -218,6 +230,7 @@ impl TerrainRenderer {
             lod1_index_count,
             heightmap_bind_group,
             chunk_bind_group,
+            shadow_placeholder_bg,
             chunk_bounds,
         }
     }
@@ -284,11 +297,10 @@ impl TerrainRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
-        shadow_bg: &'a wgpu::BindGroup,
     ) {
         pass.set_pipeline(&self.shadow_pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, shadow_bg, &[]);
+        pass.set_bind_group(1, &self.shadow_placeholder_bg, &[]);
         pass.set_bind_group(2, &self.heightmap_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(

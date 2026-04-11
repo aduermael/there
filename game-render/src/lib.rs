@@ -10,6 +10,7 @@ mod postprocess;
 mod shadow;
 mod ssao;
 mod pipeline;
+mod frame;
 pub(crate) mod instanced_mesh;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
@@ -23,4 +24,5 @@ pub use sky::SkyRenderer;
 pub use postprocess::{PostProcessRenderer, INTERMEDIATE_FORMAT};
 pub use shadow::{create_shadow_texture, create_shadow_bgl, create_shadow_bind_group, compute_sun_view_proj};
 pub use ssao::SsaoRenderer;
+pub use frame::{SceneRenderers, encode_frame};
 pub use pipeline::{create_scene_pipeline, create_shadow_pipeline, create_fullscreen_pipeline, SHADOW_DEPTH_BIAS};

@@ -2,9 +2,10 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
-    create_shadow_bind_group, create_shadow_texture, scatter_objects, INTERMEDIATE_FORMAT,
+    GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer,
+    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    create_depth_texture, create_shadow_bgl, create_shadow_bind_group, create_shadow_texture,
+    encode_frame, scatter_objects, INTERMEDIATE_FORMAT,
 };
 
 // GrassRenderer now uses GPU compute; no GrassInstance import needed.
@@ -259,110 +260,23 @@ impl Renderer {
                 label: Some("Render"),
             });
 
-        // Compute pass: generate grass blade instances
-        self.grass.compute(&mut encoder);
+        let scene = SceneRenderers {
+            terrain: &self.terrain,
+            sky: &self.sky,
+            grass: &self.grass,
+            rocks: &self.rocks,
+            trees: &self.trees,
+            players: Some(&self.players),
+            ssao: &self.ssao,
+            postprocess: &self.postprocess,
+        };
 
-        // Shadow pass: depth from sun POV
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Shadow Pass"),
-                color_attachments: &[],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.shadow_depth_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-
-            self.terrain
-                .draw_shadow(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
-            self.rocks.draw_shadow(&mut pass, &self.uniform_bind_group);
-            self.trees.draw_shadow(&mut pass, &self.uniform_bind_group);
-        }
-
-        // Pass 1: Scene → HDR intermediate
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Scene Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: self.postprocess.intermediate_view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.53,
-                            g: 0.81,
-                            b: 0.92,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-
-            self.sky.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
-            self.terrain
-                .draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group, camera_pos, view_proj);
-            self.grass.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
-            self.rocks.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
-            self.trees.draw(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
-            self.players.draw(
-                &mut pass,
-                &self.uniform_bind_group,
-                &self.shadow_bind_group,
-                player_instances.len() as u32,
-            );
-        }
-
-        // Pass 2: SSAO → AO texture
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("SSAO Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: self.ssao.ao_view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                ..Default::default()
-            });
-
-            self.ssao.draw(&mut pass, &self.uniform_bind_group);
-        }
-
-        // Pass 3: Post-process → surface
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("PostProcess Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                ..Default::default()
-            });
-
-            self.postprocess.draw(&mut pass, &self.uniform_bind_group);
-        }
+        encode_frame(
+            &mut encoder, &scene,
+            &self.uniform_bind_group, &self.shadow_bind_group,
+            &self.shadow_depth_view, &self.depth_view, &view,
+            camera_pos, view_proj,
+        );
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
