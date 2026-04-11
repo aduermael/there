@@ -314,3 +314,27 @@ All four times of day look washed out — low contrast, low saturation, fog eats
   - Reduce dark fill to prevent purple wash on night geometry
   - Result: each time of day should have rich, saturated midtones with clear light/shadow separation
   - Must look good at ALL four times of day — not just noon
+
+---
+
+## Phase 8: Noon Polish & Night Moonlight
+
+Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night is a monotone purple blanket with no depth separation. These are the last two weak links.
+
+- [x] 8a: Fix noon — greener terrain, warmer rocks, better camera angle
+
+  **Root causes**: (1) Noon camera overlooks low-elevation terrain that's still in the sand zone. (2) Rock shadow faces receive mostly blue sky ambient with insufficient warm bounce. (3) Sand albedo still too pale/yellow despite darkening.
+
+  **Contracts**:
+  - Move noon camera to show more interesting terrain (higher elevation = more grass)
+  - Further lower sand-grass transition or make sand more olive/earthy so it blends with grass
+  - Result: noon should have rich greens, warm earthy tones, blue sky — a vivid summer day
+
+- [x] 8b: Fix night — elevated moonlight for depth and silhouette separation
+
+  **Root causes**: (1) Night "moon" direction is near-horizontal +z, perpendicular to camera — most visible surfaces don't receive moonlight. (2) Ambient is uniform, creating a flat purple blanket.
+
+  **Contracts**:
+  - Elevate the moon direction at night so it's higher in the sky (illuminates upward-facing surfaces)
+  - Smooth transition from sun to moon as day_factor drops (no discontinuity at twilight)
+  - Result: rocks and terrain tops catch cool moonlight, creating silhouette separation against darker shadow sides

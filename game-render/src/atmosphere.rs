@@ -15,14 +15,17 @@ pub struct AtmosphereParams {
 pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let theta = sun_angle * std::f32::consts::TAU;
 
-    // Sun direction: orbits east-west, elevation = sin(theta)
-    let elevation = theta.sin();
-    let east_west = theta.cos();
-    let sun_dir = glam::Vec3::new(east_west, elevation.max(0.01), 0.3).normalize();
-
     // Time-of-day factor: 1.0 at noon (angle=0.25), 0.0 at midnight (angle=0.75)
     let day_factor = ((sun_angle - 0.25) * std::f32::consts::TAU).cos() * 0.5 + 0.5;
     let day_factor = day_factor.clamp(0.0, 1.0);
+
+    // Sun direction: orbits east-west, elevation = sin(theta)
+    // At night, "moon" is elevated higher in the sky for better illumination
+    let elevation = theta.sin();
+    let east_west = theta.cos();
+    let moon_lift = (1.0 - day_factor) * 0.25; // 0 at noon, 0.25 at midnight
+    let min_y = 0.01 + moon_lift;
+    let sun_dir = glam::Vec3::new(east_west, elevation.max(min_y), 0.3).normalize();
 
     // Dawn/dusk detection: peaks at angle ~0.0 and ~0.5
     let dawn_dusk = 1.0 - (2.0 * (sun_angle * 2.0 - (sun_angle * 2.0).round())).abs();
@@ -36,7 +39,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let noon_sun = [1.20_f32, 1.10, 0.92];
     let dawn_sun = [1.25_f32, 0.62, 0.28];
     let dusk_sun = [1.15_f32, 0.42, 0.18];
-    let night_sun = [0.22_f32, 0.28, 0.48];
+    let night_sun = [0.24_f32, 0.32, 0.58];
     let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),

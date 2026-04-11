@@ -60,7 +60,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let world_xz = in.world_pos.xz;
 
     // Height-based coloring: sand -> grass -> rock
-    let sand  = vec3(0.50, 0.48, 0.30);
+    let sand  = vec3(0.38, 0.42, 0.22);
     let grass = vec3(0.28, 0.52, 0.18);
     let rock  = vec3(0.48, 0.43, 0.38);
 
