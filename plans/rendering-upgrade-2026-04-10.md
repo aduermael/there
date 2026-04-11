@@ -1,5 +1,22 @@
 # Rendering Upgrade: Compute Shaders, Textures & Visual Polish
 
+**⚠️ MANDATORY Iteration protocol — run this at EVERY phase boundary, no exceptions:**
+1. Run `make snapshot` to capture all 4 times of day
+2. Launch **3 critic sub-agents in parallel** (art direction, technical quality, comparative improvement vs previous phase)
+3. Each critic scores 1-10 and gives specific feedback
+4. If any critic < 7: synthesize feedback, iterate (up to 5 iterations per phase)
+5. All 3 critics ≥ 7: phase is shippable, commit + archive + move on
+Do NOT skip the critic loop. Do NOT commit the phase as done before critics have passed.
+
+**Snapshot archiving**: After each phase is complete (all tasks in the phase committed), copy the final snapshots into a phase-specific directory:
+```
+mkdir -p snapshots/2026-04-10-rendering-upgrade/phase-N
+cp snapshots/*.png snapshots/2026-04-10-rendering-upgrade/phase-N/
+```
+Where N is the phase number. Include this copy in the phase's final commit.
+
+---
+
 ## Context
 
 The project has completed 11 phases of visual iteration. The rendering pipeline is mature with a single compute shader (grass), and all other rendering via vertex/fragment. This plan adds compute shaders across the pipeline, introduces a low-res pixel texture system, performs foundational refactoring for DRY/simplicity, and systematically upgrades visual quality while keeping everything mobile/web-performant.
