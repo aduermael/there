@@ -1,4 +1,4 @@
-// Sky-specific: gradient, sun disc/glow, procedural clouds.
+// Sky-specific: gradient, sun disc/glow, multi-layer procedural clouds with self-shadowing.
 // Uniforms, noise, and shadow bindings provided by common.wgsl prefix.
 
 struct VertexOutput {
@@ -16,6 +16,67 @@ fn vs_main(@builtin(vertex_index) id: u32) -> VertexOutput {
     out.clip_pos = vec4(x, y, 1.0, 1.0); // z=1.0 (far plane)
     out.uv = vec2(x * 0.5 + 0.5, -y * 0.5 + 0.5);
     return out;
+}
+
+// Sample a cloud layer at the given altitude.
+// Returns (cloud_color, density) where density is 0..1.
+fn sample_cloud_layer(
+    ray_dir: vec3<f32>,
+    sun_dot: f32,
+    altitude: f32,
+    scale: f32,
+    coverage: f32,
+    opacity: f32,
+    drift_mult: f32,
+) -> vec4<f32> {
+    if ray_dir.y <= 0.005 {
+        return vec4(0.0, 0.0, 0.0, 0.0);
+    }
+
+    let dist = (altitude - u.camera_pos.y) / ray_dir.y;
+    let cloud_xz = u.camera_pos.xz + ray_dir.xz * dist;
+
+    let drift = vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
+    let sample_pos = (cloud_xz + drift) / scale;
+
+    var density = fbm3(sample_pos);
+    density = smoothstep(coverage, coverage + 0.25, density);
+
+    // Horizon and distance fade
+    let horizon_fade = smoothstep(0.005, 0.2, ray_dir.y);
+    let dist_fade = 1.0 - smoothstep(800.0, 2000.0, dist);
+    density *= horizon_fade * dist_fade;
+
+    if density < 0.001 {
+        return vec4(0.0, 0.0, 0.0, 0.0);
+    }
+
+    // Self-shadow: sample density at point offset along sun direction on cloud plane.
+    // This simulates light being blocked by denser cloud regions closer to the sun.
+    let shadow_reach = 40.0;
+    let shadow_xz = cloud_xz + u.sun_dir.xz * shadow_reach / max(u.sun_dir.y, 0.05);
+    let shadow_pos = (shadow_xz + drift) / scale;
+    let shadow_density = smoothstep(coverage, coverage + 0.25, fbm3(shadow_pos));
+
+    // Cloud lighting
+    let sun_up = max(u.sun_dir.y, 0.0);
+    let illumination = sun_up * 0.7 + 0.3;
+
+    let cloud_bright = u.sun_color * illumination * 1.1;
+    let cloud_dark = mix(u.sky_zenith * 0.4, u.sky_horizon * 0.5, 0.5);
+
+    // Self-shadowing: darker bases where cloud above blocks sun
+    let own_shade = smoothstep(0.0, 0.6, density) * 0.4;
+    let self_shade = shadow_density * 0.45;
+    let total_shade = min(own_shade + self_shade, 1.0);
+
+    let cloud_color = mix(cloud_bright, cloud_dark, total_shade);
+
+    // Silver lining at sun edges
+    let silver = pow(max(sun_dot, 0.0), 8.0) * (1.0 - density) * 0.3;
+    let lit = cloud_color + u.sun_color * silver;
+
+    return vec4(lit, density * opacity);
 }
 
 @fragment
@@ -49,52 +110,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let disc = smoothstep(0.9994, 0.9997, sun_dot);
     let sun_intensity = mix(vec3(1.0, 0.95, 0.85), u.sun_color, 0.3) * 5.0;
 
-    // --- Procedural clouds ---
-    let cloud_altitude = 120.0;
-    var cloud_density = 0.0;
+    // --- Multi-layer procedural clouds ---
+    // Layer 1: High cirrus (wispy, thin, fast)
+    //   altitude, scale, coverage, opacity, drift_mult
+    let c_high = sample_cloud_layer(ray_dir, sun_dot, 220.0, 700.0, 0.38, 0.5, 1.3);
 
-    if (ray_dir.y > 0.005) {
-        // Intersect ray with cloud plane
-        let dist_to_cloud = (cloud_altitude - u.camera_pos.y) / ray_dir.y;
-        let cloud_xz = u.camera_pos.xz + ray_dir.xz * dist_to_cloud;
+    // Layer 2: Mid-altitude cumulus (main cloud layer)
+    let c_mid = sample_cloud_layer(ray_dir, sun_dot, 120.0, 500.0, 0.35, 1.0, 1.0);
 
-        // Sample noise at cloud position with slow drift
-        let cloud_scale = 500.0;
-        let drift = vec2(u.time * 6.0, u.time * 2.0);
-        let sample_pos = (cloud_xz + drift) / cloud_scale;
+    // Layer 3: Low scattered clouds (dense, slow)
+    let c_low = sample_cloud_layer(ray_dir, sun_dot, 80.0, 350.0, 0.42, 0.85, 0.7);
 
-        cloud_density = fbm3(sample_pos);
+    // Composite back-to-front (highest layer first, then overlay closer layers)
+    var total_cloud_density = 0.0;
+    color = mix(color, c_high.rgb, c_high.a);
+    total_cloud_density = c_high.a + (1.0 - c_high.a) * total_cloud_density;
 
-        // Shape clouds: threshold + smooth falloff
-        let coverage = 0.35;
-        cloud_density = smoothstep(coverage, coverage + 0.25, cloud_density);
+    color = mix(color, c_mid.rgb, c_mid.a);
+    total_cloud_density = c_mid.a + (1.0 - c_mid.a) * total_cloud_density;
 
-        // Fade near horizon to avoid hard cutoff
-        let horizon_fade = smoothstep(0.005, 0.2, ray_dir.y);
-        cloud_density *= horizon_fade;
-
-        // Distance fade
-        let cloud_dist_fade = 1.0 - smoothstep(800.0, 2000.0, dist_to_cloud);
-        cloud_density *= cloud_dist_fade;
-
-        // Cloud lighting: sun illumination on cloud tops
-        let sun_up = max(u.sun_dir.y, 0.0);
-        let illumination = sun_up * 0.7 + 0.3;
-
-        let cloud_bright = u.sun_color * illumination * 1.1;
-        let cloud_shadow = mix(u.sky_zenith * 0.4, u.sky_horizon * 0.5, 0.5);
-
-        let shade_factor = smoothstep(0.0, 0.6, cloud_density);
-        let cloud_color = mix(cloud_bright, cloud_shadow, shade_factor * 0.4);
-
-        let cloud_silver = pow(max(sun_dot, 0.0), 8.0) * (1.0 - cloud_density) * 0.3;
-        let lit_cloud = cloud_color + u.sun_color * cloud_silver;
-
-        color = mix(color, lit_cloud, cloud_density);
-    }
+    color = mix(color, c_low.rgb, c_low.a);
+    total_cloud_density = c_low.a + (1.0 - c_low.a) * total_cloud_density;
 
     // Sun disc attenuated by cloud density
-    color = mix(color, sun_intensity, disc * (1.0 - cloud_density * 0.85));
+    color = mix(color, sun_intensity, disc * (1.0 - total_cloud_density * 0.85));
 
     return vec4(color, 1.0);
 }

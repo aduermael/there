@@ -84,23 +84,26 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     return select(shadow * 0.125, 1.0, !in_range);
 }
 
-fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
-    // Project world position onto cloud plane along sun direction
-    let cloud_altitude = 120.0;
-    let t = (cloud_altitude - world_pos.y) / max(u.sun_dir.y, 0.001);
+fn cloud_shadow_layer(world_pos: vec3<f32>, altitude: f32, scale: f32, coverage: f32, drift_mult: f32) -> f32 {
+    let t = (altitude - world_pos.y) / max(u.sun_dir.y, 0.001);
     let cloud_xz = world_pos.xz + u.sun_dir.xz * t;
-
-    // Same noise parameters as sky.wgsl clouds for visual coherence
-    let cloud_scale = 500.0;
-    let drift = vec2(u.time * 6.0, u.time * 2.0);
-    let sample_pos = (cloud_xz + drift) / cloud_scale;
-
+    let drift = vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
+    let sample_pos = (cloud_xz + drift) / scale;
     var density = fbm3(sample_pos);
-    let coverage = 0.35;
-    density = smoothstep(coverage, coverage + 0.25, density);
+    return smoothstep(coverage, coverage + 0.25, density);
+}
+
+fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
+    // Sample all cloud layers matching sky.wgsl parameters
+    let d_high = cloud_shadow_layer(world_pos, 220.0, 700.0, 0.38, 1.3) * 0.5;
+    let d_mid  = cloud_shadow_layer(world_pos, 120.0, 500.0, 0.35, 1.0);
+    let d_low  = cloud_shadow_layer(world_pos, 80.0, 350.0, 0.42, 0.7) * 0.85;
+
+    // Combined density (capped at 1)
+    let total = min(d_high + d_mid + d_low, 1.0);
 
     // Soften cloud shadows — they shouldn't be as harsh as geometry shadows
-    return 1.0 - density * 0.45;
+    return 1.0 - total * 0.45;
 }
 
 fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32, world_pos: vec3<f32>) -> vec3<f32> {
