@@ -338,7 +338,7 @@ impl GrassRenderer {
         pass.set_bind_group(0, &self.compute_bg0, &[]);
         pass.set_bind_group(1, &self.compute_bg1, &[]);
         pass.set_bind_group(2, &self.compute_bg2, &[]);
-        pass.dispatch_workgroups(20, 20, 1); // ceil(320/16) = 20
+        pass.dispatch_workgroups(24, 24, 1); // ceil(384/16) = 24
     }
 
     /// Draw grass using indirect draw — instance count determined by compute shader.
@@ -363,9 +363,9 @@ type GrassVertex = [f32; 4]; // [x, y, z, bend]
 
 /// Generate a curved grass blade: 3 segments (base -> mid -> tip), 6 vertices, 4 triangles.
 fn generate_grass_blade() -> (Vec<GrassVertex>, Vec<u32>) {
-    let base_hw = 0.12; // half-width at base — narrower for dense fields
-    let mid_hw = 0.08;
-    let tip_hw = 0.02;
+    let base_hw = 0.14; // half-width at base — balanced for dense fluffy coverage
+    let mid_hw = 0.10;
+    let tip_hw = 0.03;
     let mid_h = 0.40;
     let tip_h = 1.0;
     let lean = 0.04;

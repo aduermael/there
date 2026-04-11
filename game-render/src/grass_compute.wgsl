@@ -32,7 +32,7 @@ struct GrassInstance {
 @group(2) @binding(1) var<storage, read_write> draw_args: array<atomic<u32>, 5>;
 
 const MAX_INSTANCES: u32 = 64000u;
-const GRID_EXTENT: u32 = 320u; // 160 units at 0.5 spacing
+const GRID_EXTENT: u32 = 384u; // 192 units at 0.5 spacing
 const TAU: f32 = 6.28318530;
 
 // --- Hash functions (matches scatter.rs / common.wgsl) ---
@@ -130,8 +130,9 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let texel_size = u.world_size / u.hm_res;
 
     // Camera-centered, world-aligned grid origin (in heightmap texels)
-    let origin_x = u32(clamp((u.camera_pos.x - 80.0) / texel_size, 0.0, u.hm_res - 1.0));
-    let origin_z = u32(clamp((u.camera_pos.z - 80.0) / texel_size, 0.0, u.hm_res - 1.0));
+    let half_extent = f32(GRID_EXTENT) * texel_size * 0.5; // 96 units
+    let origin_x = u32(clamp((u.camera_pos.x - half_extent) / texel_size, 0.0, u.hm_res - 1.0));
+    let origin_z = u32(clamp((u.camera_pos.z - half_extent) / texel_size, 0.0, u.hm_res - 1.0));
     let cell_x = origin_x + gid.x;
     let cell_z = origin_z + gid.y;
 
@@ -154,36 +155,49 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
     // Height from heightmap
     let tc = vec2<i32>(i32(cell_x), i32(cell_z));
     let h = get_height(tc);
-    if (h < 8.0 || h > 17.0) { return; }
+    if (h < 1.0 || h > 17.0) { return; }
 
     // Slope filter
     let slope = compute_slope(tc);
     if (slope > 0.3) { return; }
 
+    // Graduated zone density: very sparse scrub on sand, full meadow in grass zone
+    // h 1-3: rare dried scrub sticking through sand
+    // h 3-6: sparse transition
+    // h 6-17: full density grass meadow
+    let zone_density = smoothstep(1.0, 7.0, h); // 0 at h=1, 1 at h=7+
+
     // Patch-based density via low-frequency noise
     let patch_noise = value_noise(vec2(wx, wz) * 0.1);
     let in_patch = patch_noise > 0.30;
-    let threshold = select(56u, 245u, in_patch); // ~22% sparse, ~96% dense
+    // Scale threshold by zone_density: sand scrub is very rare, grass zone is dense
+    let base_threshold = select(56u, 245u, in_patch);
+    let threshold = u32(f32(base_threshold) * (0.08 + 0.92 * zone_density)); // 8% at h=1, 100% at h=7
     if ((hash & 0xFFu) > threshold) { return; }
 
     // Frustum cull (project root to clip space)
+    // Use generous margin — blades extend upward from root, Y needs more slack
     let clip = u.view_proj * vec4(wx, h, wz, 1.0);
     if (clip.w < 0.1) { return; } // behind camera
     let ndc = clip.xy / clip.w;
-    if (abs(ndc.x) > 1.5 || abs(ndc.y) > 1.5) { return; }
+    if (abs(ndc.x) > 1.5 || ndc.y < -2.0 || ndc.y > 1.5) { return; }
 
     // Distance-based blade count (LOD) — front-loaded for dense coverage
     var blade_count: u32;
     if (in_patch) {
-        if (cam_dist < 20.0) { blade_count = 7u; }
-        else if (cam_dist < 40.0) { blade_count = 4u; }
-        else if (cam_dist < 60.0) { blade_count = 2u; }
+        if (cam_dist < 15.0) { blade_count = 8u; }
+        else if (cam_dist < 30.0) { blade_count = 5u; }
+        else if (cam_dist < 50.0) { blade_count = 3u; }
+        else if (cam_dist < 70.0) { blade_count = 2u; }
         else { blade_count = 1u; }
     } else {
-        if (cam_dist < 20.0) { blade_count = 4u; }
-        else if (cam_dist < 40.0) { blade_count = 2u; }
+        if (cam_dist < 15.0) { blade_count = 5u; }
+        else if (cam_dist < 30.0) { blade_count = 3u; }
+        else if (cam_dist < 50.0) { blade_count = 1u; }
         else { blade_count = 1u; }
     }
+    // Scale blade count by zone density (sand scrub = 1 blade max)
+    blade_count = max(u32(f32(blade_count) * zone_density + 0.5), 1u);
 
     // Terrain color at tuft center
     let terrain_col = terrain_color_at(h, wx, wz);
@@ -203,9 +217,10 @@ fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {
         let bz = wz + sin(angle) * offset_dist;
         let by = get_height_world(bx, bz);
 
-        // Height scale variety within tuft
+        // Height scale variety within tuft — very short on sand, full in grass zone
         let size_bits = f32((blade_hash >> 16u) & 0xFFu) / 255.0;
-        let scale = 0.5 + size_bits * 1.0; // 0.5 - 1.5
+        let base_scale = 0.5 + size_bits * 1.0; // 0.5 - 1.5
+        let scale = base_scale * (0.15 + 0.85 * zone_density); // 15% height on sand, full in grass
 
         // Per-blade color variation (+/-6%)
         let color_var = f32((blade_hash >> 4u) & 0xFFu) / 255.0;
