@@ -181,7 +181,7 @@ pub async fn render_frame(
     let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
 
     // --- Material texture atlas ---
-    let _atlas = TextureAtlas::new(&device, &queue);
+    let atlas = TextureAtlas::new(&device, &queue);
 
     // --- Scene renderers (all target HDR intermediate) ---
     let terrain = TerrainRenderer::new(
@@ -191,6 +191,8 @@ pub async fn render_frame(
         &shadow_bgl,
         &heightmap_view,
         &heightmap_data,
+        &atlas.view,
+        &atlas.sampler,
     );
 
     let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);

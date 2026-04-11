@@ -17,6 +17,8 @@ pub const MAT_FOLIAGE: u32 = 5;
 pub struct TextureAtlas {
     pub bind_group: wgpu::BindGroup,
     pub bind_group_layout: wgpu::BindGroupLayout,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
 }
 
 impl TextureAtlas {
@@ -119,6 +121,8 @@ impl TextureAtlas {
         Self {
             bind_group,
             bind_group_layout,
+            view,
+            sampler,
         }
     }
 }

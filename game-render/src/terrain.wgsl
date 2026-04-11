@@ -6,7 +6,15 @@ struct ChunkOffset {
 };
 
 @group(2) @binding(0) var heightmap: texture_2d<f32>;
+@group(2) @binding(1) var atlas: texture_2d_array<f32>;
+@group(2) @binding(2) var atlas_sampler: sampler;
 @group(3) @binding(0) var<uniform> chunk: ChunkOffset;
+
+// Material layer indices (must match Rust MAT_* constants)
+const MAT_GRASS: i32 = 0;
+const MAT_DIRT: i32 = 1;
+const MAT_SAND: i32 = 2;
+const MAT_ROCK: i32 = 3;
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
@@ -52,57 +60,56 @@ fn vs_shadow(@location(0) local_xz: vec2<f32>) -> @builtin(position) vec4<f32> {
     return u.sun_view_proj * vec4(pos_xz.x, h, pos_xz.y, 1.0);
 }
 
+/// Sample a material tile from the atlas using world-space tiling.
+fn sample_material(world_xz: vec2<f32>, layer: i32) -> vec3<f32> {
+    // ~1 tile per 2 world units → each 16px tile covers 2m
+    let tile_uv = fract(world_xz * 0.5);
+    return textureSample(atlas, atlas_sampler, tile_uv, layer).rgb;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let h = in.world_pos.y;
     let world_xz = in.world_pos.xz;
 
-    // Height-based coloring: sand -> grass -> rock
-    let sand  = vec3(0.34, 0.29, 0.16);
-    let grass = vec3(0.28, 0.46, 0.20);
-    let rock  = vec3(0.48, 0.43, 0.38);
-
-    let sg = smoothstep(3.0, 8.0, h);
-    let gr = smoothstep(18.0, 24.0, h);
-    var base_color = mix(mix(sand, grass, sg), rock, gr);
-
-    // Procedural color noise: large patches + fine detail
-    let n_large = value_noise(world_xz * 0.12) * 2.0 - 1.0;
-    let n_fine = value_noise(world_xz * 0.45) * 2.0 - 1.0;
-    let n_med = value_noise(world_xz * 0.25 + vec2(37.0, 91.0)) * 2.0 - 1.0;
-
-    let noise = n_large * 0.6 + n_med * 0.25 + n_fine * 0.15;
-
-    // Per-biome hue/brightness shifts
-    let grass_hue_shift = vec3(0.04, -0.02, -0.03) * n_large + vec3(-0.02, 0.03, -0.01) * n_med;
-    let grass_bright = noise * 0.12;
-
-    let sand_hue_shift = vec3(0.03, 0.01, -0.04) * n_large + vec3(-0.02, -0.01, 0.03) * n_med;
-    let sand_bright = noise * 0.10;
-
-    let rock_hue_shift = vec3(0.02, -0.01, 0.03) * n_large + vec3(-0.01, 0.02, -0.02) * n_fine;
-    let rock_bright = noise * 0.08;
-
-    let hue_shift = mix(mix(sand_hue_shift, grass_hue_shift, sg), rock_hue_shift, gr);
-    let brightness = mix(mix(sand_bright, grass_bright, sg), rock_bright, gr);
-
-    base_color = base_color + hue_shift + base_color * brightness;
-
-    // Slope-based darkening and color shift
+    // Normal
     let n = normalize(in.normal);
     let slope = 1.0 - n.y;
+
+    // --- Material selection based on height and slope ---
+    // Biome blend weights (same transitions as before)
+    let sg = smoothstep(3.0, 8.0, h);    // sand → grass
+    let gr = smoothstep(18.0, 24.0, h);  // grass → rock
     let slope_factor = smoothstep(0.15, 0.7, slope);
 
-    let steep_grass = mix(base_color, vec3(0.28, 0.36, 0.18), slope_factor * 0.6 * sg * (1.0 - gr));
-    let steep_sand = mix(base_color, vec3(0.55, 0.50, 0.42), slope_factor * 0.4 * (1.0 - sg));
-    let steep_rock = mix(base_color, vec3(0.38, 0.34, 0.32), slope_factor * 0.5 * gr);
-    base_color = steep_grass + steep_sand + steep_rock - base_color * 2.0;
+    // Sample material textures
+    let tex_sand  = sample_material(world_xz, MAT_SAND);
+    let tex_grass = sample_material(world_xz, MAT_GRASS);
+    let tex_rock  = sample_material(world_xz, MAT_ROCK);
+    let tex_dirt  = sample_material(world_xz, MAT_DIRT);
 
-    let flat_boost = (1.0 - slope_factor) * 0.07 * sg * (1.0 - gr);
-    base_color = base_color * (1.0 + flat_boost) + vec3(-0.01, 0.02, -0.01) * flat_boost;
+    // Height-based base material blend
+    var tex_color = mix(mix(tex_sand, tex_grass, sg), tex_rock, gr);
 
-    // Grass-root green tint: flat terrain in grass zone gets a subtle green shift.
-    // This ensures the ground "takes over" smoothly when grass blades fade at distance.
+    // Steep slopes blend toward dirt/rock
+    let steep_blend = mix(tex_dirt, tex_rock, gr);
+    tex_color = mix(tex_color, steep_blend, slope_factor * 0.6);
+
+    // --- Large-scale procedural variation (biome patches) ---
+    let n_large = value_noise(world_xz * 0.12) * 2.0 - 1.0;
+    let n_med = value_noise(world_xz * 0.25 + vec2(37.0, 91.0)) * 2.0 - 1.0;
+
+    // Per-biome hue shifts from large-scale noise
+    let grass_hue_shift = vec3(0.04, -0.02, -0.03) * n_large + vec3(-0.02, 0.03, -0.01) * n_med;
+    let sand_hue_shift = vec3(0.03, 0.01, -0.04) * n_large + vec3(-0.02, -0.01, 0.03) * n_med;
+    let rock_hue_shift = vec3(0.02, -0.01, 0.03) * n_large + vec3(-0.01, 0.02, -0.02) * n_med;
+
+    let hue_shift = mix(mix(sand_hue_shift, grass_hue_shift, sg), rock_hue_shift, gr);
+    let brightness = (n_large * 0.6 + n_med * 0.25) * mix(mix(0.10, 0.12, sg), 0.08, gr);
+
+    var base_color = tex_color + hue_shift + tex_color * brightness;
+
+    // Grass-root green tint for distance blending with grass blades
     let grass_zone = sg * (1.0 - gr) * (1.0 - slope_factor);
     let cam_d = length(in.world_pos - u.camera_pos);
     let grass_tint_strength = grass_zone * smoothstep(30.0, 70.0, cam_d) * 0.06;
