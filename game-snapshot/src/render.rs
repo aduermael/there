@@ -1,8 +1,8 @@
 use game_render::{
     compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, scatter_objects, BloomRenderer,
-    GrassRenderer, PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer,
+    SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 // GrassRenderer now uses GPU compute; no GrassInstance import needed.
 use wgpu::util::DeviceExt;
@@ -207,6 +207,9 @@ pub async fn render_frame(
     // Link bloom to HDR intermediate
     bloom.build_bind_groups(&device, postprocess.intermediate_view());
 
+    // --- FXAA renderer ---
+    let fxaa = FxaaRenderer::new(&device, TEXTURE_FORMAT, width, height);
+
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
     });
@@ -221,6 +224,7 @@ pub async fn render_frame(
         ssao: &ssao,
         bloom: &bloom,
         postprocess: &postprocess,
+        fxaa: &fxaa,
     };
 
     encode_frame(

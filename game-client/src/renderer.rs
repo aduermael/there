@@ -2,10 +2,11 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    BloomRenderer, GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer,
-    RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
-    Uniforms, create_depth_texture, create_shadow_bgl, create_shadow_bind_group,
-    create_shadow_texture, encode_frame, scatter_objects, INTERMEDIATE_FORMAT,
+    BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
+    PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
+    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
+    create_shadow_bind_group, create_shadow_texture, encode_frame, scatter_objects,
+    INTERMEDIATE_FORMAT,
 };
 
 // GrassRenderer now uses GPU compute; no GrassInstance import needed.
@@ -29,6 +30,7 @@ pub struct Renderer {
     ssao: SsaoRenderer,
     bloom: BloomRenderer,
     postprocess: PostProcessRenderer,
+    fxaa: FxaaRenderer,
 }
 
 impl Renderer {
@@ -189,6 +191,9 @@ impl Renderer {
         // Link bloom to HDR intermediate (created by postprocess)
         bloom.build_bind_groups(&device, postprocess.intermediate_view());
 
+        // FXAA renderer (postprocess → LDR intermediate → FXAA → surface)
+        let fxaa = FxaaRenderer::new(&device, format, width, height);
+
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
             width,
@@ -215,6 +220,7 @@ impl Renderer {
             ssao,
             bloom,
             postprocess,
+            fxaa,
         }
     }
 
@@ -237,6 +243,7 @@ impl Renderer {
             self.bloom.resize(&self.device, width, height);
             self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), width, height);
             self.bloom.build_bind_groups(&self.device, self.postprocess.intermediate_view());
+            self.fxaa.resize(&self.device, width, height);
         }
     }
 
@@ -280,6 +287,7 @@ impl Renderer {
             ssao: &self.ssao,
             bloom: &self.bloom,
             postprocess: &self.postprocess,
+            fxaa: &self.fxaa,
         };
 
         encode_frame(

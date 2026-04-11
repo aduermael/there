@@ -1,6 +1,6 @@
 use crate::{
-    BloomRenderer, GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
-    SsaoRenderer, TerrainRenderer, TreeRenderer,
+    BloomRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer,
+    SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
 };
 
 /// All the renderers needed to draw a complete frame.
@@ -14,16 +14,19 @@ pub struct SceneRenderers<'a> {
     pub ssao: &'a SsaoRenderer,
     pub bloom: &'a BloomRenderer,
     pub postprocess: &'a PostProcessRenderer,
+    pub fxaa: &'a FxaaRenderer,
 }
 
-/// Encode the full 5-pass frame pipeline into the given command encoder.
+/// Encode the full 6-pass frame pipeline into the given command encoder.
 ///
 /// Pass sequence:
 /// 0. Grass compute (instance generation)
 /// 1. Shadow pass (depth from sun POV)
 /// 2. Scene pass (HDR intermediate)
 /// 3. SSAO pass (AO texture)
-/// 4. Post-process pass (final output)
+/// 3.5. Bloom compute (downscale + upscale mip chain)
+/// 4. Post-process pass (tonemapping → LDR intermediate)
+/// 5. FXAA pass (anti-aliasing → final output)
 pub fn encode_frame(
     encoder: &mut wgpu::CommandEncoder,
     scene: &SceneRenderers,
@@ -116,10 +119,29 @@ pub fn encode_frame(
     // Pass 3.5: Bloom compute (downscale + upscale mip chain)
     scene.bloom.compute(encoder);
 
-    // Pass 4: Post-process → final output
+    // Pass 4: Post-process → LDR intermediate (FXAA input)
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("PostProcess Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: scene.fxaa.ldr_view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            ..Default::default()
+        });
+
+        scene.postprocess.draw(&mut pass, uniform_bg);
+    }
+
+    // Pass 5: FXAA → final output
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("FXAA Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: output_view,
                 resolve_target: None,
@@ -132,6 +154,6 @@ pub fn encode_frame(
             ..Default::default()
         });
 
-        scene.postprocess.draw(&mut pass, uniform_bg);
+        scene.fxaa.draw(&mut pass);
     }
 }
