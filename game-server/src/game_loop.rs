@@ -25,6 +25,7 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
 
                 // Apply movement for each player
                 for player in players.values_mut() {
+                    let airborne = player.vertical_velocity != 0.0;
                     let pos = Vec3::new(player.x, player.y, player.z);
                     let new_pos = apply_movement(
                         pos,
@@ -38,17 +39,22 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                     player.z = new_pos.z;
                     player.yaw = player.input_yaw;
 
-                    // Vertical physics
+                    // Vertical physics — only when jumping or airborne
                     let terrain_y = sample_height(&heightmap, player.x, player.z);
-                    let (new_y, new_vel) = apply_vertical(
-                        player.y,
-                        player.vertical_velocity,
-                        terrain_y,
-                        player.input_jump,
-                        TICK_INTERVAL_SECS,
-                    );
-                    player.y = new_y;
-                    player.vertical_velocity = new_vel;
+                    if player.input_jump || airborne {
+                        let (new_y, new_vel) = apply_vertical(
+                            player.y,
+                            player.vertical_velocity,
+                            terrain_y,
+                            player.input_jump,
+                            TICK_INTERVAL_SECS,
+                        );
+                        player.y = new_y;
+                        player.vertical_velocity = new_vel;
+                    } else {
+                        // Grounded: use terrain height from apply_movement
+                        player.y = new_pos.y;
+                    }
                     player.input_jump = false;
                 }
 

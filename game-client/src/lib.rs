@@ -142,7 +142,9 @@ impl GameState {
         let jump_pressed = if menu_open { false } else { self.input.jump_pressed() };
         let yaw = self.camera.yaw;
 
-        // XZ movement (preserve Y — vertical physics handles it)
+        let airborne = self.vertical_velocity != 0.0;
+
+        // XZ movement
         if forward != 0.0 || strafe != 0.0 {
             let saved_y = self.local_pos.y;
             self.local_pos = game_core::movement::apply_movement(
@@ -153,24 +155,33 @@ impl GameState {
                 dt,
                 &self.heightmap_data,
             );
-            self.local_pos.y = saved_y;
+            if airborne {
+                // Preserve Y when airborne — vertical physics handles it
+                self.local_pos.y = saved_y;
+            }
+            // else: Y = terrain height from apply_movement (normal ground tracking)
         }
 
-        // Vertical physics (gravity + jump)
+        // Vertical physics — only when jumping or airborne
         let terrain_y = game_core::terrain::sample_height(
             &self.heightmap_data,
             self.local_pos.x,
             self.local_pos.z,
         );
-        let (new_y, new_vel) = game_core::movement::apply_vertical(
-            self.local_pos.y,
-            self.vertical_velocity,
-            terrain_y,
-            jump_pressed,
-            dt,
-        );
-        self.local_pos.y = new_y;
-        self.vertical_velocity = new_vel;
+        if jump_pressed || airborne {
+            let (new_y, new_vel) = game_core::movement::apply_vertical(
+                self.local_pos.y,
+                self.vertical_velocity,
+                terrain_y,
+                jump_pressed,
+                dt,
+            );
+            self.local_pos.y = new_y;
+            self.vertical_velocity = new_vel;
+        } else {
+            // Grounded: snap to terrain
+            self.local_pos.y = terrain_y;
+        }
 
         // Latch jump for network send
         if jump_pressed {
