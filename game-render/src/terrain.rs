@@ -32,7 +32,14 @@ pub struct Uniforms {
     pub _pad6: f32,
     pub ground_ambient: [f32; 3],
     pub _pad7: f32,
+    /// Active shadow VP — overwritten per cascade during shadow passes.
     pub sun_view_proj: [f32; 16],
+    /// Per-cascade view-projection matrices (for scene shader sampling).
+    pub cascade_vp0: [f32; 16],
+    pub cascade_vp1: [f32; 16],
+    pub cascade_vp2: [f32; 16],
+    /// Cascade split distances [near, mid, far, 0].
+    pub cascade_splits: [f32; 4],
 }
 
 pub struct TerrainRenderer {

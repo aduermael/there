@@ -3,7 +3,7 @@ use web_sys::HtmlCanvasElement;
 
 use game_render::{
     BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
-    PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
+    PostProcessRenderer, RockRenderer, SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer,
     TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame,
     INTERMEDIATE_FORMAT,
@@ -17,7 +17,7 @@ pub struct Renderer {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     depth_view: wgpu::TextureView,
-    shadow_depth_view: wgpu::TextureView,
+    shadow_cascades: ShadowCascades,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     shadow_bind_group: wgpu::BindGroup,
@@ -133,10 +133,10 @@ impl Renderer {
         // Depth texture
         let depth_view = create_depth_texture(&device, width, height);
 
-        // Shadow depth texture + bind group
-        let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+        // Shadow cascade texture + bind group
+        let shadow_cascades = create_shadow_texture(&device);
         let shadow_bgl = create_shadow_bgl(&device);
-        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_depth_view);
+        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
 
         // Uniform buffer + bind group (shared across pipelines)
         let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -206,7 +206,7 @@ impl Renderer {
             queue,
             config,
             depth_view,
-            shadow_depth_view,
+            shadow_cascades,
             uniform_buffer,
             uniform_bind_group,
             shadow_bind_group,
@@ -230,6 +230,10 @@ impl Renderer {
     pub fn update_uniforms(&self, uniforms: &Uniforms) {
         self.queue
             .write_buffer(&self.uniform_buffer, 0, bytemuck::bytes_of(uniforms));
+    }
+
+    pub fn update_cascade_vps(&self, vps: &[glam::Mat4; 3]) {
+        game_render::update_cascade_vps(&self.queue, &self.shadow_cascades.vp_staging, vps);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -291,8 +295,10 @@ impl Renderer {
 
         encode_frame(
             &mut encoder, &scene,
-            &self.uniform_bind_group, &self.shadow_bind_group,
-            &self.shadow_depth_view, &self.depth_view, &view,
+            &self.uniform_bind_group, &self.uniform_buffer,
+            &self.shadow_bind_group, &self.shadow_cascades.cascade_views,
+            &self.shadow_cascades.vp_staging,
+            &self.depth_view, &view,
             camera_pos, view_proj,
         );
 

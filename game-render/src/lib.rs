@@ -22,7 +22,7 @@ pub use grass::GrassRenderer;
 pub use atmosphere::{AtmosphereParams, compute_atmosphere};
 pub use sky::SkyRenderer;
 pub use postprocess::{PostProcessRenderer, INTERMEDIATE_FORMAT};
-pub use shadow::{create_shadow_texture, create_shadow_bgl, create_shadow_bind_group, compute_sun_view_proj};
+pub use shadow::{create_shadow_texture, create_shadow_bgl, create_shadow_bind_group, compute_cascade_view_projs, update_cascade_vps, ShadowCascades, CASCADE_SPLITS};
 pub use ssao::SsaoRenderer;
 pub use bloom::BloomRenderer;
 pub use fxaa::FxaaRenderer;

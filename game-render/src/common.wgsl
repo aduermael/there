@@ -3,7 +3,7 @@
 // Uniforms struct from uniforms.wgsl, noise functions from noise.wgsl (prepended before this).
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
-@group(1) @binding(0) var shadow_map: texture_depth_2d;
+@group(1) @binding(0) var shadow_map: texture_depth_2d_array;
 @group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
 fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
@@ -13,7 +13,26 @@ fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
 }
 
 fn sample_shadow(world_pos: vec3<f32>) -> f32 {
-    let light_clip = u.sun_view_proj * vec4(world_pos, 1.0);
+    let dist = length(world_pos - u.camera_pos);
+
+    // Select cascade based on distance from camera
+    var cascade: i32;
+    var light_vp: mat4x4<f32>;
+
+    if dist < u.cascade_splits.x {
+        cascade = 0;
+        light_vp = u.cascade_vp0;
+    } else if dist < u.cascade_splits.y {
+        cascade = 1;
+        light_vp = u.cascade_vp1;
+    } else if dist < u.cascade_splits.z {
+        cascade = 2;
+        light_vp = u.cascade_vp2;
+    } else {
+        return 1.0; // beyond shadow distance
+    }
+
+    let light_clip = light_vp * vec4(world_pos, 1.0);
     let light_ndc = light_clip.xyz / light_clip.w;
     let shadow_uv = vec2(light_ndc.x * 0.5 + 0.5, 1.0 - (light_ndc.y * 0.5 + 0.5));
 
@@ -30,10 +49,10 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     let texel = 1.0 / 1024.0;
     let s = texel * 1.2;
     let shadow = (
-        textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s, -s), d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s, -s), d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s,  s), d)
-        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s,  s), d)
+        textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s, -s), cascade, d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s, -s), cascade, d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2(-s,  s), cascade, d)
+        + textureSampleCompare(shadow_map, shadow_sampler, shadow_uv + vec2( s,  s), cascade, d)
     ) * 0.25;
     return shadow;
 }

@@ -1,8 +1,9 @@
 use game_render::{
-    compute_atmosphere, compute_sun_view_proj, create_depth_texture, create_shadow_bgl,
-    create_shadow_bind_group, create_shadow_texture, encode_frame, BloomRenderer,
-    FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer,
-    SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
+    create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
+    BloomRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer,
+    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms,
+    INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
@@ -127,7 +128,7 @@ pub async fn render_frame(
     let view_proj = proj * view;
     let atmo = compute_atmosphere(sun_angle);
 
-    let sun_vp = compute_sun_view_proj(atmo.sun_dir, camera_pos);
+    let (cascade_vps, cascade_splits) = compute_cascade_view_projs(atmo.sun_dir, camera_pos);
 
     let uniforms = Uniforms {
         view_proj: view_proj.to_cols_array(),
@@ -152,7 +153,11 @@ pub async fn render_frame(
         _pad6: 0.0,
         ground_ambient: atmo.ground_ambient,
         _pad7: 0.0,
-        sun_view_proj: sun_vp.to_cols_array(),
+        sun_view_proj: cascade_vps[0].to_cols_array(),
+        cascade_vp0: cascade_vps[0].to_cols_array(),
+        cascade_vp1: cascade_vps[1].to_cols_array(),
+        cascade_vp2: cascade_vps[2].to_cols_array(),
+        cascade_splits,
     };
 
     let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -171,9 +176,9 @@ pub async fn render_frame(
     });
 
     // --- Shadow resources ---
-    let (_shadow_tex, shadow_depth_view) = create_shadow_texture(&device);
+    let shadow_cascades = create_shadow_texture(&device);
     let shadow_bgl = create_shadow_bgl(&device);
-    let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_depth_view);
+    let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
 
     // --- Scene renderers (all target HDR intermediate) ---
     let terrain = TerrainRenderer::new(
@@ -226,10 +231,15 @@ pub async fn render_frame(
         fxaa: &fxaa,
     };
 
+    // Write cascade VP matrices to staging buffer before encoding
+    update_cascade_vps(&queue, &shadow_cascades.vp_staging, &cascade_vps);
+
     encode_frame(
         &mut encoder, &scene,
-        &uniform_bind_group, &shadow_bind_group,
-        &shadow_depth_view, &depth_view, &render_view,
+        &uniform_bind_group, &uniform_buffer,
+        &shadow_bind_group, &shadow_cascades.cascade_views,
+        &shadow_cascades.vp_staging,
+        &depth_view, &render_view,
         camera_pos, &view_proj,
     );
 

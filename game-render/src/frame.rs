@@ -17,11 +17,11 @@ pub struct SceneRenderers<'a> {
     pub fxaa: &'a FxaaRenderer,
 }
 
-/// Encode the full 6-pass frame pipeline into the given command encoder.
+/// Encode the full frame pipeline into the given command encoder.
 ///
 /// Pass sequence:
 /// 0. Compute passes (grass, tree, rock instance generation)
-/// 1. Shadow pass (depth from sun POV)
+/// 1. Shadow passes (3 cascades — copy cascade VP, render depth from sun POV)
 /// 2. Scene pass (HDR intermediate)
 /// 3. SSAO pass (AO texture)
 /// 3.5. Bloom compute (downscale + upscale mip chain)
@@ -31,8 +31,10 @@ pub fn encode_frame(
     encoder: &mut wgpu::CommandEncoder,
     scene: &SceneRenderers,
     uniform_bg: &wgpu::BindGroup,
+    uniform_buffer: &wgpu::Buffer,
     shadow_bg: &wgpu::BindGroup,
-    shadow_depth_view: &wgpu::TextureView,
+    shadow_cascade_views: &[wgpu::TextureView; 3],
+    cascade_vp_staging: &wgpu::Buffer,
     depth_view: &wgpu::TextureView,
     output_view: &wgpu::TextureView,
     camera_pos: glam::Vec3,
@@ -43,13 +45,16 @@ pub fn encode_frame(
     scene.trees.compute(encoder);
     scene.rocks.compute(encoder);
 
-    // Pass 1: Shadow (depth from sun POV)
-    {
+    // Pass 1: Shadow — 3 cascades
+    for (i, cascade_view) in shadow_cascade_views.iter().enumerate() {
+        // Copy cascade VP matrix from staging into sun_view_proj slot so vs_shadow reads it
+        crate::shadow::copy_cascade_vp(encoder, cascade_vp_staging, uniform_buffer, i);
+
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Shadow Pass"),
             color_attachments: &[],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: shadow_depth_view,
+                view: cascade_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
                     store: wgpu::StoreOp::Store,
