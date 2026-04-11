@@ -390,7 +390,7 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
 
 **Root causes**: (1) Terrain sand albedo `[0.38, 0.42, 0.22]` is pale olive — needs to be darker/earthier. (2) Terrain grass albedo `[0.28, 0.52, 0.18]` could use more saturation. (3) Scatter `terrain_color_at` uses different sand values `[0.76, 0.70, 0.50]` (line 295) — these are much paler than the shader's sand, causing bright blades on darker terrain. (4) Sand-grass transition `smoothstep(4.0, 10.0, h)` means terrain below height 7 is still mostly sand — camera at noon likely shows mid-elevation terrain that's in this transition zone.
 
-- [ ] 10a: Darken and enrich terrain colors (shader + scatter sync)
+- [x] 10a: Darken and enrich terrain colors (shader + scatter sync)
 
   **Context**: `terrain.wgsl` lines 63-65 (sand/grass/rock albedos), `scatter.rs` lines 295-297 (terrain_color_at sand/grass/rock) — these MUST stay in sync.
 

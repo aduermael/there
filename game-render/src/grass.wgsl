@@ -72,8 +72,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sun_warmth = dot(u.sun_color, vec3(0.333));
     let day_tip = smoothstep(0.3, 0.8, sun_warmth);
     let tip_glow = smoothstep(0.3, 1.0, in.bend_factor);
-    blade_color.g += tip_glow * 0.10 * day_tip;
-    blade_color.r += tip_glow * 0.07 * day_tip;
+    blade_color.g += tip_glow * 0.06 * day_tip;
+    blade_color.r += tip_glow * 0.05 * day_tip;
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, blade_color, shadow);

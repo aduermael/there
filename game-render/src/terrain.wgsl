@@ -60,11 +60,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let world_xz = in.world_pos.xz;
 
     // Height-based coloring: sand -> grass -> rock
-    let sand  = vec3(0.38, 0.42, 0.22);
-    let grass = vec3(0.28, 0.52, 0.18);
+    let sand  = vec3(0.36, 0.31, 0.17);
+    let grass = vec3(0.30, 0.48, 0.16);
     let rock  = vec3(0.48, 0.43, 0.38);
 
-    let sg = smoothstep(4.0, 10.0, h);
+    let sg = smoothstep(3.0, 8.0, h);
     let gr = smoothstep(18.0, 24.0, h);
     var base_color = mix(mix(sand, grass, sg), rock, gr);
 
@@ -100,7 +100,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let steep_rock = mix(base_color, vec3(0.38, 0.34, 0.32), slope_factor * 0.5 * gr);
     base_color = steep_grass + steep_sand + steep_rock - base_color * 2.0;
 
-    let flat_boost = (1.0 - slope_factor) * 0.08 * sg * (1.0 - gr);
+    let flat_boost = (1.0 - slope_factor) * 0.07 * sg * (1.0 - gr);
     base_color = base_color * (1.0 + flat_boost) + vec3(-0.01, 0.02, -0.01) * flat_boost;
 
     base_color = max(base_color, vec3(0.02));

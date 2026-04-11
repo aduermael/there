@@ -292,10 +292,10 @@ pub fn scatter_objects(
 /// Terrain color at a given position — matches terrain.wgsl noise-based coloring.
 /// Evaluates the same hash2/value_noise and per-biome hue/brightness shifts.
 fn terrain_color_at(h: f32, wx: f32, wz: f32) -> [f32; 3] {
-    let sand = [0.76_f32, 0.70, 0.50];
-    let grass = [0.32_f32, 0.54, 0.22];
-    let rock = [0.50_f32, 0.45, 0.40];
-    let sg = smoothstep_f32(8.0, 14.0, h);
+    let sand = [0.36_f32, 0.31, 0.17];
+    let grass = [0.30_f32, 0.48, 0.16];
+    let rock = [0.48_f32, 0.43, 0.38];
+    let sg = smoothstep_f32(3.0, 8.0, h);
     let gr = smoothstep_f32(18.0, 24.0, h);
 
     let mut base = [
@@ -337,7 +337,7 @@ fn terrain_color_at(h: f32, wx: f32, wz: f32) -> [f32; 3] {
     base[2] = (base[2] + hue[2] + base[2] * brightness).max(0.02);
 
     // Flat-terrain boost (grass is placed on flat terrain, so apply full boost)
-    let flat_boost = 0.08 * sg * (1.0 - gr);
+    let flat_boost = 0.07 * sg * (1.0 - gr);
     base[0] = base[0] * (1.0 + flat_boost) + (-0.01) * flat_boost;
     base[1] = base[1] * (1.0 + flat_boost) + 0.02 * flat_boost;
     base[2] = base[2] * (1.0 + flat_boost) + (-0.01) * flat_boost;
