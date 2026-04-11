@@ -80,15 +80,16 @@ pub fn scatter_objects(
                 continue; // trees don't grow on steep slopes
             }
 
-            let jx = ((hash >> 8) & 0xFF) as f32 / 255.0;
-            let jz = ((hash >> 16) & 0xFF) as f32 / 255.0;
+            // Extended jitter: push beyond cell boundary to break grid pattern
+            let jx = ((hash >> 8) & 0xFF) as f32 / 255.0 * 2.0 - 0.5;
+            let jz = ((hash >> 16) & 0xFF) as f32 / 255.0 * 2.0 - 0.5;
             let wx = (gx as f32 + jx * tree_step as f32) * texel_size;
             let wz = (gz as f32 + jz * tree_step as f32) * texel_size;
             let wy = game_core::terrain::sample_height(heightmap, wx, wz);
 
-            // Exponential distribution: more small trees, fewer large
+            // Exponential distribution: more small trees, rare large anchors
             let size_hash = ((hash >> 24) & 0xFF) as f32 / 255.0;
-            let scale = 0.6 + size_hash * size_hash * 2.4; // 0.6-3.0, biased small
+            let scale = 0.5 + size_hash * size_hash * 3.5; // 0.5-4.0, biased small
 
             // Wider green variation: blue-green to yellow-green
             let green_var = ((hash >> 4) & 0xFF) as f32 / 255.0;
@@ -123,16 +124,16 @@ pub fn scatter_objects(
         for j in 0..companions {
             let ch = cell_hash(j as u32, cluster_hash, 0xACE0);
             let angle = ((ch & 0xFF) as f32 / 255.0) * std::f32::consts::TAU;
-            let dist = 2.0 + ((ch >> 8) & 0xFF) as f32 / 255.0 * 3.0; // 2-5 units away
+            let dist = 3.0 + ((ch >> 8) & 0xFF) as f32 / 255.0 * 4.0; // 3-7 units away
             let cx = tx + angle.cos() * dist;
             let cz = tz + angle.sin() * dist;
             let cy = game_core::terrain::sample_height(heightmap, cx, cz);
             if cy < 10.0 || cy > 17.0 || (cy - ty).abs() > 3.0 {
                 continue;
             }
-            // Companions are typically smaller
+            // Companions are smaller — contrast with anchor parent
             let sh = ((ch >> 16) & 0xFF) as f32 / 255.0;
-            let scale = 0.5 + sh * sh * 1.5; // 0.5-2.0, biased small
+            let scale = 0.4 + sh * sh * 1.2; // 0.4-1.6, biased small
             let gv = ((ch >> 4) & 0xFF) as f32 / 255.0;
             let bv = ((ch >> 12) & 0xFF) as f32 / 255.0;
             let r = 0.20 + gv * 0.15;

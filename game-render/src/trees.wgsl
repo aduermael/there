@@ -27,9 +27,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     // Crown shape variation: narrow-to-wide per instance
     let shape = in.inst_foliage_color.a;
-    let crown_w = mix(0.75, 1.4, shape);
+    let crown_w = mix(0.6, 1.7, shape);
     local_pos.x *= mix(1.0, crown_w, is_foliage);
     local_pos.z *= mix(1.0, crown_w, is_foliage);
+    // Subtle height: wide trees slightly squatter, narrow slightly taller
+    let crown_h = mix(1.08, 0.93, shape);
+    let foliage_center_y = 1.3 * scale;
+    let dy = local_pos.y - foliage_center_y;
+    local_pos.y = mix(local_pos.y, foliage_center_y + dy * crown_h, is_foliage);
 
     let height_factor = saturate(in.position.y / 2.5);
     let sway_strength = is_foliage * height_factor * height_factor;
@@ -69,9 +74,13 @@ fn vs_shadow(
 
     // Crown shape variation (must match scene VS)
     let shape = inst_foliage_color.a;
-    let crown_w = mix(0.75, 1.4, shape);
+    let crown_w = mix(0.6, 1.7, shape);
     local_pos.x *= mix(1.0, crown_w, is_foliage);
     local_pos.z *= mix(1.0, crown_w, is_foliage);
+    let crown_h = mix(1.08, 0.93, shape);
+    let foliage_center_y = 1.3 * scale;
+    let dy = local_pos.y - foliage_center_y;
+    local_pos.y = mix(local_pos.y, foliage_center_y + dy * crown_h, is_foliage);
 
     let height_factor = saturate(position.y / 2.5);
     let sway_strength = is_foliage * height_factor * height_factor;
