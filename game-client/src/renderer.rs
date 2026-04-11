@@ -7,6 +7,8 @@ use game_render::{
     create_shadow_bind_group, create_shadow_texture, scatter_objects, INTERMEDIATE_FORMAT,
 };
 
+// GrassRenderer now uses GPU compute; no GrassInstance import needed.
+
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -168,10 +170,10 @@ impl Renderer {
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data);
         let players = PlayerRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
-        let (rock_instances, tree_instances, grass_instances) = scatter_objects(heightmap_data);
+        let (rock_instances, tree_instances) = scatter_objects(heightmap_data);
         let rocks = RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &rock_instances);
         let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
-        let grass = GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
+        let grass = GrassRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
 
         // SSAO renderer
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
@@ -256,6 +258,9 @@ impl Renderer {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render"),
             });
+
+        // Compute pass: generate grass blade instances
+        self.grass.compute(&mut encoder);
 
         // Shadow pass: depth from sun POV
         {

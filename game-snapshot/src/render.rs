@@ -4,6 +4,7 @@ use game_render::{
     PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
     Uniforms, INTERMEDIATE_FORMAT,
 };
+// GrassRenderer now uses GPU compute; no GrassInstance import needed.
 use wgpu::util::DeviceExt;
 
 const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -186,13 +187,13 @@ pub async fn render_frame(
 
     let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
-    let (rock_instances, tree_instances, grass_instances) = scatter_objects(&heightmap_data);
+    let (rock_instances, tree_instances) = scatter_objects(&heightmap_data);
     let rock_renderer =
         RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &rock_instances);
     let tree_renderer =
         TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
     let grass_renderer =
-        GrassRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &grass_instances);
+        GrassRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
 
     // --- SSAO renderer ---
     let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
@@ -200,10 +201,14 @@ pub async fn render_frame(
     // --- Post-process renderer ---
     let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl, ssao.ao_view(), &depth_view, width, height);
 
-    // --- Shadow pass: depth from sun POV ---
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
     });
+
+    // --- Compute pass: generate grass blade instances ---
+    grass_renderer.compute(&mut encoder);
+
+    // --- Shadow pass: depth from sun POV ---
 
     // Skip shadow pass at night (sun below horizon)
     if atmo.sun_dir.y > 0.02 {

@@ -426,7 +426,7 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
 
 **Technique**: The standard approach for dense grass in games is **massive GPU instancing with multi-blade tufts**. Each scatter point spawns 3-5 blades at slight offsets (a "tuft"), and the total instance count increases significantly. Performance stays manageable because: grass is already view-distance culled (50-80 unit fade), the vertex shader is simple, and each blade is only 4 triangles. WebGPU handles 48k-64k instances easily on modern hardware.
 
-- [ ] 11a: Multi-blade tufts and increased density
+- [x] 11a: Multi-blade tufts and increased density
 
   **Context**: `scatter.rs` lines 176-234 (grass placement), `grass.rs` line 5 (`MAX_GRASS = 24000`), lines 184-207 (blade geometry). Each scatter point currently places 1 blade.
 
@@ -442,7 +442,7 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
 
   **Failure modes**: 64k instances may slow lower-end devices. If `make snapshot` shows frame time > 30ms, reduce to 48k. Multi-blade tufts with bad offsets → visible repeating patterns. Use per-blade hash for variety. Too narrow blades at distance = z-fighting shimmer — tune with critics.
 
-- [ ] 11b: Grass LOD and ground coverage blending
+- [x] 11b: Grass LOD and ground coverage blending
 
   **Context**: `grass.wgsl` lines 36-38 (distance fade), `terrain.wgsl` lines 62-69 (ground color).
 

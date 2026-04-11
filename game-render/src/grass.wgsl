@@ -1,14 +1,20 @@
 // Grass-specific: instanced blades with wind animation and distance fade.
 // Uniforms, lighting, and fog provided by common.wgsl prefix.
+// Instance data from GPU compute shader via storage buffer.
 
 @group(1) @binding(0) var shadow_map: texture_depth_2d;
 @group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
+struct GrassInstanceData {
+    pos_scale: vec4<f32>,
+    color_rotation: vec4<f32>,
+};
+@group(2) @binding(0) var<storage, read> instances: array<GrassInstanceData>;
+
 struct VertexInput {
+    @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
     @location(1) bend: f32,
-    @location(2) inst_pos_scale: vec4<f32>,
-    @location(3) inst_color_rotation: vec4<f32>,
 };
 
 struct VertexOutput {
@@ -20,9 +26,10 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    let scale = in.inst_pos_scale.w;
-    let angle = in.inst_color_rotation.w;
-    let base_pos = in.inst_pos_scale.xyz;
+    let inst = instances[in.instance_id];
+    let scale = inst.pos_scale.w;
+    let angle = inst.color_rotation.w;
+    let base_pos = inst.pos_scale.xyz;
 
     // Rotate blade around Y axis
     let cos_a = cos(angle);
@@ -53,7 +60,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
-    out.color = in.inst_color_rotation.rgb;
+    out.color = inst.color_rotation.xyz;
     out.bend_factor = in.bend;
     return out;
 }

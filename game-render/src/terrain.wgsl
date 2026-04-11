@@ -103,6 +103,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let flat_boost = (1.0 - slope_factor) * 0.07 * sg * (1.0 - gr);
     base_color = base_color * (1.0 + flat_boost) + vec3(-0.01, 0.02, -0.01) * flat_boost;
 
+    // Grass-root green tint: flat terrain in grass zone gets a subtle green shift.
+    // This ensures the ground "takes over" smoothly when grass blades fade at distance.
+    let grass_zone = sg * (1.0 - gr) * (1.0 - slope_factor);
+    let cam_d = length(in.world_pos - u.camera_pos);
+    let grass_tint_strength = grass_zone * smoothstep(30.0, 70.0, cam_d) * 0.06;
+    base_color = base_color + vec3(-0.01, grass_tint_strength, -0.005);
+
     base_color = max(base_color, vec3(0.02));
 
     let shadow = sample_shadow(in.world_pos);
