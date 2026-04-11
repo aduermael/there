@@ -30,12 +30,19 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let t = pow(1.0 - up_factor, 2.0);
     var color = mix(u.sky_zenith, u.sky_horizon, t);
 
-    // --- Sun disc and glow ---
+    // --- Sun disc and glow (Henyey-Greenstein Mie scattering) ---
     let sun_dot = dot(ray_dir, u.sun_dir);
 
-    // Glow halo: soft falloff around sun, bigger at horizon for dawn/dusk drama
-    let horizon_boost = 1.0 + (1.0 - max(u.sun_dir.y, 0.0)) * 2.0;
-    let glow = pow(max(sun_dot, 0.0), 64.0 / horizon_boost) * 0.6 * horizon_boost;
+    // Dual-lobe HG phase function: forward Mie peak + subtle back-scatter corona
+    let g_fwd = 0.76;
+    let g_back = -0.3;
+    let hg_fwd = (1.0 - g_fwd * g_fwd) / pow(1.0 + g_fwd * g_fwd - 2.0 * g_fwd * sun_dot, 1.5);
+    let hg_back = (1.0 - g_back * g_back) / pow(1.0 + g_back * g_back - 2.0 * g_back * sun_dot, 1.5);
+    let phase = hg_fwd * 0.8 + hg_back * 0.2;
+
+    // Horizon boost: wider, stronger glow when sun is low (dawn/dusk atmosphere path)
+    let horizon_boost = 1.0 + (1.0 - max(u.sun_dir.y, 0.0)) * 1.5;
+    let glow = phase * 0.06 * horizon_boost;
     color += u.sun_color * glow;
 
     // Sun disc: small bright circle
