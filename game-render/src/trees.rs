@@ -1,6 +1,4 @@
-use wgpu::util::DeviceExt;
-
-
+use crate::instanced_mesh::InstancedMeshRenderer;
 
 pub const MAX_TREES: usize = 2048;
 
@@ -12,13 +10,7 @@ pub struct TreeInstance {
 }
 
 pub struct TreeRenderer {
-    pipeline: wgpu::RenderPipeline,
-    shadow_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
-    instance_buffer: wgpu::Buffer,
-    instance_count: u32,
+    mesh: InstancedMeshRenderer,
 }
 
 impl TreeRenderer {
@@ -37,37 +29,6 @@ impl TreeRenderer {
             ),
         });
 
-        let (vertices, indices) = generate_tree_mesh(12);
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Tree Verts"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_count = indices.len() as u32;
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Tree Idx"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Tree Instances"),
-            size: (MAX_TREES * std::mem::size_of::<TreeInstance>()) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let instance_count = instances.len().min(MAX_TREES) as u32;
-        if !instances.is_empty() {
-            queue.write_buffer(
-                &instance_buffer,
-                0,
-                bytemuck::cast_slice(&instances[..instance_count as usize]),
-            );
-        }
-
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Tree Pipeline Layout"),
             bind_group_layouts: &[uniform_bgl, shadow_bgl],
@@ -81,7 +42,6 @@ impl TreeRenderer {
         });
 
         let tree_vertex_layouts = &[
-            // Per-vertex: position (vec3) + color (vec3) = 24 bytes
             wgpu::VertexBufferLayout {
                 array_stride: 24,
                 step_mode: wgpu::VertexStepMode::Vertex,
@@ -90,7 +50,6 @@ impl TreeRenderer {
                     wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 12, shader_location: 1 },
                 ],
             },
-            // Per-instance: pos_scale + foliage_color
             wgpu::VertexBufferLayout {
                 array_stride: 32,
                 step_mode: wgpu::VertexStepMode::Instance,
@@ -112,22 +71,21 @@ impl TreeRenderer {
             tree_vertex_layouts,
         );
 
-        log::info!(
-            "Tree renderer: {} verts, {} tris, {} instances",
-            vertices.len(),
-            index_count / 3,
-            instance_count,
+        let (vertices, indices) = generate_tree_mesh(12);
+
+        let mesh = InstancedMeshRenderer::new(
+            device, queue, pipeline, Some(shadow_pipeline),
+            bytemuck::cast_slice(&vertices), &indices,
+            std::mem::size_of::<TreeInstance>(), MAX_TREES,
+            bytemuck::cast_slice(instances), "Tree",
         );
 
-        Self {
-            pipeline,
-            shadow_pipeline,
-            vertex_buffer,
-            index_buffer,
-            index_count,
-            instance_buffer,
-            instance_count,
-        }
+        log::info!(
+            "Tree renderer: {} verts, {} tris, {} instances",
+            vertices.len(), indices.len() / 3, instances.len(),
+        );
+
+        Self { mesh }
     }
 
     pub fn draw<'a>(
@@ -136,16 +94,7 @@ impl TreeRenderer {
         uniform_bg: &'a wgpu::BindGroup,
         shadow_bg: &'a wgpu::BindGroup,
     ) {
-        if self.instance_count == 0 {
-            return;
-        }
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, shadow_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+        self.mesh.draw(pass, uniform_bg, shadow_bg);
     }
 
     pub fn draw_shadow<'a>(
@@ -153,15 +102,7 @@ impl TreeRenderer {
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
     ) {
-        if self.instance_count == 0 {
-            return;
-        }
-        pass.set_pipeline(&self.shadow_pipeline);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+        self.mesh.draw_shadow(pass, uniform_bg);
     }
 }
 
@@ -208,23 +149,19 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
     }
 
     // --- Foliage: 3 stacked cones (spruce/pine silhouette) ---
-    // Each layer: (base_y, radius, height, shade)
-    // shade < 1.0 makes lower layers slightly darker for depth
     let layers: [(f32, f32, f32, f32); 3] = [
-        (0.5, 0.85, 1.3, 0.82),  // bottom: widest, darkest
-        (1.1, 0.60, 1.1, 0.91),  // middle
-        (1.6, 0.35, 0.9, 1.00),  // top: narrowest, brightest
+        (0.5, 0.85, 1.3, 0.82),
+        (1.1, 0.60, 1.1, 0.91),
+        (1.6, 0.35, 0.9, 1.00),
     ];
 
     for (base_y, radius, height, shade) in layers {
         let tip_y = base_y + height;
         let foliage_color = [shade, shade, shade];
 
-        // Tip vertex
         let tip_idx = verts.len() as u32;
         verts.push([0.0, tip_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
 
-        // Base ring
         let ring_start = verts.len() as u32;
         for i in 0..=segments {
             let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
@@ -233,14 +170,12 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
             verts.push([x, base_y, z, foliage_color[0], foliage_color[1], foliage_color[2]]);
         }
 
-        // Cone sides
         for i in 0..segments {
             indices.push(tip_idx);
             indices.push(ring_start + i + 1);
             indices.push(ring_start + i);
         }
 
-        // Cone bottom cap
         let center_idx = verts.len() as u32;
         verts.push([0.0, base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
         for i in 0..segments {

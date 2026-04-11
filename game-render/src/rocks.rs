@@ -1,6 +1,4 @@
-use wgpu::util::DeviceExt;
-
-
+use crate::instanced_mesh::InstancedMeshRenderer;
 
 const MAX_ROCKS: usize = 1024;
 
@@ -12,13 +10,7 @@ pub struct RockInstance {
 }
 
 pub struct RockRenderer {
-    pipeline: wgpu::RenderPipeline,
-    shadow_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
-    instance_buffer: wgpu::Buffer,
-    instance_count: u32,
+    mesh: InstancedMeshRenderer,
 }
 
 impl RockRenderer {
@@ -36,37 +28,6 @@ impl RockRenderer {
                 format!("{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("common.wgsl"), include_str!("rocks.wgsl")).into(),
             ),
         });
-
-        let (vertices, indices) = generate_rock_mesh(1.0, 1, 42);
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Rock Verts"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_count = indices.len() as u32;
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Rock Idx"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Rock Instances"),
-            size: (MAX_ROCKS * std::mem::size_of::<RockInstance>()) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let instance_count = instances.len().min(MAX_ROCKS) as u32;
-        if !instances.is_empty() {
-            queue.write_buffer(
-                &instance_buffer,
-                0,
-                bytemuck::cast_slice(&instances[..instance_count as usize]),
-            );
-        }
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Rock Pipeline Layout"),
@@ -107,22 +68,21 @@ impl RockRenderer {
             rock_vertex_layouts,
         );
 
-        log::info!(
-            "Rock renderer: {} verts, {} tris, {} instances",
-            vertices.len(),
-            index_count / 3,
-            instance_count,
+        let (vertices, indices) = generate_rock_mesh(1.0, 1, 42);
+
+        let mesh = InstancedMeshRenderer::new(
+            device, queue, pipeline, Some(shadow_pipeline),
+            bytemuck::cast_slice(&vertices), &indices,
+            std::mem::size_of::<RockInstance>(), MAX_ROCKS,
+            bytemuck::cast_slice(instances), "Rock",
         );
 
-        Self {
-            pipeline,
-            shadow_pipeline,
-            vertex_buffer,
-            index_buffer,
-            index_count,
-            instance_buffer,
-            instance_count,
-        }
+        log::info!(
+            "Rock renderer: {} verts, {} tris, {} instances",
+            vertices.len(), indices.len() / 3, instances.len(),
+        );
+
+        Self { mesh }
     }
 
     pub fn draw<'a>(
@@ -131,16 +91,7 @@ impl RockRenderer {
         uniform_bg: &'a wgpu::BindGroup,
         shadow_bg: &'a wgpu::BindGroup,
     ) {
-        if self.instance_count == 0 {
-            return;
-        }
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, shadow_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+        self.mesh.draw(pass, uniform_bg, shadow_bg);
     }
 
     pub fn draw_shadow<'a>(
@@ -148,29 +99,18 @@ impl RockRenderer {
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
     ) {
-        if self.instance_count == 0 {
-            return;
-        }
-        pass.set_pipeline(&self.shadow_pipeline);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..self.instance_count);
+        self.mesh.draw_shadow(pass, uniform_bg);
     }
 }
 
 /// Generate a deformed icosphere rock mesh.
-/// `radius` is the base radius, `subdivisions` controls detail (1 = 42 verts),
-/// `seed` drives deterministic vertex displacement for shape variation.
 fn generate_rock_mesh(radius: f32, subdivisions: u32, seed: u32) -> (Vec<[f32; 3]>, Vec<u32>) {
     let (mut verts, indices) = icosphere(subdivisions);
 
-    // Deform vertices along their normals using a simple hash-based displacement
     for (i, v) in verts.iter_mut().enumerate() {
         let n = glam::Vec3::from(*v).normalize();
         let hash = simple_hash(seed.wrapping_add(i as u32));
-        let displacement = (hash as f32 / u32::MAX as f32) * 0.6 - 0.3; // ±30%
+        let displacement = (hash as f32 / u32::MAX as f32) * 0.6 - 0.3;
         let r = radius * (1.0 + displacement);
         *v = (n * r).to_array();
     }
@@ -178,7 +118,6 @@ fn generate_rock_mesh(radius: f32, subdivisions: u32, seed: u32) -> (Vec<[f32; 3
     (verts, indices)
 }
 
-/// Generate an icosphere with given subdivision level.
 fn icosphere(subdivisions: u32) -> (Vec<[f32; 3]>, Vec<u32>) {
     let t = (1.0 + 5.0_f32.sqrt()) / 2.0;
 
@@ -247,7 +186,6 @@ fn get_midpoint(
     idx
 }
 
-/// Simple deterministic hash for vertex displacement.
 fn simple_hash(mut x: u32) -> u32 {
     x = x.wrapping_mul(0x9e3779b9);
     x ^= x >> 16;

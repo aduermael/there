@@ -1,6 +1,4 @@
-use wgpu::util::DeviceExt;
-
-
+use crate::instanced_mesh::InstancedMeshRenderer;
 
 const CAPSULE_RADIUS: f32 = 0.3;
 const CAPSULE_CYL_HEIGHT: f32 = 1.2;
@@ -31,16 +29,13 @@ pub struct PlayerInstance {
 }
 
 pub struct PlayerRenderer {
-    pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
-    instance_buffer: wgpu::Buffer,
+    mesh: InstancedMeshRenderer,
 }
 
 impl PlayerRenderer {
     pub fn new(
         device: &wgpu::Device,
+        queue: &wgpu::Queue,
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
         shadow_bgl: &wgpu::BindGroupLayout,
@@ -50,33 +45,6 @@ impl PlayerRenderer {
             source: wgpu::ShaderSource::Wgsl(
                 format!("{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("common.wgsl"), include_str!("player.wgsl")).into(),
             ),
-        });
-
-        let (vertices, indices) = generate_capsule(
-            CAPSULE_RADIUS,
-            CAPSULE_CYL_HEIGHT,
-            CAPSULE_SEGMENTS,
-            CAPSULE_RINGS,
-        );
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Capsule Verts"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_count = indices.len() as u32;
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Capsule Idx"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Player Instances"),
-            size: (MAX_PLAYERS * std::mem::size_of::<PlayerInstance>()) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -106,26 +74,27 @@ impl PlayerRenderer {
             Some(wgpu::Face::Back), wgpu::CompareFunction::Less,
         );
 
-        log::info!(
-            "Player renderer: {} verts, {} tris, max {} instances",
-            vertices.len(),
-            index_count / 3,
-            MAX_PLAYERS,
+        let (vertices, indices) = generate_capsule(
+            CAPSULE_RADIUS, CAPSULE_CYL_HEIGHT, CAPSULE_SEGMENTS, CAPSULE_RINGS,
         );
 
-        Self {
-            pipeline,
-            vertex_buffer,
-            index_buffer,
-            index_count,
-            instance_buffer,
-        }
+        let mesh = InstancedMeshRenderer::new(
+            device, queue, pipeline, None,
+            bytemuck::cast_slice(&vertices), &indices,
+            std::mem::size_of::<PlayerInstance>(), MAX_PLAYERS,
+            &[], "Player",
+        );
+
+        log::info!(
+            "Player renderer: {} verts, {} tris, max {} instances",
+            vertices.len(), indices.len() / 3, MAX_PLAYERS,
+        );
+
+        Self { mesh }
     }
 
     pub fn update_instances(&self, queue: &wgpu::Queue, instances: &[PlayerInstance]) {
-        if !instances.is_empty() {
-            queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(instances));
-        }
+        self.mesh.update_instances(queue, bytemuck::cast_slice(instances), instances.len() as u32);
     }
 
     pub fn draw<'a>(
@@ -135,33 +104,25 @@ impl PlayerRenderer {
         shadow_bg: &'a wgpu::BindGroup,
         instance_count: u32,
     ) {
-        if instance_count == 0 {
-            return;
-        }
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, shadow_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..instance_count);
+        // Player draw uses stored instance_count from update_instances
+        // but the caller also passes count for backward compat — use mesh's stored count
+        let _ = instance_count;
+        self.mesh.draw(pass, uniform_bg, shadow_bg);
     }
 }
 
 /// Generate a capsule mesh with bottom at y=0.
-/// Total height = cyl_height + 2 * radius.
 fn generate_capsule(
     radius: f32,
     cyl_height: f32,
     segments: u32,
     rings: u32,
 ) -> (Vec<[f32; 3]>, Vec<u32>) {
-    let top_center = radius + cyl_height; // y center of top hemisphere
-    let bot_center = radius; // y center of bottom hemisphere
+    let top_center = radius + cyl_height;
+    let bot_center = radius;
     let mut verts = Vec::new();
     let mut indices = Vec::new();
 
-    // Top hemisphere: pole (i=0) down to equator (i=rings)
     for i in 0..=rings {
         let phi = (i as f32 / rings as f32) * std::f32::consts::FRAC_PI_2;
         let y = top_center + radius * phi.cos();
@@ -172,7 +133,6 @@ fn generate_capsule(
         }
     }
 
-    // Bottom hemisphere: equator (i=0) down to pole (i=rings)
     for i in 0..=rings {
         let phi =
             std::f32::consts::FRAC_PI_2 + (i as f32 / rings as f32) * std::f32::consts::FRAC_PI_2;
@@ -186,7 +146,6 @@ fn generate_capsule(
 
     let stride = segments + 1;
 
-    // Top hemisphere triangles
     for i in 0..rings {
         for j in 0..segments {
             let r0 = i * stride + j;
@@ -194,27 +153,23 @@ fn generate_capsule(
             indices.push(r0);
             indices.push(r0 + 1);
             indices.push(r1);
-
             indices.push(r1);
             indices.push(r0 + 1);
             indices.push(r1 + 1);
         }
     }
 
-    // Cylinder body: top equator → bottom equator
     let top_eq = rings * stride;
     let bot_eq = (rings + 1) * stride;
     for j in 0..segments {
         indices.push(top_eq + j);
         indices.push(top_eq + j + 1);
         indices.push(bot_eq + j);
-
         indices.push(bot_eq + j);
         indices.push(top_eq + j + 1);
         indices.push(bot_eq + j + 1);
     }
 
-    // Bottom hemisphere triangles
     for i in 0..rings {
         let base = rings + 1;
         for j in 0..segments {
@@ -223,7 +178,6 @@ fn generate_capsule(
             indices.push(r0);
             indices.push(r0 + 1);
             indices.push(r1);
-
             indices.push(r1);
             indices.push(r0 + 1);
             indices.push(r1 + 1);

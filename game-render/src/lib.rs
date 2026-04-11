@@ -10,6 +10,7 @@ mod postprocess;
 mod shadow;
 mod ssao;
 mod pipeline;
+pub(crate) mod instanced_mesh;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
 pub use player::{PlayerRenderer, PlayerInstance, player_color};
