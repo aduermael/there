@@ -5,11 +5,11 @@ use game_render::{
     BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
     PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
     TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
-    create_shadow_bind_group, create_shadow_texture, encode_frame, scatter_objects,
+    create_shadow_bind_group, create_shadow_texture, encode_frame,
     INTERMEDIATE_FORMAT,
 };
 
-// GrassRenderer now uses GPU compute; no GrassInstance import needed.
+// All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
@@ -174,9 +174,8 @@ impl Renderer {
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data);
         let players = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
-        let (rock_instances, tree_instances) = scatter_objects(heightmap_data);
-        let rocks = RockRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &rock_instances);
-        let trees = TreeRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &tree_instances);
+        let rocks = RockRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
+        let trees = TreeRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
         let grass = GrassRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
 
         // SSAO renderer

@@ -79,8 +79,8 @@ First new post-processing passes. Bloom makes the HDR pipeline visible to the pl
 
 Port the proven grass_compute pattern to trees and rocks. Upgrade shadows.
 
-- [ ] 4a: Compute tree scattering — new `trees_compute.wgsl`. Camera-centered grid, deterministic hash, height/slope filtering, frustum cull, distance cull, LOD selection. Atomic append to storage buffer + indirect draw args. Replace CPU scatter and static instance buffer. Enable much higher tree density.
-- [ ] 4b: Compute rock scattering — same pattern for rocks. Share compute scatter helpers with trees where logic overlaps (hash, cull, heightmap sampling). Replace CPU scatter and static instance buffer.
+- [x] 4a: Compute tree scattering — new `trees_compute.wgsl`. Camera-centered grid, deterministic hash, height/slope filtering, frustum cull, distance cull, LOD selection. Atomic append to storage buffer + indirect draw args. Replace CPU scatter and static instance buffer. Enable much higher tree density.
+- [x] 4b: Compute rock scattering — same pattern for rocks. Share compute scatter helpers with trees where logic overlaps (hash, cull, heightmap sampling). Replace CPU scatter and static instance buffer.
 - [ ] 4c: Cascaded shadow maps — 3 cascades (near ~20u, mid ~60u, far ~200u). Texture array with per-cascade orthographic projection. Update sample_shadow() in common.wgsl for cascade selection based on view-space depth. 3 shadow render passes. Dramatically better near-camera shadow resolution + extended shadow distance.
 - [ ] 4d: Improved shadow filtering — 8-tap rotated Poisson disk PCF with IGN per-pixel rotation in sample_shadow(). Purely a common.wgsl change. Combine with CSM for excellent shadow quality.
 

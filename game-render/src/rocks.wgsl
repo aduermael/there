@@ -1,10 +1,20 @@
 // Rock-specific: instanced deformed icosphere.
 // Uniforms, lighting, fog, and shadow bindings provided by common.wgsl prefix.
+// Instance data from GPU compute shader via storage buffer.
+
+struct RockInstanceData {
+    pos_scale: vec4<f32>,
+    color: vec4<f32>,
+};
+
+// Scene pass reads instances from group 2
+@group(2) @binding(0) var<storage, read> instances: array<RockInstanceData>;
+// Shadow pass reads instances from group 1
+@group(1) @binding(0) var<storage, read> shadow_instances: array<RockInstanceData>;
 
 struct VertexInput {
+    @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
-    @location(1) inst_pos_scale: vec4<f32>,
-    @location(2) inst_color: vec4<f32>,
 };
 
 struct VertexOutput {
@@ -15,23 +25,24 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    let scale = in.inst_pos_scale.w;
-    let world_pos = in.position * scale + in.inst_pos_scale.xyz;
+    let inst = instances[in.instance_id];
+    let scale = inst.pos_scale.w;
+    let world_pos = in.position * scale + inst.pos_scale.xyz;
 
     var out: VertexOutput;
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
-    out.color = in.inst_color.rgb;
+    out.color = inst.color.rgb;
     return out;
 }
 
 @vertex
 fn vs_shadow(
+    @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
-    @location(1) inst_pos_scale: vec4<f32>,
-    @location(2) inst_color: vec4<f32>,
 ) -> @builtin(position) vec4<f32> {
-    let world_pos = position * inst_pos_scale.w + inst_pos_scale.xyz;
+    let inst = shadow_instances[instance_id];
+    let world_pos = position * inst.pos_scale.w + inst.pos_scale.xyz;
     return u.sun_view_proj * vec4(world_pos, 1.0);
 }
 

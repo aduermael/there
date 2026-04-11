@@ -20,7 +20,7 @@ pub struct SceneRenderers<'a> {
 /// Encode the full 6-pass frame pipeline into the given command encoder.
 ///
 /// Pass sequence:
-/// 0. Grass compute (instance generation)
+/// 0. Compute passes (grass, tree, rock instance generation)
 /// 1. Shadow pass (depth from sun POV)
 /// 2. Scene pass (HDR intermediate)
 /// 3. SSAO pass (AO texture)
@@ -38,8 +38,10 @@ pub fn encode_frame(
     camera_pos: glam::Vec3,
     view_proj: &glam::Mat4,
 ) {
-    // Pass 0: Grass compute
+    // Pass 0: Compute passes (instance generation)
     scene.grass.compute(encoder);
+    scene.trees.compute(encoder);
+    scene.rocks.compute(encoder);
 
     // Pass 1: Shadow (depth from sun POV)
     {

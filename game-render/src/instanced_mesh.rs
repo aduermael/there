@@ -1,13 +1,12 @@
 use std::cell::Cell;
 use wgpu::util::DeviceExt;
 
-/// Shared GPU state for instanced mesh renderers (trees, rocks, player).
+/// Shared GPU state for instanced mesh renderers (player).
 ///
-/// Owns vertex/index/instance buffers, scene pipeline, and optional shadow pipeline.
-/// Provides draw(), draw_shadow(), and update_instances().
+/// Owns vertex/index/instance buffers and scene pipeline.
+/// Provides draw() and update_instances().
 pub struct InstancedMeshRenderer {
     pipeline: wgpu::RenderPipeline,
-    shadow_pipeline: Option<wgpu::RenderPipeline>,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
@@ -20,7 +19,7 @@ impl InstancedMeshRenderer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         pipeline: wgpu::RenderPipeline,
-        shadow_pipeline: Option<wgpu::RenderPipeline>,
+        _shadow_pipeline: Option<wgpu::RenderPipeline>,
         vertices: &[u8],
         indices: &[u32],
         instance_size: usize,
@@ -60,7 +59,6 @@ impl InstancedMeshRenderer {
 
         Self {
             pipeline,
-            shadow_pipeline,
             vertex_buffer,
             index_buffer,
             index_count,
@@ -96,24 +94,4 @@ impl InstancedMeshRenderer {
         pass.draw_indexed(0..self.index_count, 0, 0..count);
     }
 
-    pub fn draw_shadow<'a>(
-        &'a self,
-        pass: &mut wgpu::RenderPass<'a>,
-        uniform_bg: &'a wgpu::BindGroup,
-    ) {
-        let count = self.instance_count.get();
-        if count == 0 {
-            return;
-        }
-        let shadow = match &self.shadow_pipeline {
-            Some(p) => p,
-            None => return,
-        };
-        pass.set_pipeline(shadow);
-        pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        pass.draw_indexed(0..self.index_count, 0, 0..count);
-    }
 }
