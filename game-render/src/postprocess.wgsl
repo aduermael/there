@@ -5,6 +5,7 @@
 @group(0) @binding(1) var hdr_sampler: sampler;
 @group(0) @binding(2) var ao_texture: texture_2d<f32>;
 @group(0) @binding(3) var depth_texture: texture_depth_2d;
+@group(0) @binding(4) var bloom_texture: texture_2d<f32>;
 
 @group(1) @binding(0) var<uniform> u: Uniforms;
 
@@ -209,6 +210,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // --- God rays (additive, in HDR before tone mapping) ---
     color += god_rays(in.uv, in.position.xy);
+
+    // --- Bloom (additive, half-res upsampled via bilinear) ---
+    let bloom = textureSample(bloom_texture, hdr_sampler, in.uv).rgb;
+    color += bloom * 0.6;
 
     // ACES tone mapping (HDR -> LDR with filmic curve)
     color = aces_tonemap(color);

@@ -1,5 +1,5 @@
 use crate::{
-    GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
+    BloomRenderer, GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer,
     SsaoRenderer, TerrainRenderer, TreeRenderer,
 };
 
@@ -12,6 +12,7 @@ pub struct SceneRenderers<'a> {
     pub trees: &'a TreeRenderer,
     pub players: Option<&'a PlayerRenderer>,
     pub ssao: &'a SsaoRenderer,
+    pub bloom: &'a BloomRenderer,
     pub postprocess: &'a PostProcessRenderer,
 }
 
@@ -111,6 +112,9 @@ pub fn encode_frame(
 
         scene.ssao.draw(&mut pass, uniform_bg);
     }
+
+    // Pass 3.5: Bloom compute (downscale + upscale mip chain)
+    scene.bloom.compute(encoder);
 
     // Pass 4: Post-process → final output
     {

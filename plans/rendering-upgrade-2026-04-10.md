@@ -72,7 +72,7 @@ Small shader changes, no new passes or pipelines. Outsized visual impact.
 
 First new post-processing passes. Bloom makes the HDR pipeline visible to the player.
 
-- [ ] 3a: Compute bloom — threshold extraction from HDR buffer, 5-6 level mip chain with compute downscale (13-tap) and upscale (9-tap tent) dispatches. Per-level bloom weights. Composite additively before tonemapping in postprocess. Makes sun, specular, dawn/dusk glow dramatically.
+- [x] 3a: Compute bloom — threshold extraction from HDR buffer, 5-6 level mip chain with compute downscale (13-tap) and upscale (9-tap tent) dispatches. Per-level bloom weights. Composite additively before tonemapping in postprocess. Makes sun, specular, dawn/dusk glow dramatically.
 - [ ] 3b: FXAA — single fullscreen fragment pass after tonemapping (~100 lines WGSL). Stopgap anti-aliasing until TAA in Phase 7. Immediately fixes aliasing on grass blades and tree silhouettes.
 
 ## Phase 4: GPU-Driven World

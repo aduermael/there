@@ -2,10 +2,10 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer,
-    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms,
-    create_depth_texture, create_shadow_bgl, create_shadow_bind_group, create_shadow_texture,
-    encode_frame, scatter_objects, INTERMEDIATE_FORMAT,
+    BloomRenderer, GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer,
+    RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
+    Uniforms, create_depth_texture, create_shadow_bgl, create_shadow_bind_group,
+    create_shadow_texture, encode_frame, scatter_objects, INTERMEDIATE_FORMAT,
 };
 
 // GrassRenderer now uses GPU compute; no GrassInstance import needed.
@@ -27,6 +27,7 @@ pub struct Renderer {
     trees: TreeRenderer,
     grass: GrassRenderer,
     ssao: SsaoRenderer,
+    bloom: BloomRenderer,
     postprocess: PostProcessRenderer,
 }
 
@@ -179,8 +180,14 @@ impl Renderer {
         // SSAO renderer
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
 
+        // Bloom renderer (compute, needs HDR view from postprocess)
+        let mut bloom = BloomRenderer::new(&device, width, height);
+
         // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, width, height);
+        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), width, height);
+
+        // Link bloom to HDR intermediate (created by postprocess)
+        bloom.build_bind_groups(&device, postprocess.intermediate_view());
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -206,6 +213,7 @@ impl Renderer {
             trees,
             grass,
             ssao,
+            bloom,
             postprocess,
         }
     }
@@ -226,7 +234,9 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
             self.depth_view = create_depth_texture(&self.device, width, height);
             self.ssao.resize(&self.device, &self.depth_view, width, height);
-            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, width, height);
+            self.bloom.resize(&self.device, width, height);
+            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), width, height);
+            self.bloom.build_bind_groups(&self.device, self.postprocess.intermediate_view());
         }
     }
 
@@ -268,6 +278,7 @@ impl Renderer {
             trees: &self.trees,
             players: Some(&self.players),
             ssao: &self.ssao,
+            bloom: &self.bloom,
             postprocess: &self.postprocess,
         };
 
