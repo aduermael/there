@@ -25,10 +25,15 @@ export function hud_set_players(n) {
     const el = document.querySelector('game-hud');
     if (el) el.playerCount = n;
 }
+export function hud_set_fps(fps) {
+    const el = document.querySelector('game-hud');
+    if (el) el.fps = fps;
+}
 ")]
 extern "C" {
     fn hud_set_room(code: &str);
     fn hud_set_players(n: u32);
+    fn hud_set_fps(fps: u32);
 }
 
 struct RemotePlayer {
@@ -49,6 +54,8 @@ struct GameState {
     last_send_time: f64,
     last_frame_time: f64,
     time: f32,
+    frame_count: u32,
+    fps_accum: f32,
 }
 
 impl GameState {
@@ -228,6 +235,8 @@ async fn run() {
         last_send_time: 0.0,
         last_frame_time: js_sys::Date::now(),
         time: 0.0,
+        frame_count: 0,
+        fps_accum: 0.0,
     }));
 
     setup_input(&canvas, state.clone());
@@ -335,6 +344,16 @@ fn start_render_loop(
             let dt = dt.clamp(0.0, 0.1);
             state.last_frame_time = now;
             state.time += dt;
+
+            // FPS calculation (0.5s rolling average)
+            state.frame_count += 1;
+            state.fps_accum += dt;
+            if state.fps_accum >= 0.5 {
+                let fps = (state.frame_count as f32 / state.fps_accum).round() as u32;
+                hud_set_fps(fps);
+                state.frame_count = 0;
+                state.fps_accum = 0.0;
+            }
 
             // Process messages → update movement → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();

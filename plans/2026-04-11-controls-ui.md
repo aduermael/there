@@ -64,8 +64,8 @@ The camera eye is at `target + (dist*cos(pitch)*sin(yaw), dist*sin(pitch), dist*
 
 Purely additive, no existing code modified beyond extending game-hud.
 
-- [ ] 3a: Extend `game-hud.js` to full-width top bar — change `:host` to span `left: 0; right: 0`, use flexbox `justify-content: space-between`. Add `.fps` div on right side with `set fps(value)` setter. Same style (white, text-shadow, system-ui, pointer-events: none).
-- [ ] 3b: Add FPS calculation and bridge — add `frame_count: u32` and `fps_accum: f32` to `GameState`. Each frame: accumulate. Every 0.5s: compute `fps = frame_count / fps_accum`, call `hud_set_fps(fps)`, reset. Add `hud_set_fps` to existing `inline_js` block.
+- [x] 3a: Extend `game-hud.js` to full-width top bar — change `:host` to span `left: 0; right: 0`, use flexbox `justify-content: space-between`. Add `.fps` div on right side with `set fps(value)` setter. Same style (white, text-shadow, system-ui, pointer-events: none).
+- [x] 3b: Add FPS calculation and bridge — add `frame_count: u32` and `fps_accum: f32` to `GameState`. Each frame: accumulate. Every 0.5s: compute `fps = frame_count / fps_accum`, call `hud_set_fps(fps)`, reset. Add `hud_set_fps` to existing `inline_js` block.
 
 ### Design
 - Rolling 0.5s average — stable enough to read, responsive enough to notice drops
