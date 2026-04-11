@@ -68,10 +68,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
     let grad = smoothstep(0.0, 0.3, in.bend_factor);
     var blade_color = in.color * (0.90 + 0.20 * grad);  // base at 90%, tip at 110%
-    // Tips warmer yellow-green (sunlit, not lime)
+    // Tips warmer yellow-green in daylight, cool at night (no warm glow under moonlight)
+    let sun_warmth = dot(u.sun_color, vec3(0.333));
+    let day_tip = smoothstep(0.3, 0.8, sun_warmth);
     let tip_glow = smoothstep(0.3, 1.0, in.bend_factor);
-    blade_color.g += tip_glow * 0.10;
-    blade_color.r += tip_glow * 0.07;  // warmer tips
+    blade_color.g += tip_glow * 0.10 * day_tip;
+    blade_color.r += tip_glow * 0.07 * day_tip;
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, blade_color, shadow);

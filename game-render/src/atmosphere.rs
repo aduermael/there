@@ -39,7 +39,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let noon_sun = [1.20_f32, 1.10, 0.92];
     let dawn_sun = [1.25_f32, 0.62, 0.28];
     let dusk_sun = [1.15_f32, 0.42, 0.18];
-    let night_sun = [0.18_f32, 0.22, 0.38];
+    let night_sun = [0.16_f32, 0.18, 0.36];
     let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),

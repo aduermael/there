@@ -137,6 +137,10 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(hdr_texture, hdr_sampler, in.uv).rgb;
 
+    // Night detection from sun color intensity (scotopic vision = less color)
+    let sun_intensity = dot(u.sun_color, vec3(0.333));
+    let night_factor = 1.0 - smoothstep(0.3, 0.8, sun_intensity);
+
     // --- Depth-aware bilateral SSAO blur ---
     // 9-tap blur that respects depth edges: smooth within surfaces, sharp across silhouettes
     let ao_texel = 1.0 / vec2<f32>(textureDimensions(ao_texture));
@@ -170,8 +174,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
     let ao = ao_sum / weight_sum;
 
-    // Colored AO: occluded areas shift warm (impressionistic shadow tone)
-    let shadow_warmth = vec3(0.5, 0.4, 0.35);
+    // Colored AO: warm by day (impressionistic), cold blue-gray at night
+    let warm_ao = vec3(0.5, 0.4, 0.35);
+    let cold_ao = vec3(0.35, 0.38, 0.45);
+    let shadow_warmth = mix(warm_ao, cold_ao, night_factor);
     color *= mix(shadow_warmth, vec3(1.0), ao);
 
     // --- God rays (additive, in HDR before tone mapping) ---
@@ -180,18 +186,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // ACES tone mapping (HDR -> LDR with filmic curve)
     color = aces_tonemap(color);
 
-    // Color grading: warm amber shadows (impressionist warmth in darks)
+    // Color grading: warm amber shadows by day, cold at night
     let luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
     let shadow_weight = saturate(1.0 - luminance * 2.5);
-    color += shadow_weight * vec3(0.025, 0.012, -0.005);
+    let day_warmth = vec3(0.025, 0.012, -0.005);
+    let night_coolth = vec3(-0.005, -0.002, 0.010);
+    color += shadow_weight * mix(day_warmth, night_coolth, night_factor);
 
-    // Saturation boost (ACES desaturates — compensate for rich, painterly color)
+    // Saturation boost: strong by day (1.28), heavily reduced at night (scotopic desaturation)
     let grey = vec3(luminance);
-    color = mix(grey, color, 1.28);
+    let sat_boost = mix(1.28, 0.20, night_factor);
+    color = mix(grey, color, sat_boost);
 
-    // Subtle cool fill for very dark areas (night readability)
+    // Subtle cool fill for very dark areas (cold blue, not purple)
     let dark_fill = saturate(1.0 - luminance * 4.0);
-    color += dark_fill * dark_fill * vec3(0.018, 0.024, 0.055);
+    color += dark_fill * dark_fill * vec3(0.010, 0.014, 0.030);
 
     // S-curve contrast for visual punch
     color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.32);

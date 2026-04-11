@@ -363,7 +363,7 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
 
   **Failure modes**: Too dark = unreadable. RDR2 reference shows that terrain is barely visible with moonlight hitting tops — dark but not pitch black. Key is silhouette separation via moonlight on upward surfaces vs very dark shadow sides.
 
-- [ ] 9b: Night-aware postprocess and grass desaturation
+- [x] 9b: Night-aware postprocess and grass desaturation
 
   **Context**: `postprocess.wgsl` lines 192-194 (dark fill), 188-190 (saturation boost). `grass.wgsl` lines 68-74 (base-to-tip gradient), 79-85 (translucency). Grass has no night-specific color correction.
 
