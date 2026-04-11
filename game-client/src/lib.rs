@@ -51,6 +51,119 @@ struct GameState {
     time: f32,
 }
 
+impl GameState {
+    fn process_server_messages(&mut self, messages: Vec<ServerMsg>, now: f64) {
+        for msg in messages {
+            match msg {
+                ServerMsg::Welcome { your_id } => {
+                    log::info!("Assigned player ID: {your_id}");
+                    self.local_player_id = Some(your_id);
+                    self.remotes.clear();
+                    let c = player_color(your_id);
+                    if let Some(p) = self.players.first_mut() {
+                        p.color = [c[0], c[1], c[2], 0.0];
+                    }
+                }
+                ServerMsg::Snapshot { players } => {
+                    hud_set_players(players.len() as u32);
+                    let local_id = self.local_player_id;
+
+                    let mut seen = std::collections::HashSet::new();
+
+                    for ps in &players {
+                        if Some(ps.id) == local_id {
+                            let server_pos = glam::Vec3::new(ps.x, ps.y, ps.z);
+                            let delta = server_pos - self.local_pos;
+                            let dist = delta.length();
+                            if dist > 5.0 {
+                                self.local_pos = server_pos;
+                            } else if dist > 0.1 {
+                                self.local_pos += delta * 0.3;
+                            }
+                            continue;
+                        }
+                        seen.insert(ps.id);
+                        let new_pos = [ps.x, ps.y, ps.z, ps.yaw];
+                        if let Some(rp) = self.remotes.get_mut(&ps.id) {
+                            rp.prev = rp.target;
+                            rp.target = new_pos;
+                            rp.recv_time = now;
+                        } else {
+                            self.remotes.insert(ps.id, RemotePlayer {
+                                prev: new_pos,
+                                target: new_pos,
+                                recv_time: now,
+                            });
+                        }
+                    }
+
+                    self.remotes.retain(|id, _| seen.contains(id));
+                }
+                ServerMsg::PlayerLeft { id } => {
+                    log::info!("Player {id} left");
+                    self.remotes.remove(&id);
+                }
+            }
+        }
+    }
+
+    fn update_movement(&mut self, dt: f32) {
+        let forward = self.input.forward();
+        let strafe = self.input.strafe();
+        let yaw = self.camera.yaw;
+        if forward != 0.0 || strafe != 0.0 {
+            self.local_pos = game_core::movement::apply_movement(
+                self.local_pos,
+                forward,
+                strafe,
+                yaw,
+                dt,
+                &self.heightmap_data,
+            );
+        }
+        self.camera.target = self.local_pos;
+    }
+
+    fn build_player_instances(&mut self, now: f64) {
+        self.players.clear();
+        let yaw = self.camera.yaw;
+        let local_color = self
+            .local_player_id
+            .map(|id| player_color(id))
+            .unwrap_or([0.90, 0.30, 0.25]);
+        let pos = self.local_pos;
+        self.players.push(PlayerInstance {
+            pos_yaw: [pos.x, pos.y, pos.z, yaw],
+            color: [local_color[0], local_color[1], local_color[2], 0.0],
+        });
+
+        let tick_ms = (game_core::TICK_INTERVAL_SECS * 1000.0) as f64;
+        let remote_instances: Vec<PlayerInstance> = self
+            .remotes
+            .iter()
+            .map(|(&id, rp)| {
+                let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
+                let x = rp.prev[0] + (rp.target[0] - rp.prev[0]) * t;
+                let y = rp.prev[1] + (rp.target[1] - rp.prev[1]) * t;
+                let z = rp.prev[2] + (rp.target[2] - rp.prev[2]) * t;
+                let mut dyaw = rp.target[3] - rp.prev[3];
+                if dyaw > std::f32::consts::PI {
+                    dyaw -= std::f32::consts::TAU;
+                } else if dyaw < -std::f32::consts::PI {
+                    dyaw += std::f32::consts::TAU;
+                }
+                let interp_yaw = rp.prev[3] + dyaw * t;
+                let c = player_color(id);
+                PlayerInstance {
+                    pos_yaw: [x, y, z, interp_yaw],
+                    color: [c[0], c[1], c[2], 0.0],
+                }
+            })
+            .collect();
+        self.players.extend(remote_instances);
+    }
+}
+
 #[wasm_bindgen(start)]
 pub fn main() {
     console_log::init_with_level(log::Level::Info).ok();
@@ -73,8 +186,10 @@ async fn run() {
     let renderer = Renderer::new(canvas.clone(), &heightmap_data).await;
 
     // Spawn at world center
-    let spawn_y = game_core::terrain::sample_height(&heightmap_data, 128.0, 128.0);
-    let local_pos = glam::Vec3::new(128.0, spawn_y, 128.0);
+    let spawn_x = game_core::WORLD_SIZE / 2.0;
+    let spawn_z = game_core::WORLD_SIZE / 2.0;
+    let spawn_y = game_core::terrain::sample_height(&heightmap_data, spawn_x, spawn_z);
+    let local_pos = glam::Vec3::new(spawn_x, spawn_y, spawn_z);
 
     let camera = OrbitCamera::new(
         local_pos,
@@ -217,132 +332,22 @@ fn start_render_loop(
             // Frame delta time
             let now = js_sys::Date::now();
             let dt = ((now - state.last_frame_time) / 1000.0) as f32;
-            let dt = dt.clamp(0.0, 0.1); // cap at 100ms to avoid jumps
+            let dt = dt.clamp(0.0, 0.1);
             state.last_frame_time = now;
             state.time += dt;
 
-            // Process incoming server messages
+            // Process messages → update movement → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
-            for msg in messages {
-                match msg {
-                    ServerMsg::Welcome { your_id } => {
-                        log::info!("Assigned player ID: {your_id}");
-                        state.local_player_id = Some(your_id);
-                        state.remotes.clear(); // fresh session
-                        let c = player_color(your_id);
-                        if let Some(p) = state.players.first_mut() {
-                            p.color = [c[0], c[1], c[2], 0.0];
-                        }
-                    }
-                    ServerMsg::Snapshot { players } => {
-                        hud_set_players(players.len() as u32);
-                        let local_id = state.local_player_id;
-
-                        // Track which remote IDs are in this snapshot
-                        let mut seen = std::collections::HashSet::new();
-
-                        for ps in &players {
-                            if Some(ps.id) == local_id {
-                                // Snap-correction: compare server position to predicted
-                                let server_pos =
-                                    glam::Vec3::new(ps.x, ps.y, ps.z);
-                                let delta = server_pos - state.local_pos;
-                                let dist = delta.length();
-                                if dist > 5.0 {
-                                    // Large mismatch — snap directly
-                                    state.local_pos = server_pos;
-                                } else if dist > 0.1 {
-                                    // Small mismatch — blend toward server
-                                    state.local_pos += delta * 0.3;
-                                }
-                                continue;
-                            }
-                            seen.insert(ps.id);
-                            let new_pos = [ps.x, ps.y, ps.z, ps.yaw];
-                            if let Some(rp) = state.remotes.get_mut(&ps.id) {
-                                // Shift target → prev, set new target
-                                rp.prev = rp.target;
-                                rp.target = new_pos;
-                                rp.recv_time = now;
-                            } else {
-                                // New remote player — no interpolation on first frame
-                                state.remotes.insert(ps.id, RemotePlayer {
-                                    prev: new_pos,
-                                    target: new_pos,
-                                    recv_time: now,
-                                });
-                            }
-                        }
-
-                        // Remove remotes no longer in snapshot
-                        state.remotes.retain(|id, _| seen.contains(id));
-                    }
-                    ServerMsg::PlayerLeft { id } => {
-                        log::info!("Player {id} left");
-                        state.remotes.remove(&id);
-                    }
-                }
-            }
-
-            // Local player movement (client prediction)
-            let forward = state.input.forward();
-            let strafe = state.input.strafe();
-            let yaw = state.camera.yaw;
-            if forward != 0.0 || strafe != 0.0 {
-                state.local_pos = game_core::movement::apply_movement(
-                    state.local_pos,
-                    forward,
-                    strafe,
-                    yaw,
-                    dt,
-                    &state.heightmap_data,
-                );
-            }
-
-            // Update camera to follow player
-            state.camera.target = state.local_pos;
-
-            // Rebuild players list: local player + interpolated remotes
-            state.players.clear();
-            let local_color = state
-                .local_player_id
-                .map(|id| player_color(id))
-                .unwrap_or([0.90, 0.30, 0.25]);
-            let pos = state.local_pos;
-            state.players.push(PlayerInstance {
-                pos_yaw: [pos.x, pos.y, pos.z, yaw],
-                color: [local_color[0], local_color[1], local_color[2], 0.0],
-            });
-
-            // Interpolate remote players between prev and target
-            let tick_ms = (game_core::TICK_INTERVAL_SECS * 1000.0) as f64;
-            let remote_instances: Vec<PlayerInstance> = state
-                .remotes
-                .iter()
-                .map(|(&id, rp)| {
-                    let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
-                    let x = rp.prev[0] + (rp.target[0] - rp.prev[0]) * t;
-                    let y = rp.prev[1] + (rp.target[1] - rp.prev[1]) * t;
-                    let z = rp.prev[2] + (rp.target[2] - rp.prev[2]) * t;
-                    let mut dyaw = rp.target[3] - rp.prev[3];
-                    if dyaw > std::f32::consts::PI {
-                        dyaw -= std::f32::consts::TAU;
-                    } else if dyaw < -std::f32::consts::PI {
-                        dyaw += std::f32::consts::TAU;
-                    }
-                    let interp_yaw = rp.prev[3] + dyaw * t;
-                    let c = player_color(id);
-                    PlayerInstance {
-                        pos_yaw: [x, y, z, interp_yaw],
-                        color: [c[0], c[1], c[2], 0.0],
-                    }
-                })
-                .collect();
-            state.players.extend(remote_instances);
+            state.process_server_messages(messages, now);
+            state.update_movement(dt);
+            state.build_player_instances(now);
 
             // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
                 if let Some(conn) = &connection {
+                    let forward = state.input.forward();
+                    let strafe = state.input.strafe();
+                    let yaw = state.camera.yaw;
                     conn.send_input(forward, strafe, yaw);
                 }
                 state.last_send_time = now;
@@ -354,6 +359,7 @@ fn start_render_loop(
                 state.camera.apply_drag(tdx, tdy);
             }
 
+            // Compute uniforms and render
             let (w, h) = state.renderer.surface_size();
             let aspect = w as f32 / h as f32;
 

@@ -22,8 +22,8 @@ The game has a working third-person camera + movement system, atmosphere renderi
 
 Before adding features, make the game loop manageable and fix existing DRY issues.
 
-- [ ] 1a: Extract render loop into GameState methods — `process_server_messages()`, `update_movement()`, `build_player_instances()`, reducing the closure from ~200 lines to ~50 lines of orchestration
-- [ ] 1b: Fix spawn position DRY — client hardcodes `128.0, 128.0` instead of `WORLD_SIZE / 2.0`; use the constant like the server does
+- [x] 1a: Extract render loop into GameState methods — `process_server_messages()`, `update_movement()`, `build_player_instances()`, reducing the closure from ~200 lines to ~50 lines of orchestration
+- [x] 1b: Fix spawn position DRY — client hardcodes `128.0, 128.0` instead of `WORLD_SIZE / 2.0`; use the constant like the server does
 
 ### Contracts
 - `process_server_messages(&mut self, messages: Vec<ServerMsg>, now: f64)` — handles Welcome, Snapshot (with correction), PlayerLeft
