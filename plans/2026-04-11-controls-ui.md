@@ -122,7 +122,7 @@ Most complex change — touches shared crate, protocol, and both client/server.
 - [x] 6b: Add jump input handling — add `space: bool` to `InputState` with `on_key_down`/`on_key_up` for "Space". Add `pub fn jump_pressed(&self) -> bool` method. For mobile: add a jump button web component (`web/components/jump-button.js`) that calls `window.onJumpPressed()` → WASM `on_jump_pressed()` (thread-local flag, same pattern as joystick).
 - [x] 6c: Add jump to protocol — add `jumping: bool` to `ClientMsg::Input`. Add `input_jump: bool` and `vertical_velocity: f32` to server's `Player` struct. Update `RoomEvent::Input` to include `jump: bool`.
 - [x] 6d: Integrate jump in client game loop — add `vertical_velocity: f32` to `GameState`. After XZ movement: call `apply_vertical(pos.y, velocity, terrain_y, jump_pressed, dt)`, update pos.y and velocity. Send `jumping` in `ClientMsg::Input`. Consume `jump_pressed` flag after use (set to false so holding space doesn't re-trigger). Ensure movement runs every frame when airborne (not just when forward/strafe != 0), so gravity applies.
-- [ ] 6e: Integrate jump in server game loop — each tick per player: call `apply_vertical` after `apply_movement`. Set `JUMP_VELOCITY` on `vertical_velocity` when `input_jump` is true and player is grounded. Consume `input_jump` after use.
+- [x] 6e: Integrate jump in server game loop — each tick per player: call `apply_vertical` after `apply_movement`. Set `JUMP_VELOCITY` on `vertical_velocity` when `input_jump` is true and player is grounded. Consume `input_jump` after use.
 
 ### Physics values
 - `GRAVITY = -20.0` units/s^2 — strong enough to feel grounded, not floaty

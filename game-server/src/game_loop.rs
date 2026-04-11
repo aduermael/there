@@ -1,6 +1,6 @@
-use game_core::movement::apply_movement;
+use game_core::movement::{apply_movement, apply_vertical};
 use game_core::protocol::{PlayerId, PlayerState, ServerMsg};
-use game_core::terrain::generate_heightmap;
+use game_core::terrain::{generate_heightmap, sample_height};
 use game_core::{TICK_INTERVAL_SECS, TICK_RATE_HZ, WORLD_SIZE};
 use glam::Vec3;
 use std::collections::HashMap;
@@ -35,9 +35,21 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                         &heightmap,
                     );
                     player.x = new_pos.x;
-                    player.y = new_pos.y;
                     player.z = new_pos.z;
                     player.yaw = player.input_yaw;
+
+                    // Vertical physics
+                    let terrain_y = sample_height(&heightmap, player.x, player.z);
+                    let (new_y, new_vel) = apply_vertical(
+                        player.y,
+                        player.vertical_velocity,
+                        terrain_y,
+                        player.input_jump,
+                        TICK_INTERVAL_SECS,
+                    );
+                    player.y = new_y;
+                    player.vertical_velocity = new_vel;
+                    player.input_jump = false;
                 }
 
                 // Build and broadcast snapshot
