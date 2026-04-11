@@ -83,7 +83,13 @@ fn apply_fog(world_pos: vec3<f32>, lit_color: vec3<f32>) -> vec3<f32> {
     // Power curve: preserves material colors at near/mid range, fog only strong at distance
     let fog = pow(raw_fog, 1.5);
 
+    // View-dependent fog: warm haze toward sun, cool away
+    let view_dir = normalize(world_pos - u.camera_pos);
+    let sun_align = max(dot(view_dir, u.sun_dir), 0.0);
+    let sun_haze = pow(sun_align, 3.0) * 0.45;
+    let base_fog_color = mix(u.fog_color, u.sun_color, sun_haze);
+
     let far_blend = smoothstep(0.3, 0.9, fog);
-    let atmo_fog_color = mix(u.fog_color, u.sky_zenith, far_blend * 0.35);
+    let atmo_fog_color = mix(base_fog_color, u.sky_zenith, far_blend * 0.35);
     return mix(lit_color, atmo_fog_color, fog);
 }
