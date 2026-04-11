@@ -177,7 +177,7 @@ impl Renderer {
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
 
         // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, ssao.ao_view(), &depth_view, width, height);
+        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, width, height);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
@@ -356,7 +356,7 @@ impl Renderer {
                 ..Default::default()
             });
 
-            self.postprocess.draw(&mut pass);
+            self.postprocess.draw(&mut pass, &self.uniform_bind_group);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

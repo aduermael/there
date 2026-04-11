@@ -3,6 +3,27 @@
 @group(0) @binding(2) var ao_texture: texture_2d<f32>;
 @group(0) @binding(3) var depth_texture: texture_depth_2d;
 
+struct Uniforms {
+    view_proj: mat4x4<f32>,
+    camera_pos: vec3<f32>,
+    sun_dir: vec3<f32>,
+    fog_color: vec3<f32>,
+    fog_density: f32,
+    world_size: f32,
+    hm_res: f32,
+    fog_height_falloff: f32,
+    time: f32,
+    sun_color: vec3<f32>,
+    sky_zenith: vec3<f32>,
+    sky_horizon: vec3<f32>,
+    inv_view_proj: mat4x4<f32>,
+    sky_ambient: vec3<f32>,
+    ground_ambient: vec3<f32>,
+    sun_view_proj: mat4x4<f32>,
+};
+
+@group(1) @binding(0) var<uniform> u: Uniforms;
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
@@ -26,6 +47,90 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
     let d = 0.59;
     let e = 0.14;
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+// Interleaved Gradient Noise for per-pixel jitter (breaks banding)
+fn ign(pixel: vec2<f32>) -> f32 {
+    return fract(52.9829189 * fract(0.06711056 * pixel.x + 0.00583715 * pixel.y));
+}
+
+// Screen-space radial god rays using depth-based occlusion
+fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
+    // Compute sun screen position from sun_dir (place sun far away along direction)
+    let sun_world = u.camera_pos + u.sun_dir * 200.0;
+    let sun_clip = u.view_proj * vec4(sun_world, 1.0);
+
+    // Sun behind camera — no rays
+    if sun_clip.w <= 0.0 {
+        return vec3(0.0);
+    }
+
+    let sun_ndc = sun_clip.xy / sun_clip.w;
+    let sun_uv = vec2(sun_ndc.x * 0.5 + 0.5, 1.0 - (sun_ndc.y * 0.5 + 0.5));
+
+    // Ray intensity: strongest at low sun angles (dawn/dusk), fades toward noon, off at night
+    let elevation = u.sun_dir.y;
+    if elevation < 0.005 {
+        return vec3(0.0);
+    }
+    // Full intensity at horizon, fading as sun rises toward noon
+    let angle_intensity = 1.0 - smoothstep(0.20, 0.70, elevation);
+
+    // Radial march toward sun position in screen space
+    let delta = sun_uv - uv;
+    let ray_length = length(delta);
+
+    // Fade by distance from sun in screen space
+    let distance_fade = 1.0 - smoothstep(0.0, 1.4, ray_length);
+
+    let depth_dims = vec2<f32>(textureDimensions(depth_texture));
+
+    const NUM_STEPS: i32 = 20;
+    let step_size = 1.0 / f32(NUM_STEPS);
+    // March toward sun — cover enough to resolve tree silhouettes
+    let step_delta = delta * step_size * 0.6;
+
+    // Per-pixel jitter to break banding
+    let jitter = ign(pixel);
+
+    var accumulation = 0.0;
+    var sample_uv = uv + step_delta * jitter;
+    var weight_sum = 0.0;
+
+    for (var i = 0; i < NUM_STEPS; i++) {
+        sample_uv += step_delta;
+
+        // Skip out-of-bounds samples
+        if sample_uv.x < 0.0 || sample_uv.x > 1.0 || sample_uv.y < 0.0 || sample_uv.y > 1.0 {
+            continue;
+        }
+
+        // Depth-based occlusion: sky pixels (depth ~1.0) pass light, geometry blocks
+        let d_pixel = vec2<i32>(sample_uv * depth_dims);
+        let d = textureLoad(depth_texture, d_pixel, 0);
+        let is_sky = smoothstep(0.998, 0.9999, d);
+
+        // Also weight by scene brightness (sun glow is brighter than plain sky)
+        let sample_color = textureSample(hdr_texture, hdr_sampler, sample_uv).rgb;
+        let brightness = min(dot(sample_color, vec3(0.2126, 0.7152, 0.0722)), 2.0);
+
+        // Sky contributes light, geometry occludes. Weight decays along march.
+        let w = 1.0 - f32(i) * step_size * 0.7;
+        accumulation += is_sky * brightness * w;
+        weight_sum += w;
+    }
+
+    if weight_sum > 0.0 {
+        accumulation /= weight_sum;
+    }
+
+    // Intensity cap to prevent blowout near sun
+    accumulation = min(accumulation, 0.8);
+
+    // Final ray color: tinted by sun color, scaled by elevation and distance
+    let ray_strength = 0.45;
+    let rays = accumulation * angle_intensity * distance_fade * ray_strength;
+    return u.sun_color * rays;
 }
 
 @fragment
@@ -68,6 +173,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Colored AO: occluded areas shift warm (impressionistic shadow tone)
     let shadow_warmth = vec3(0.5, 0.4, 0.35);
     color *= mix(shadow_warmth, vec3(1.0), ao);
+
+    // --- God rays (additive, in HDR before tone mapping) ---
+    color += god_rays(in.uv, in.position.xy);
 
     // Slight exposure boost before tone mapping (combats ACES desaturation)
     color *= 1.08;

@@ -12,6 +12,7 @@ impl PostProcessRenderer {
     pub fn new(
         device: &wgpu::Device,
         output_format: wgpu::TextureFormat,
+        uniform_bgl: &wgpu::BindGroupLayout,
         ao_view: &wgpu::TextureView,
         depth_view: &wgpu::TextureView,
         width: u32,
@@ -66,7 +67,7 @@ impl PostProcessRenderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("PostProcess Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[&bind_group_layout, uniform_bgl],
             push_constant_ranges: &[],
         });
 
@@ -178,9 +179,14 @@ impl PostProcessRenderer {
         &self.intermediate_view
     }
 
-    pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
+    pub fn draw<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        uniform_bind_group: &'a wgpu::BindGroup,
+    ) {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_bind_group(1, uniform_bind_group, &[]);
         pass.draw(0..3, 0..1);
     }
 }

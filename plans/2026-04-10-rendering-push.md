@@ -244,7 +244,7 @@ All trees currently use the same mesh with uniform 1.0-2.0 scale. This creates a
 
 Volumetric light scattering ("god rays") is the final atmosphere layer. Subtle shafts of light radiating from the sun through clouds and around objects create the single most immersive lighting effect in outdoor scenes.
 
-- [ ] 6a: Add screen-space volumetric light scattering to postprocess
+- [x] 6a: Add screen-space volumetric light scattering to postprocess
 
   **Context**: `postprocess.wgsl` currently reads HDR scene + AO. The sun position is available in uniforms (`sun_dir`). The sky shader renders clouds that partially occlude the sun.
 
