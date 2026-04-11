@@ -44,7 +44,7 @@ Before adding features, make the game loop manageable and fix existing DRY issue
 
 The camera eye is at `target + (dist*cos(pitch)*sin(yaw), dist*sin(pitch), dist*cos(pitch)*cos(yaw))`. The camera looks from eye toward target, so its forward direction in the XZ plane is `(-sin(yaw), -cos(yaw))`. But the movement code computes forward as `(+sin(yaw), -cos(yaw))` — the X component is negated. This is a reflection, not a rotation. It coincidentally works at yaw=0 (since sin(0)=0) but diverges at all other angles.
 
-- [ ] 2a: Fix the movement rotation matrix — two sign changes in `apply_movement`:
+- [x] 2a: Fix the movement rotation matrix — two sign changes in `apply_movement`:
   - `move_x = sin_yaw * forward` becomes `move_x = -sin_yaw * forward`
   - `move_z = sin_yaw * strafe` becomes `move_z = -sin_yaw * strafe`
   - Resulting: `move_x = -sin_yaw * forward + cos_yaw * strafe; move_z = -cos_yaw * forward - sin_yaw * strafe`

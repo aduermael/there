@@ -20,8 +20,8 @@ pub fn apply_movement(
     let sin_yaw = yaw.sin();
     let cos_yaw = yaw.cos();
 
-    let move_x = sin_yaw * forward + cos_yaw * strafe;
-    let move_z = -cos_yaw * forward + sin_yaw * strafe;
+    let move_x = -sin_yaw * forward + cos_yaw * strafe;
+    let move_z = -cos_yaw * forward - sin_yaw * strafe;
 
     // Normalize if magnitude > 1 (diagonal movement)
     let mag = (move_x * move_x + move_z * move_z).sqrt();
