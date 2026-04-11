@@ -105,12 +105,14 @@ async fn handle_socket(socket: WebSocket, room_code: String, rooms: SharedRoomMa
                                 forward,
                                 strafe,
                                 yaw,
+                                jumping,
                             } => {
                                 let _ = event_tx_clone.send(RoomEvent::Input {
                                     id: player_id,
                                     forward,
                                     strafe,
                                     yaw,
+                                    jump: jumping,
                                 });
                             }
                         }

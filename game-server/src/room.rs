@@ -13,6 +13,8 @@ pub struct Player {
     pub input_forward: f32,
     pub input_strafe: f32,
     pub input_yaw: f32,
+    pub input_jump: bool,
+    pub vertical_velocity: f32,
     pub tx: mpsc::UnboundedSender<ServerMsg>,
 }
 
@@ -26,6 +28,7 @@ pub enum RoomEvent {
         forward: f32,
         strafe: f32,
         yaw: f32,
+        jump: bool,
     },
     Leave {
         id: PlayerId,

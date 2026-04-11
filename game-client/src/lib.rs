@@ -404,7 +404,7 @@ fn start_render_loop(
                     let forward = if menu_open { 0.0 } else { state.input.forward() };
                     let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
-                    conn.send_input(forward, strafe, yaw);
+                    conn.send_input(forward, strafe, yaw, false);
                 }
                 state.last_send_time = now;
             }

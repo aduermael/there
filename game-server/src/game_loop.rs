@@ -85,16 +85,21 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                             input_forward: 0.0,
                             input_strafe: 0.0,
                             input_yaw: 0.0,
+                            input_jump: false,
+                            vertical_velocity: 0.0,
                             tx,
                         });
 
                         log::info!("Room {}: player {} joined ({} total)", code, id, players.len());
                     }
-                    Some(RoomEvent::Input { id, forward, strafe, yaw }) => {
+                    Some(RoomEvent::Input { id, forward, strafe, yaw, jump }) => {
                         if let Some(player) = players.get_mut(&id) {
                             player.input_forward = forward;
                             player.input_strafe = strafe;
                             player.input_yaw = yaw;
+                            if jump {
+                                player.input_jump = true;
+                            }
                         }
                     }
                     Some(RoomEvent::Leave { id }) => {

@@ -8,6 +8,7 @@ pub enum ClientMsg {
         forward: f32,
         strafe: f32,
         yaw: f32,
+        jumping: bool,
     },
 }
 
