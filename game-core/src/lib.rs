@@ -8,3 +8,4 @@ pub const TICK_INTERVAL_SECS: f32 = 1.0 / TICK_RATE_HZ as f32;
 pub const MOVE_SPEED: f32 = 5.0;
 pub const WORLD_SIZE: f32 = 256.0;
 pub const HEIGHTMAP_RES: u32 = 512;
+pub const DAYLIGHT_CYCLE_SECS: f32 = 120.0;

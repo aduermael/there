@@ -29,11 +29,27 @@ export function hud_set_fps(fps) {
     const el = document.querySelector('game-hud');
     if (el) el.fps = fps;
 }
+export function js_is_daylight_cycle() {
+    return !!window.__daylightCycle;
+}
+export function js_get_sun_angle() {
+    return window.__sunAngle ?? 0.0;
+}
+export function js_set_sun_angle(a) {
+    window.__sunAngle = a;
+}
+export function js_is_menu_open() {
+    return !!window.__menuOpen;
+}
 ")]
 extern "C" {
     fn hud_set_room(code: &str);
     fn hud_set_players(n: u32);
     fn hud_set_fps(fps: u32);
+    fn js_is_daylight_cycle() -> bool;
+    fn js_get_sun_angle() -> f32;
+    fn js_set_sun_angle(a: f32);
+    fn js_is_menu_open() -> bool;
 }
 
 struct RemotePlayer {
@@ -56,6 +72,8 @@ struct GameState {
     time: f32,
     frame_count: u32,
     fps_accum: f32,
+    sun_angle: f32,
+    cycle_active: bool,
 }
 
 impl GameState {
@@ -237,7 +255,12 @@ async fn run() {
         time: 0.0,
         frame_count: 0,
         fps_accum: 0.0,
+        sun_angle: 0.0,
+        cycle_active: true,
     }));
+
+    // Initialize daylight globals for JS menu access
+    js_set_sun_angle(0.0);
 
     setup_input(&canvas, state.clone());
     start_render_loop(state, connection, incoming);
@@ -355,6 +378,15 @@ fn start_render_loop(
                 state.fps_accum = 0.0;
             }
 
+            // Daylight cycle
+            state.cycle_active = js_is_daylight_cycle();
+            if state.cycle_active {
+                state.sun_angle = (state.sun_angle + dt / game_core::DAYLIGHT_CYCLE_SECS) % 1.0;
+                js_set_sun_angle(state.sun_angle);
+            } else {
+                state.sun_angle = js_get_sun_angle();
+            }
+
             // Process messages → update movement → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
             state.process_server_messages(messages, now);
@@ -391,7 +423,7 @@ fn start_render_loop(
                 500.0,
             );
             let view_proj = proj * view;
-            let atmo = compute_atmosphere(0.25); // noon
+            let atmo = compute_atmosphere(state.sun_angle);
 
             let (cascade_vps, cascade_splits) = compute_cascade_view_projs(atmo.sun_dir, eye);
 

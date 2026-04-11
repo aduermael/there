@@ -78,8 +78,8 @@ Purely additive, no existing code modified beyond extending game-hud.
 
 Replace the hardcoded noon atmosphere with an advancing day/night cycle.
 
-- [ ] 4a: Add daylight state and cycle logic — add `sun_angle: f32` (init 0.0 = dawn) and `cycle_active: bool` (init true) to `GameState`. Each frame when active: `sun_angle = (sun_angle + dt / 120.0) % 1.0`. Replace `compute_atmosphere(0.25)` with `compute_atmosphere(state.sun_angle)`. Add `DAYLIGHT_CYCLE_SECS: f32 = 120.0` constant to `game-core/src/lib.rs`.
-- [ ] 4b: Add JS bridge for daylight state — expose `window.__daylightCycle` (bool) and `window.__sunAngle` (f32) as window globals. WASM reads/writes these each frame. When cycle is active, WASM advances and writes back to `__sunAngle`. When cycle is paused, WASM reads `__sunAngle` as the fixed value. Add inline_js bridge functions: `js_is_daylight_cycle()`, `js_get_sun_angle()`, `js_set_sun_angle()`.
+- [x] 4a: Add daylight state and cycle logic — add `sun_angle: f32` (init 0.0 = dawn) and `cycle_active: bool` (init true) to `GameState`. Each frame when active: `sun_angle = (sun_angle + dt / 120.0) % 1.0`. Replace `compute_atmosphere(0.25)` with `compute_atmosphere(state.sun_angle)`. Add `DAYLIGHT_CYCLE_SECS: f32 = 120.0` constant to `game-core/src/lib.rs`.
+- [x] 4b: Add JS bridge for daylight state — expose `window.__daylightCycle` (bool) and `window.__sunAngle` (f32) as window globals. WASM reads/writes these each frame. When cycle is active, WASM advances and writes back to `__sunAngle`. When cycle is paused, WASM reads `__sunAngle` as the fixed value. Add inline_js bridge functions: `js_is_daylight_cycle()`, `js_get_sun_angle()`, `js_set_sun_angle()`.
 
 ### Timing
 - 120 seconds per full cycle = 24 hours in 2 minutes
