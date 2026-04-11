@@ -96,25 +96,10 @@ impl GrassRenderer {
             ),
         });
 
-        // Compute group 0: uniforms (COMPUTE visibility)
-        let compute_uniform_bgl =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Grass Compute Uniform BGL"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-
+        // Compute group 0: uniforms (shared BGL now includes COMPUTE visibility)
         let compute_bg0 = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Grass Compute BG0 (Uniforms)"),
-            layout: &compute_uniform_bgl,
+            layout: uniform_bgl,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: uniform_buffer.as_entire_binding(),
@@ -192,7 +177,7 @@ impl GrassRenderer {
         let compute_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Grass Compute Layout"),
-                bind_group_layouts: &[&compute_uniform_bgl, &compute_heightmap_bgl, &compute_output_bgl],
+                bind_group_layouts: &[uniform_bgl, &compute_heightmap_bgl, &compute_output_bgl],
                 push_constant_ranges: &[],
             });
 

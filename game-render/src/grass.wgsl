@@ -1,9 +1,6 @@
 // Grass-specific: instanced blades with wind animation and distance fade.
-// Uniforms, lighting, and fog provided by common.wgsl prefix.
+// Uniforms, lighting, fog, and shadow bindings provided by common.wgsl prefix.
 // Instance data from GPU compute shader via storage buffer.
-
-@group(1) @binding(0) var shadow_map: texture_depth_2d;
-@group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
 struct GrassInstanceData {
     pos_scale: vec4<f32>,

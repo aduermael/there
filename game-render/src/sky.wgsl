@@ -1,8 +1,5 @@
 // Sky-specific: gradient, sun disc/glow, procedural clouds.
-// Uniforms and noise provided by common.wgsl prefix.
-
-@group(1) @binding(0) var shadow_map: texture_depth_2d;
-@group(1) @binding(1) var shadow_sampler: sampler_comparison;
+// Uniforms, noise, and shadow bindings provided by common.wgsl prefix.
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,

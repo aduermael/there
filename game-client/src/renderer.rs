@@ -139,7 +139,7 @@ impl Renderer {
             label: Some("Uniform BGL"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -279,7 +279,7 @@ impl Renderer {
             });
 
             self.terrain
-                .draw_shadow(&mut pass, &self.uniform_bind_group);
+                .draw_shadow(&mut pass, &self.uniform_bind_group, &self.shadow_bind_group);
             self.rocks.draw_shadow(&mut pass, &self.uniform_bind_group);
             self.trees.draw_shadow(&mut pass, &self.uniform_bind_group);
         }

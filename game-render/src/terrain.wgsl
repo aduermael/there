@@ -1,14 +1,12 @@
 // Terrain-specific: heightmap sampling, height-based coloring, procedural noise, slope detail.
-// Uniforms, noise, lighting, and fog provided by common.wgsl prefix.
+// Uniforms, noise, lighting, fog, and shadow bindings provided by common.wgsl prefix.
 
 struct ChunkOffset {
     offset: vec2<f32>,
 };
 
-@group(1) @binding(0) var heightmap: texture_2d<f32>;
-@group(2) @binding(0) var<uniform> chunk: ChunkOffset;
-@group(3) @binding(0) var shadow_map: texture_depth_2d;
-@group(3) @binding(1) var shadow_sampler: sampler_comparison;
+@group(2) @binding(0) var heightmap: texture_2d<f32>;
+@group(3) @binding(0) var<uniform> chunk: ChunkOffset;
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,

@@ -111,7 +111,7 @@ pub async fn render_frame(
         label: Some("Uniform BGL"),
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 0,
-            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -226,7 +226,7 @@ pub async fn render_frame(
             ..Default::default()
         });
 
-        terrain.draw_shadow(&mut pass, &uniform_bind_group);
+        terrain.draw_shadow(&mut pass, &uniform_bind_group, &shadow_bind_group);
         rock_renderer.draw_shadow(&mut pass, &uniform_bind_group);
         tree_renderer.draw_shadow(&mut pass, &uniform_bind_group);
     }

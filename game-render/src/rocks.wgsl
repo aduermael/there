@@ -1,8 +1,5 @@
 // Rock-specific: instanced deformed icosphere.
-// Uniforms, lighting, and fog provided by common.wgsl prefix.
-
-@group(1) @binding(0) var shadow_map: texture_depth_2d;
-@group(1) @binding(1) var shadow_sampler: sampler_comparison;
+// Uniforms, lighting, fog, and shadow bindings provided by common.wgsl prefix.
 
 struct VertexInput {
     @location(0) position: vec3<f32>,

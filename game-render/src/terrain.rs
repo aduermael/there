@@ -92,7 +92,7 @@ impl TerrainRenderer {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        // Heightmap bind group (group 1)
+        // Heightmap bind group (group 2)
         let heightmap_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Heightmap BGL"),
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -116,7 +116,7 @@ impl TerrainRenderer {
             }],
         });
 
-        // Per-chunk dynamic uniform buffer (group 2)
+        // Per-chunk dynamic uniform buffer (group 3)
         let total_chunks = CHUNK_COUNT * CHUNK_COUNT;
         let mut chunk_data = vec![0u8; total_chunks * MIN_UNIFORM_ALIGN as usize];
         for cz in 0..CHUNK_COUNT {
@@ -162,17 +162,17 @@ impl TerrainRenderer {
             }],
         });
 
-        // Pipeline (scene: groups 0=uniforms, 1=heightmap, 2=chunks, 3=shadow)
+        // Pipeline (scene: groups 0=uniforms, 1=shadow, 2=heightmap, 3=chunks)
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Terrain Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl, &heightmap_bgl, &chunk_bgl, shadow_bgl],
+            bind_group_layouts: &[uniform_bgl, shadow_bgl, &heightmap_bgl, &chunk_bgl],
             push_constant_ranges: &[],
         });
 
-        // Shadow pipeline layout (no shadow sampling needed)
+        // Shadow pipeline layout (shadow BGL at group 1 for layout compatibility, not sampled)
         let shadow_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Terrain Shadow Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl, &heightmap_bgl, &chunk_bgl],
+            bind_group_layouts: &[uniform_bgl, shadow_bgl, &heightmap_bgl, &chunk_bgl],
             push_constant_ranges: &[],
         });
 
@@ -300,8 +300,8 @@ impl TerrainRenderer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, &self.heightmap_bind_group, &[]);
-        pass.set_bind_group(3, shadow_bg, &[]);
+        pass.set_bind_group(1, shadow_bg, &[]);
+        pass.set_bind_group(2, &self.heightmap_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
         let mut drawn = 0u32;
@@ -323,7 +323,7 @@ impl TerrainRenderer {
                 let center = (min + max) * 0.5;
                 let dist = camera_pos.distance(center);
                 let dyn_offset = (idx as u32) * MIN_UNIFORM_ALIGN;
-                pass.set_bind_group(2, &self.chunk_bind_group, &[dyn_offset]);
+                pass.set_bind_group(3, &self.chunk_bind_group, &[dyn_offset]);
 
                 if dist > LOD_SWITCH_DISTANCE {
                     pass.set_index_buffer(
@@ -349,10 +349,12 @@ impl TerrainRenderer {
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,
         uniform_bg: &'a wgpu::BindGroup,
+        shadow_bg: &'a wgpu::BindGroup,
     ) {
         pass.set_pipeline(&self.shadow_pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
-        pass.set_bind_group(1, &self.heightmap_bind_group, &[]);
+        pass.set_bind_group(1, shadow_bg, &[]);
+        pass.set_bind_group(2, &self.heightmap_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(
             self.lod1_index_buffer.slice(..),
@@ -363,7 +365,7 @@ impl TerrainRenderer {
             for cx in 0..CHUNK_COUNT {
                 let idx = cz * CHUNK_COUNT + cx;
                 let dyn_offset = (idx as u32) * MIN_UNIFORM_ALIGN;
-                pass.set_bind_group(2, &self.chunk_bind_group, &[dyn_offset]);
+                pass.set_bind_group(3, &self.chunk_bind_group, &[dyn_offset]);
                 pass.draw_indexed(0..self.lod1_index_count, 0, 0..1);
             }
         }

@@ -3,6 +3,8 @@
 // Uniforms struct from uniforms.wgsl, noise functions from noise.wgsl (prepended before this).
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(1) @binding(0) var shadow_map: texture_depth_2d;
+@group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
 fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
     let dx = dpdx(world_pos);
