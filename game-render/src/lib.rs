@@ -12,6 +12,7 @@ mod bloom;
 mod fxaa;
 mod pipeline;
 mod frame;
+mod texture_atlas;
 pub(crate) mod instanced_mesh;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
@@ -28,3 +29,4 @@ pub use bloom::BloomRenderer;
 pub use fxaa::FxaaRenderer;
 pub use frame::{SceneRenderers, encode_frame};
 pub use pipeline::{create_scene_pipeline, create_shadow_pipeline, create_fullscreen_pipeline, SHADOW_DEPTH_BIAS};
+pub use texture_atlas::TextureAtlas;

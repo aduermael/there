@@ -4,7 +4,7 @@ use web_sys::HtmlCanvasElement;
 use game_render::{
     BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
     PostProcessRenderer, RockRenderer, SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer,
-    TerrainRenderer, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
+    TerrainRenderer, TextureAtlas, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame,
     INTERMEDIATE_FORMAT,
 };
@@ -21,6 +21,7 @@ pub struct Renderer {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     shadow_bind_group: wgpu::BindGroup,
+    atlas: TextureAtlas,
     sky: SkyRenderer,
     terrain: TerrainRenderer,
     players: PlayerRenderer,
@@ -168,6 +169,9 @@ impl Renderer {
             }],
         });
 
+        // Material texture atlas
+        let atlas = TextureAtlas::new(&device, &queue);
+
         // Scene renderers (all target HDR intermediate)
         let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
         let terrain =
@@ -210,6 +214,7 @@ impl Renderer {
             uniform_buffer,
             uniform_bind_group,
             shadow_bind_group,
+            atlas,
             sky,
             terrain,
             players,

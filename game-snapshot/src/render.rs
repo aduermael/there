@@ -2,8 +2,8 @@ use game_render::{
     compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
     BloomRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer,
-    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, Uniforms,
-    INTERMEDIATE_FORMAT,
+    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
+    Uniforms, INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
@@ -179,6 +179,9 @@ pub async fn render_frame(
     let shadow_cascades = create_shadow_texture(&device);
     let shadow_bgl = create_shadow_bgl(&device);
     let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
+
+    // --- Material texture atlas ---
+    let _atlas = TextureAtlas::new(&device, &queue);
 
     // --- Scene renderers (all target HDR intermediate) ---
     let terrain = TerrainRenderer::new(
