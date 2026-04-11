@@ -50,7 +50,7 @@ The project has completed 11 phases of visual iteration. The rendering pipeline 
 
 Refactor before adding features. Every subsequent phase adds shaders, compute passes, and bind groups. A clean foundation makes all of that easier and prevents the codebase from accumulating workarounds.
 
-- [ ] 1a: Create `docs/design-philosophy.md` — visual style principles (impressionism feel, ambiance over fidelity, RDR2-inspired lighting philosophy, low-res pixel art + low-poly charm, mobile/web-first, hardcoded engine), to be maintained and expanded over time
+- [x] 1a: Create `docs/design-philosophy.md` — visual style principles (impressionism feel, ambiance over fidelity, RDR2-inspired lighting philosophy, low-res pixel art + low-poly charm, mobile/web-first, hardcoded engine), to be maintained and expanded over time
 - [ ] 1b: Create `docs/future-rendering-techniques.md` — document deferred techniques not in this plan: tiled/clustered forward lighting, screen-space reflections, GPU-driven terrain indirect draw, Hi-Z occlusion culling, depth of field, terrain geo-morphing, SSIL, full froxel volumetric fog. For each: what it is, when to add it, estimated effort
 - [ ] 1c: Unify Uniforms — extract `uniforms.wgsl`, prepend it to ALL shaders (including ssao, postprocess, grass_compute) using the existing `format!` concatenation pattern. Remove all 3 duplicate Uniforms struct declarations. Single source of truth.
 - [ ] 1d: Extract shared WGSL snippets — create `noise.wgsl` (hash2, value_noise, fbm3, cell_hash, ign) and `fullscreen.wgsl` (fullscreen triangle vertex shader). Compose shaders by concatenating the snippets they need. Eliminate all duplicated shader functions across the 10 WGSL files.
