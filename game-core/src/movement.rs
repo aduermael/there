@@ -1,4 +1,4 @@
-use crate::{MOVE_SPEED, WORLD_SIZE};
+use crate::{GRAVITY, JUMP_VELOCITY, MOVE_SPEED, WORLD_SIZE};
 use crate::terrain::sample_height;
 use glam::Vec3;
 
@@ -41,4 +41,38 @@ pub fn apply_movement(
     let new_y = sample_height(heightmap, new_x, new_z);
 
     Vec3::new(new_x, new_y, new_z)
+}
+
+/// Apply vertical physics (gravity + jump).
+/// Returns (new_y, new_velocity).
+pub fn apply_vertical(
+    y: f32,
+    velocity: f32,
+    terrain_y: f32,
+    jump_pressed: bool,
+    dt: f32,
+) -> (f32, f32) {
+    let on_ground = y <= terrain_y + 0.01;
+
+    let mut vel = velocity;
+
+    // Initiate jump when on ground and jump pressed
+    if on_ground && jump_pressed {
+        vel = JUMP_VELOCITY;
+    }
+
+    // Apply gravity when airborne
+    if !on_ground || vel > 0.0 {
+        vel += GRAVITY * dt;
+    }
+
+    let mut new_y = y + vel * dt;
+
+    // Land on terrain
+    if new_y <= terrain_y {
+        new_y = terrain_y;
+        vel = 0.0;
+    }
+
+    (new_y, vel)
 }
