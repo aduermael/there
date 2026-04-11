@@ -4,8 +4,8 @@ use web_sys::HtmlCanvasElement;
 use game_render::{
     BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
     PostProcessRenderer, RockRenderer, SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer,
-    TerrainRenderer, TextureAtlas, TreeRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
-    create_shadow_bind_group, create_shadow_texture, encode_frame,
+    TerrainRenderer, TextureAtlas, TreeRenderer, WaterRenderer, Uniforms, create_depth_texture,
+    create_shadow_bgl, create_shadow_bind_group, create_shadow_texture, encode_frame,
     INTERMEDIATE_FORMAT,
 };
 
@@ -23,6 +23,7 @@ pub struct Renderer {
     shadow_bind_group: wgpu::BindGroup,
     atlas: TextureAtlas,
     sky: SkyRenderer,
+    water: WaterRenderer,
     terrain: TerrainRenderer,
     players: PlayerRenderer,
     rocks: RockRenderer,
@@ -176,6 +177,7 @@ impl Renderer {
         let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
         let terrain =
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data, &atlas.view, &atlas.sampler);
+        let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &depth_view);
         let players = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
         let rocks = RockRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view, &atlas.bind_group_layout);
@@ -216,6 +218,7 @@ impl Renderer {
             shadow_bind_group,
             atlas,
             sky,
+            water,
             terrain,
             players,
             rocks,
@@ -247,6 +250,7 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
             self.depth_view = create_depth_texture(&self.device, width, height);
+            self.water.resize(&self.device, &self.depth_view);
             self.ssao.resize(&self.device, &self.depth_view, width, height);
             self.bloom.resize(&self.device, width, height);
             self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), width, height);
@@ -288,6 +292,7 @@ impl Renderer {
         let scene = SceneRenderers {
             terrain: &self.terrain,
             sky: &self.sky,
+            water: &self.water,
             grass: &self.grass,
             rocks: &self.rocks,
             trees: &self.trees,

@@ -1,12 +1,13 @@
 use crate::{
     BloomRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer,
-    SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
+    SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, WaterRenderer,
 };
 
 /// All the renderers needed to draw a complete frame.
 pub struct SceneRenderers<'a> {
     pub terrain: &'a TerrainRenderer,
     pub sky: &'a SkyRenderer,
+    pub water: &'a WaterRenderer,
     pub grass: &'a GrassRenderer,
     pub rocks: &'a RockRenderer,
     pub trees: &'a TreeRenderer,
@@ -23,6 +24,7 @@ pub struct SceneRenderers<'a> {
 /// 0. Compute passes (grass, tree, rock instance generation)
 /// 1. Shadow passes (3 cascades — copy cascade VP, render depth from sun POV)
 /// 2. Scene pass (HDR intermediate)
+/// 2.5. Water pass (HDR intermediate, depth read-only)
 /// 3. SSAO pass (AO texture)
 /// 3.5. Bloom compute (downscale + upscale mip chain)
 /// 4. Post-process pass (tonemapping → LDR intermediate)
@@ -103,6 +105,29 @@ pub fn encode_frame(
         if let Some(players) = scene.players {
             players.draw(&mut pass, uniform_bg, shadow_bg, 0);
         }
+    }
+
+    // Pass 2.5: Water → HDR intermediate (depth read-only for shore depth)
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Water Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: scene.postprocess.intermediate_view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_view,
+                depth_ops: None, // read-only: allows simultaneous texture binding
+                stencil_ops: None,
+            }),
+            ..Default::default()
+        });
+
+        scene.water.draw(&mut pass, uniform_bg, shadow_bg);
     }
 
     // Pass 3: SSAO → AO texture

@@ -3,7 +3,7 @@ use game_render::{
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
     BloomRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer,
     SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
-    Uniforms, INTERMEDIATE_FORMAT,
+    WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
@@ -196,6 +196,7 @@ pub async fn render_frame(
     );
 
     let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
+    let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &depth_view);
 
     let rock_renderer =
         RockRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view, &atlas.bind_group_layout);
@@ -226,6 +227,7 @@ pub async fn render_frame(
     let scene = SceneRenderers {
         terrain: &terrain,
         sky: &sky,
+        water: &water,
         grass: &grass_renderer,
         rocks: &rock_renderer,
         trees: &tree_renderer,
