@@ -92,14 +92,14 @@ Replace the hardcoded noon atmosphere with an advancing day/night cycle.
 
 New web component with daylight controls and input pausing.
 
-- [ ] 5a: Create `game-menu.js` web component — new file `web/components/game-menu.js`, add to `index.html`. Shadow DOM with:
+- [x] 5a: Create `game-menu.js` web component — new file `web/components/game-menu.js`, add to `index.html`. Shadow DOM with:
   - Persistent gear icon trigger (top-right, below FPS, 44px+ tap target for mobile, pointer-events: auto)
   - Full-screen semi-transparent overlay (hidden by default, z-index: 50)
   - Centered panel with: "Daylight Cycle" toggle (default ON), time-of-day presets (Dawn/Noon/Dusk/Night buttons), "Resume" close button
   - ESC key listener on window to toggle open/close
   - Sets `window.__menuOpen = true/false` on open/close
   - Daylight toggle sets `window.__daylightCycle`; presets set `window.__sunAngle` and pause cycle
-- [ ] 5b: Add menu-aware input pausing in WASM — add `js_is_menu_open()` inline_js bridge. In game loop, when menu is open: zero out movement input (forward=0, strafe=0, no jump). Camera drag is naturally blocked by overlay's pointer-events. Rendering continues unpaused.
+- [x] 5b: Add menu-aware input pausing in WASM — add `js_is_menu_open()` inline_js bridge. In game loop, when menu is open: zero out movement input (forward=0, strafe=0, no jump). Camera drag is naturally blocked by overlay's pointer-events. Rendering continues unpaused.
 
 ### Input flow when menu is open
 - ESC key handled in JS (game-menu component) — toggles overlay, sets `window.__menuOpen`

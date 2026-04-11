@@ -133,6 +133,10 @@ impl GameState {
     }
 
     fn update_movement(&mut self, dt: f32) {
+        if js_is_menu_open() {
+            self.camera.target = self.local_pos;
+            return;
+        }
         let forward = self.input.forward();
         let strafe = self.input.strafe();
         let yaw = self.camera.yaw;
@@ -396,8 +400,9 @@ fn start_render_loop(
             // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
                 if let Some(conn) = &connection {
-                    let forward = state.input.forward();
-                    let strafe = state.input.strafe();
+                    let menu_open = js_is_menu_open();
+                    let forward = if menu_open { 0.0 } else { state.input.forward() };
+                    let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
                     conn.send_input(forward, strafe, yaw);
                 }
