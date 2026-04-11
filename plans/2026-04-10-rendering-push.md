@@ -269,7 +269,7 @@ Volumetric light scattering ("god rays") is the final atmosphere layer. Subtle s
 
   **Success criteria**: Dawn snapshot shows subtle warm light shafts radiating from sun. Dusk has amber rays through tree silhouettes. Noon rays are minimal (sun overhead, less dramatic). Night has no rays. Effect is subtle and atmospheric — "you notice the mood, not the technique."
 
-- [ ] 6b: Final atmosphere and integration pass
+- [x] 6b: Final atmosphere and integration pass
 
   **Goal**: With all rendering systems in place (color, shadows, SSAO, grass, trees, god rays), do a final tuning pass to harmonize everything. Each time of day should be a cohesive, immersive scene.
 
