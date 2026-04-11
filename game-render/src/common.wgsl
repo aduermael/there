@@ -89,7 +89,8 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
 }
 
 fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32) -> vec3<f32> {
-    let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
+    // Compressed hemisphere blend: every surface gets some ground bounce (warm fill)
+    let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.35 + 0.5;
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
     let ndl = max(dot(n, u.sun_dir), 0.0);
     // Shadow only affects direct sun light, not ambient
@@ -107,7 +108,10 @@ fn apply_fog(world_pos: vec3<f32>, lit_color: vec3<f32>) -> vec3<f32> {
     let dist = length(world_pos - u.camera_pos);
     let avg_height = (world_pos.y + u.camera_pos.y) * 0.5;
     let height_atten = exp(-u.fog_height_falloff * max(avg_height, 0.0));
-    let fog = clamp(1.0 - exp(-dist * u.fog_density * height_atten), 0.0, 1.0);
+    let raw_fog = clamp(1.0 - exp(-dist * u.fog_density * height_atten), 0.0, 1.0);
+
+    // Power curve: preserves material colors at near/mid range, fog only strong at distance
+    let fog = pow(raw_fog, 1.5);
 
     let far_blend = smoothstep(0.3, 0.9, fog);
     let atmo_fog_color = mix(u.fog_color, u.sky_zenith, far_blend * 0.35);

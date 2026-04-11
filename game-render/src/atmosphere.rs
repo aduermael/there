@@ -32,11 +32,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     // Separate dawn vs dusk: 0.0 at dawn (angle ~0.0), 1.0 at dusk (angle ~0.5)
     let dusk_blend = smoothstep(0.15, 0.38, sun_angle) * (1.0 - smoothstep(0.62, 0.85, sun_angle));
 
-    // Sun color: warm golden at noon, peach-gold at dawn, deep amber at dusk
-    let noon_sun = [1.05_f32, 0.92, 0.70];
+    // Sun color: bright warm-white at noon, peach-gold at dawn, deep amber at dusk
+    let noon_sun = [1.20_f32, 1.10, 0.92];
     let dawn_sun = [1.25_f32, 0.62, 0.28];
     let dusk_sun = [1.15_f32, 0.42, 0.18];
-    let night_sun = [0.30_f32, 0.38, 0.60];
+    let night_sun = [0.22_f32, 0.28, 0.48];
     let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),
@@ -44,11 +44,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         horizon_glow * 0.75,
     );
 
-    // Sky zenith: deep blue at noon, cool lavender at dawn, warm purple at dusk
-    let noon_zenith = [0.28_f32, 0.52, 0.95];
-    let night_zenith = [0.18_f32, 0.16, 0.48];
-    let dawn_zenith = [0.38_f32, 0.38, 0.78];
-    let dusk_zenith = [0.30_f32, 0.18, 0.58];
+    // Sky zenith: vivid blue at noon, cool lavender at dawn, warm purple at dusk
+    let noon_zenith = [0.22_f32, 0.45, 0.95];
+    let night_zenith = [0.12_f32, 0.10, 0.35];
+    let dawn_zenith = [0.35_f32, 0.38, 0.82];
+    let dusk_zenith = [0.28_f32, 0.16, 0.55];
     let glow_zenith = lerp3(&dawn_zenith, &dusk_zenith, dusk_blend);
     let sky_zenith = lerp3(
         &lerp3(&night_zenith, &noon_zenith, day_factor),
@@ -56,9 +56,9 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         horizon_glow * 0.55,
     );
 
-    // Sky horizon: warm blue at noon, peach at dawn, deep amber-rose at dusk
-    let noon_horizon = [0.58_f32, 0.75, 0.92];
-    let night_horizon = [0.14_f32, 0.12, 0.32];
+    // Sky horizon: clear blue at noon, peach at dawn, deep amber-rose at dusk
+    let noon_horizon = [0.42_f32, 0.60, 0.88];
+    let night_horizon = [0.10_f32, 0.08, 0.24];
     let dawn_horizon = [1.0_f32, 0.58, 0.32];
     let dusk_horizon = [1.0_f32, 0.35, 0.12];
     let glow_horizon = lerp3(&dawn_horizon, &dusk_horizon, dusk_blend);
@@ -68,11 +68,13 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         horizon_glow * 0.85,
     );
 
-    // Fog color matches horizon (atmospheric perspective)
-    let fog_color = sky_horizon;
+    // Fog color: horizon-tinted but desaturated at dawn/dusk to avoid pink wash
+    let avg_h = (sky_horizon[0] + sky_horizon[1] + sky_horizon[2]) / 3.0;
+    let fog_neutral = [avg_h, avg_h, avg_h * 1.05]; // slightly cool neutral
+    let fog_color = lerp3(&sky_horizon, &fog_neutral, horizon_glow * 0.45);
 
-    // Ambient intensity: strong base for night readability (moonlit fill)
-    let ambient_intensity = 0.25 + 0.05 * day_factor;
+    // Ambient intensity: lower = more sun/shadow contrast, higher = flatter
+    let ambient_intensity = 0.20 + 0.02 * day_factor;
 
     // Hemisphere lighting: sky-tinted ambient from above, warm earth bounce from below
     let sky_ambient = [
@@ -80,8 +82,8 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_zenith[1] * ambient_intensity,
         sky_zenith[2] * ambient_intensity,
     ];
-    let night_ground = [0.18_f32, 0.16, 0.30]; // cool blue-purple moonlit earth
-    let noon_ground = [0.40_f32, 0.32, 0.14]; // warm earth tones
+    let night_ground = [0.14_f32, 0.12, 0.22]; // cool blue-purple moonlit earth
+    let noon_ground = [0.48_f32, 0.38, 0.18]; // strong warm earth bounce for shadow warmth
     let ground_base = lerp3(&night_ground, &noon_ground, day_factor);
     let ground_ambient = [
         ground_base[0] * ambient_intensity,
@@ -89,9 +91,9 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         ground_base[2] * ambient_intensity,
     ];
 
-    // Exponential height fog: hazier mornings/evenings, clearer noon
-    let fog_density = 0.003 + 0.009 * horizon_glow + 0.004 * (1.0 - day_factor);
-    let fog_height_falloff = 0.04 - 0.015 * horizon_glow;
+    // Exponential height fog: clear scenes, minimal wash, atmospheric at distance
+    let fog_density = 0.0015 + 0.004 * horizon_glow + 0.001 * (1.0 - day_factor);
+    let fog_height_falloff = 0.05 - 0.015 * horizon_glow;
 
     AtmosphereParams {
         sun_dir,

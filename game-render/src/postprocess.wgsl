@@ -177,9 +177,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // --- God rays (additive, in HDR before tone mapping) ---
     color += god_rays(in.uv, in.position.xy);
 
-    // Slight exposure boost before tone mapping (combats ACES desaturation)
-    color *= 1.08;
-
     // ACES tone mapping (HDR -> LDR with filmic curve)
     color = aces_tonemap(color);
 
@@ -188,16 +185,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let shadow_weight = saturate(1.0 - luminance * 2.5);
     color += shadow_weight * vec3(0.025, 0.012, -0.005);
 
-    // Saturation boost (ACES desaturates, compensate with richer midtones)
+    // Saturation boost (ACES desaturates — compensate for rich, painterly color)
     let grey = vec3(luminance);
-    color = mix(grey, color, 1.18);
+    color = mix(grey, color, 1.28);
 
-    // Cool blue-purple fill for dark areas (moonlight / night readability)
-    let dark_fill = saturate(1.0 - luminance * 3.0);
-    color += dark_fill * dark_fill * vec3(0.028, 0.035, 0.075);
+    // Subtle cool fill for very dark areas (night readability)
+    let dark_fill = saturate(1.0 - luminance * 4.0);
+    color += dark_fill * dark_fill * vec3(0.018, 0.024, 0.055);
 
-    // Gentle S-curve contrast (lower blend to preserve dark greens)
-    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.25);
+    // S-curve contrast for visual punch
+    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.32);
 
     // Vignette
     let center = in.uv - 0.5;

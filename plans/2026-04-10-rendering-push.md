@@ -283,3 +283,34 @@ Volumetric light scattering ("god rays") is the final atmosphere layer. Subtle s
   - Run the full 3-critic iteration loop one final time across all 4 shots
 
   **Success criteria**: Each of the 4 time-of-day snapshots could work as a game promotional screenshot. The overall mood conveys "timeless, immersive world" — not "tech demo" or "student project."
+
+---
+
+## Phase 7: Color Depth & Soul
+
+All four times of day look washed out — low contrast, low saturation, fog eats depth. Noon is the worst: flat desaturated terrain, pale sky, no punch. The scenes need more "soul" — richer colors, stronger contrast, each time of day should feel emotionally distinct. All four should be balanced in quality.
+
+- [x] 7a: Rework atmosphere for deeper, richer colors across all times of day
+
+  **Root causes**: (1) Fog density too high, especially at dawn/noon — pushes everything toward pale horizon color. (2) Noon sky zenith too dim, horizon too washed. (3) Ambient intensity too high, flattening contrast (sun vs shadow). (4) Night was over-brightened in Phase 6 tuning.
+
+  **Contracts**:
+  - Noon sun: cleaner, brighter — shift from warm-golden toward bright warm-white so greens pop
+  - Noon sky zenith: deeper, more saturated blue (visible clear sky, not hazy white)
+  - Noon horizon: less washed, more blue (currently near-white)
+  - Fog density: reduce base by 30-40%, reduce dawn/dusk haze contribution
+  - Ambient intensity: reduce — let direct sun create more contrast (shadows should be clearly darker)
+  - Night: pull back zenith/horizon/ambient brightness ~20% from current — darker and moodier
+  - Dawn/dusk: maintain warm atmosphere but with less haze washing out silhouettes
+
+- [x] 7b: Rework postprocess color grading for punch and soul
+
+  **Root causes**: (1) Exposure boost (1.08×) before ACES pushes values into ACES compression zone, losing saturation. (2) Saturation boost (1.18×) doesn't compensate enough. (3) S-curve contrast (0.25 blend) is too gentle — doesn't separate darks from brights. (4) Dark fill too aggressive.
+
+  **Contracts**:
+  - Remove or reduce exposure boost (1.08 → 1.0 or lower)
+  - Increase saturation boost significantly (1.18 → 1.25-1.35)
+  - Increase S-curve contrast (0.25 → 0.35-0.45) for more visual depth
+  - Reduce dark fill to prevent purple wash on night geometry
+  - Result: each time of day should have rich, saturated midtones with clear light/shadow separation
+  - Must look good at ALL four times of day — not just noon
