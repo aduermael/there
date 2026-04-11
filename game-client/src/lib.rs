@@ -74,6 +74,8 @@ struct GameState {
     fps_accum: f32,
     sun_angle: f32,
     cycle_active: bool,
+    vertical_velocity: f32,
+    jump_sent: bool,
 }
 
 impl GameState {
@@ -133,14 +135,16 @@ impl GameState {
     }
 
     fn update_movement(&mut self, dt: f32) {
-        if js_is_menu_open() {
-            self.camera.target = self.local_pos;
-            return;
-        }
-        let forward = self.input.forward();
-        let strafe = self.input.strafe();
+        let menu_open = js_is_menu_open();
+
+        let forward = if menu_open { 0.0 } else { self.input.forward() };
+        let strafe = if menu_open { 0.0 } else { self.input.strafe() };
+        let jump_pressed = if menu_open { false } else { self.input.jump_pressed() };
         let yaw = self.camera.yaw;
+
+        // XZ movement (preserve Y — vertical physics handles it)
         if forward != 0.0 || strafe != 0.0 {
+            let saved_y = self.local_pos.y;
             self.local_pos = game_core::movement::apply_movement(
                 self.local_pos,
                 forward,
@@ -149,7 +153,30 @@ impl GameState {
                 dt,
                 &self.heightmap_data,
             );
+            self.local_pos.y = saved_y;
         }
+
+        // Vertical physics (gravity + jump)
+        let terrain_y = game_core::terrain::sample_height(
+            &self.heightmap_data,
+            self.local_pos.x,
+            self.local_pos.z,
+        );
+        let (new_y, new_vel) = game_core::movement::apply_vertical(
+            self.local_pos.y,
+            self.vertical_velocity,
+            terrain_y,
+            jump_pressed,
+            dt,
+        );
+        self.local_pos.y = new_y;
+        self.vertical_velocity = new_vel;
+
+        // Latch jump for network send
+        if jump_pressed {
+            self.jump_sent = true;
+        }
+
         self.camera.target = self.local_pos;
     }
 
@@ -261,6 +288,8 @@ async fn run() {
         fps_accum: 0.0,
         sun_angle: 0.0,
         cycle_active: true,
+        vertical_velocity: 0.0,
+        jump_sent: false,
     }));
 
     // Initialize daylight globals for JS menu access
@@ -404,7 +433,9 @@ fn start_render_loop(
                     let forward = if menu_open { 0.0 } else { state.input.forward() };
                     let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
-                    conn.send_input(forward, strafe, yaw, false);
+                    let jumping = state.jump_sent;
+                    conn.send_input(forward, strafe, yaw, jumping);
+                    state.jump_sent = false;
                 }
                 state.last_send_time = now;
             }
