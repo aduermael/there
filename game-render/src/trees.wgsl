@@ -93,7 +93,7 @@ fn vs_shadow(
 
 /// Triplanar sample: blend 3 axis-aligned projections weighted by normal.
 fn triplanar_sample(world_pos: vec3<f32>, n: vec3<f32>, layer: i32) -> vec3<f32> {
-    let scale = 0.8; // ~1 tile per 1.25 world units
+    let scale = 0.35; // coarse: ~1 tile per 2.9 world units, visible pixel art
     let blend = abs(n);
     let w = blend / (blend.x + blend.y + blend.z + 0.001);
 
@@ -112,8 +112,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let layer = select(MAT_BARK, MAT_FOLIAGE, in.is_foliage > 0.5);
     let tex = triplanar_sample(in.world_pos, n, layer);
 
-    // Blend: texture detail modulated by instance/vertex color
-    let color = tex * in.color * 2.2;
+    // Texture is primary color source, instance color provides hue variation
+    let color = mix(in.color, tex, 0.55) * 1.7;
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, color, shadow, in.world_pos);

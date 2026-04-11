@@ -62,8 +62,8 @@ fn vs_shadow(@location(0) local_xz: vec2<f32>) -> @builtin(position) vec4<f32> {
 
 /// Sample a material tile from the atlas using world-space tiling.
 fn sample_material(world_xz: vec2<f32>, layer: i32) -> vec3<f32> {
-    // ~1 tile per 2 world units → each 16px tile covers 2m
-    let tile_uv = fract(world_xz * 0.5);
+    // ~1 tile per 5 world units → each 16px texel covers ~0.31m (visible pixel-art)
+    let tile_uv = fract(world_xz * 0.2);
     return textureSample(atlas, atlas_sampler, tile_uv, layer).rgb;
 }
 
@@ -77,7 +77,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let slope = 1.0 - n.y;
 
     // --- Material selection based on height and slope ---
-    // Biome blend weights (same transitions as before)
     let sg = smoothstep(3.0, 8.0, h);    // sand → grass
     let gr = smoothstep(18.0, 24.0, h);  // grass → rock
     let slope_factor = smoothstep(0.15, 0.7, slope);
@@ -95,17 +94,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let steep_blend = mix(tex_dirt, tex_rock, gr);
     tex_color = mix(tex_color, steep_blend, slope_factor * 0.6);
 
-    // --- Large-scale procedural variation (biome patches) ---
+    // --- Large-scale procedural variation (subtle patches, not dominant) ---
     let n_large = value_noise(world_xz * 0.12) * 2.0 - 1.0;
     let n_med = value_noise(world_xz * 0.25 + vec2(37.0, 91.0)) * 2.0 - 1.0;
 
-    // Per-biome hue shifts from large-scale noise
-    let grass_hue_shift = vec3(0.04, -0.02, -0.03) * n_large + vec3(-0.02, 0.03, -0.01) * n_med;
-    let sand_hue_shift = vec3(0.03, 0.01, -0.04) * n_large + vec3(-0.02, -0.01, 0.03) * n_med;
-    let rock_hue_shift = vec3(0.02, -0.01, 0.03) * n_large + vec3(-0.01, 0.02, -0.02) * n_med;
+    // Per-biome hue shifts — reduced intensity so texture detail shows through
+    let grass_hue_shift = vec3(0.03, -0.015, -0.02) * n_large;
+    let sand_hue_shift = vec3(0.02, 0.008, -0.03) * n_large;
+    let rock_hue_shift = vec3(0.015, -0.008, 0.02) * n_large;
 
     let hue_shift = mix(mix(sand_hue_shift, grass_hue_shift, sg), rock_hue_shift, gr);
-    let brightness = (n_large * 0.6 + n_med * 0.25) * mix(mix(0.10, 0.12, sg), 0.08, gr);
+    let brightness = n_large * 0.06 + n_med * 0.03;
 
     var base_color = tex_color + hue_shift + tex_color * brightness;
 
