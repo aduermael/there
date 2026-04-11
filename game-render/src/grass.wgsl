@@ -84,7 +84,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     blade_color.r += tip_glow * tip_red * day_tip;
 
     let shadow = sample_shadow(in.world_pos);
-    let lit = hemisphere_lighting(n, blade_color, shadow);
+    let lit = hemisphere_lighting(n, blade_color, shadow, in.world_pos);
 
     // Translucency: backlit blades glow warm when sun is behind them (dawn/dusk)
     // Gate on sun elevation — no translucency at night

@@ -38,7 +38,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
     let shadow = sample_shadow(in.world_pos);
-    let lit = hemisphere_lighting(n, in.color, shadow);
+    let lit = hemisphere_lighting(n, in.color, shadow, in.world_pos);
     let color = apply_fog(in.world_pos, lit);
     return vec4(color, 1.0);
 }

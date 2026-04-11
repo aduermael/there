@@ -38,13 +38,33 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     return shadow;
 }
 
-fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32) -> vec3<f32> {
+fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
+    // Project world position onto cloud plane along sun direction
+    let cloud_altitude = 120.0;
+    let t = (cloud_altitude - world_pos.y) / max(u.sun_dir.y, 0.001);
+    let cloud_xz = world_pos.xz + u.sun_dir.xz * t;
+
+    // Same noise parameters as sky.wgsl clouds for visual coherence
+    let cloud_scale = 500.0;
+    let drift = vec2(u.time * 6.0, u.time * 2.0);
+    let sample_pos = (cloud_xz + drift) / cloud_scale;
+
+    var density = fbm3(sample_pos);
+    let coverage = 0.35;
+    density = smoothstep(coverage, coverage + 0.25, density);
+
+    // Soften cloud shadows — they shouldn't be as harsh as geometry shadows
+    return 1.0 - density * 0.45;
+}
+
+fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32, world_pos: vec3<f32>) -> vec3<f32> {
     // Compressed hemisphere blend: every surface gets some ground bounce (warm fill)
     let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.35 + 0.5;
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    // Shadow only affects direct sun light, not ambient
-    let sun_shadow = mix(0.05, 1.0, shadow); // shadowed areas keep 5% sun
+    // Shadow map + cloud shadow combined on direct sun
+    let cloud_s = cloud_shadow(world_pos);
+    let sun_shadow = mix(0.05, 1.0, shadow * cloud_s);
     return base_color * (ambient + ndl * u.sun_color * sun_shadow);
 }
 
