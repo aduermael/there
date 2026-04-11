@@ -68,12 +68,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
     let grad = smoothstep(0.0, 0.3, in.bend_factor);
     var blade_color = in.color * (0.90 + 0.20 * grad);  // base at 90%, tip at 110%
-    // Tips warmer yellow-green in daylight, cool at night (no warm glow under moonlight)
+    // Gate tip color on sun elevation: noon = green tips, dawn/dusk = warm amber tips
+    let sun_elev = smoothstep(0.1, 0.4, u.sun_dir.y);  // 0 at horizon, 1 at high sun
     let sun_warmth = dot(u.sun_color, vec3(0.333));
     let day_tip = smoothstep(0.3, 0.8, sun_warmth);
     let tip_glow = smoothstep(0.3, 1.0, in.bend_factor);
-    blade_color.g += tip_glow * 0.06 * day_tip;
-    blade_color.r += tip_glow * 0.05 * day_tip;
+    // At noon (high sun): more green, less red. At dawn/dusk (low sun): more red, less green.
+    let tip_green = mix(0.03, 0.10, sun_elev);  // dawn: subtle, noon: bright green
+    let tip_red = mix(0.04, 0.02, sun_elev);     // dawn: warm amber, noon: minimal red
+    blade_color.g += tip_glow * tip_green * day_tip;
+    blade_color.r += tip_glow * tip_red * day_tip;
 
     let shadow = sample_shadow(in.world_pos);
     let lit = hemisphere_lighting(n, blade_color, shadow);
@@ -83,11 +87,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sun_up = smoothstep(-0.05, 0.1, u.sun_dir.y);
     let view_dir = normalize(in.world_pos - u.camera_pos);
     let backlit = max(dot(view_dir, u.sun_dir), 0.0);
-    let translucency = backlit * backlit * in.bend_factor * sun_up * 0.8;
+    let translucency = backlit * backlit * in.bend_factor * sun_up * 0.5;
     let trans_color = blade_color * u.sun_color * translucency;
 
     // Slight brightness lift so blades stand out from terrain under heavy atmosphere
-    let lift = blade_color * 0.06 * sun_up;
+    let lift = blade_color * 0.04 * sun_up;
 
     let color = apply_fog(in.world_pos, lit + trans_color + lift);
     return vec4(color, 1.0);

@@ -404,7 +404,7 @@ Noon still reads as flat with sandy-yellow terrain and navy rock shadows. Night 
 
   **Failure modes**: Over-saturating grass makes it look like AstroTurf. The RDR2 reference shows warm, natural greens — not neon. Sand becoming too dark removes the path/clearing contrast. Keep sand lighter than grass but earthier.
 
-- [ ] 10b: Grass blade color enrichment
+- [x] 10b: Grass blade color enrichment
 
   **Context**: `grass.wgsl` lines 68-74 (base-to-tip gradient), `scatter.rs` lines 218-224 (blade color from terrain).
 

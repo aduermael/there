@@ -218,9 +218,11 @@ pub fn scatter_objects(
             // Match blade color to terrain — same noise-based color as terrain.wgsl
             let terrain_col = terrain_color_at(wy, wx, wz);
             let color_hash = ((hash >> 4) & 0xFF) as f32 / 255.0;
-            let var = color_hash * 0.08 - 0.04; // ±4% random per-blade variation
+            let var = color_hash * 0.12 - 0.06; // ±6% random per-blade variation
+            // In-patch grass gets a slight green boost (lusher meadow)
+            let patch_green = if in_patch { 0.03 } else { 0.0 };
             let r = (terrain_col[0] + var).max(0.05);
-            let g = (terrain_col[1] + var).max(0.10);
+            let g = (terrain_col[1] + var + patch_green).max(0.10);
             let b = (terrain_col[2] + var).max(0.03);
 
             let rot_hash = ((hash >> 12) & 0xFF) as f32 / 255.0;
