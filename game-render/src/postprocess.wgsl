@@ -1,4 +1,5 @@
-// Uniforms struct is defined in uniforms.wgsl (prepended before this file).
+// Post-processing: tone mapping, AO blur, god rays, color grading, vignette.
+// Uniforms from uniforms.wgsl, noise from noise.wgsl, fullscreen VS from fullscreen.wgsl.
 
 @group(0) @binding(0) var hdr_texture: texture_2d<f32>;
 @group(0) @binding(1) var hdr_sampler: sampler;
@@ -6,21 +7,6 @@
 @group(0) @binding(3) var depth_texture: texture_depth_2d;
 
 @group(1) @binding(0) var<uniform> u: Uniforms;
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-};
-
-@vertex
-fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
-    let uv_x = f32((vi << 1u) & 2u);
-    let uv_y = f32(vi & 2u);
-    var out: VertexOutput;
-    out.position = vec4(uv_x * 2.0 - 1.0, uv_y * 2.0 - 1.0, 0.0, 1.0);
-    out.uv = vec2(uv_x, 1.0 - uv_y);
-    return out;
-}
 
 // ACES fitted tone mapping (Narkowicz 2015)
 fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
@@ -30,11 +16,6 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
     let d = 0.59;
     let e = 0.14;
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
-}
-
-// Interleaved Gradient Noise for per-pixel jitter (breaks banding)
-fn ign(pixel: vec2<f32>) -> f32 {
-    return fract(52.9829189 * fract(0.06711056 * pixel.x + 0.00583715 * pixel.y));
 }
 
 // Screen-space radial god rays using depth-based occlusion

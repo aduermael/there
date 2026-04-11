@@ -1,7 +1,7 @@
 // GPU-driven grass instance generation.
 // Dispatched per-frame to populate a storage buffer with visible grass blade instances.
 // Uses camera-centered world-aligned grid: only generates blades near the camera.
-// Uniforms struct is defined in uniforms.wgsl (prepended before this file).
+// Uniforms struct from uniforms.wgsl, noise/hash functions from noise.wgsl.
 
 struct GrassInstance {
     pos_scale: vec4<f32>,
@@ -16,36 +16,6 @@ struct GrassInstance {
 const MAX_INSTANCES: u32 = 64000u;
 const GRID_EXTENT: u32 = 384u; // 192 units at 0.5 spacing
 const TAU: f32 = 6.28318530;
-
-// --- Hash functions (matches scatter.rs / common.wgsl) ---
-
-fn cell_hash(x: u32, z: u32, seed: u32) -> u32 {
-    var h = seed;
-    h = h + x * 0x9e3779b9u;
-    h = h ^ (h >> 16u);
-    h = h + z * 0x85ebca6bu;
-    h = h ^ (h >> 13u);
-    h = h * 0xc2b2ae35u;
-    h = h ^ (h >> 16u);
-    return h;
-}
-
-fn hash2(p: vec2<f32>) -> f32 {
-    var p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
-    p3 += dot(p3, vec3(p3.y + 33.33, p3.z + 33.33, p3.x + 33.33));
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-fn value_noise(p: vec2<f32>) -> f32 {
-    let i = floor(p);
-    let f = fract(p);
-    let s = f * f * (3.0 - 2.0 * f);
-    let a = hash2(i);
-    let b = hash2(i + vec2(1.0, 0.0));
-    let c = hash2(i + vec2(0.0, 1.0));
-    let d = hash2(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
-}
 
 // --- Heightmap access ---
 

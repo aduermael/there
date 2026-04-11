@@ -33,7 +33,7 @@ impl RockRenderer {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Rock Shader"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("common.wgsl"), include_str!("rocks.wgsl")).into(),
+                format!("{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("common.wgsl"), include_str!("rocks.wgsl")).into(),
             ),
         });
 

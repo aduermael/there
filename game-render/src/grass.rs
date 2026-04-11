@@ -92,7 +92,7 @@ impl GrassRenderer {
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Grass Compute Shader"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}\n{}", include_str!("uniforms.wgsl"), include_str!("grass_compute.wgsl")).into(),
+                format!("{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("grass_compute.wgsl")).into(),
             ),
         });
 
@@ -211,8 +211,9 @@ impl GrassRenderer {
             label: Some("Grass Render Shader"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}",
                     include_str!("uniforms.wgsl"),
+                    include_str!("noise.wgsl"),
                     include_str!("common.wgsl"),
                     include_str!("grass.wgsl")
                 )

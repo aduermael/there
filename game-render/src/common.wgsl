@@ -1,42 +1,8 @@
-// Shared lighting, fog, and noise functions.
+// Shared lighting and fog functions.
 // Concatenated as a prefix to all geometry + sky shaders via Rust-side format!().
-// Uniforms struct is defined in uniforms.wgsl (prepended before this file).
+// Uniforms struct from uniforms.wgsl, noise functions from noise.wgsl (prepended before this).
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
-
-// --- Hash-based value noise ---
-
-fn hash2(p: vec2<f32>) -> f32 {
-    var p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
-    p3 += dot(p3, vec3(p3.y + 33.33, p3.z + 33.33, p3.x + 33.33));
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-fn value_noise(p: vec2<f32>) -> f32 {
-    let i = floor(p);
-    let f = fract(p);
-    let s = f * f * (3.0 - 2.0 * f);
-
-    let a = hash2(i);
-    let b = hash2(i + vec2(1.0, 0.0));
-    let c = hash2(i + vec2(0.0, 1.0));
-    let d = hash2(i + vec2(1.0, 1.0));
-
-    return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
-}
-
-fn fbm3(p: vec2<f32>) -> f32 {
-    var val = 0.0;
-    var amp = 0.5;
-    var pos = p;
-    // 3 octaves
-    val += amp * value_noise(pos); pos *= 2.03; amp *= 0.5;
-    val += amp * value_noise(pos); pos *= 2.03; amp *= 0.5;
-    val += amp * value_noise(pos);
-    return val;
-}
-
-// --- Shared lighting and fog (fragment-only) ---
 
 fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
     let dx = dpdx(world_pos);
