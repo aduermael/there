@@ -196,6 +196,6 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
   - Agent 2 (Side effects): Are there regressions in other visual elements?
   - Agent 3 (Code quality): Is the implementation clean and maintainable?
 
-- [ ] 8a: Capture comprehensive snapshots for the current state (post phases 2+3): noon and dusk, default camera + steep pitch + close-up. Save in `snapshots/` with clear phase-tagged names.
+- [x] 8a: Capture comprehensive snapshots for the current state (post phases 2+3): noon and dusk, default camera + steep pitch + close-up. Save in `snapshots/` with clear phase-tagged names.
 - [ ] 8b: Spawn 3 critic sub-agents reviewing phases 2+3 (rim_light removal + SSAO tuning): correctness, side effects, code quality. Document findings.
 - [ ] 8c: After phases 5–7 are complete, capture before/after snapshots for each and run the same 3-critic review. Document findings.
