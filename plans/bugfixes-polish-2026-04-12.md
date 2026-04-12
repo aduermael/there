@@ -223,3 +223,87 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
 - [x] 9a: Add `--show-player`, `--player-pos`, and `--player-yaw` CLI flags to `main.rs`. Thread the new parameters through to `render_frame()`.
 - [x] 9b: In `render.rs`, when show-player is true: create `PlayerRenderer`, create one `PlayerInstance` at the given position (Y from heightmap if not specified), upload bind-pose bones, pass `Some(&player_renderer)` to `SceneRenderers`.
 - [x] 9c: Captured avatar snapshots from 4 angles + dusk. 3 critics: (1) Mesh holes: PASS — fully opaque from all angles. (2) Scene integration: PASS — good lighting/color, note: lacks ground shadow (separate enhancement). (3) Code quality: PASS — fixed default yaw to face toward camera. Clean implementation.
+
+---
+
+## Phase 10: DRY — extract input computation and animation constants
+
+Two DRY violations flagged by Phase 8c critics. Both are real duplication that can cause divergence bugs during future edits.
+
+**Issue 1 — Duplicated input reading (`game-client/src/lib.rs:498-510` vs `517-519`):**
+`menu_open`, `forward`, and `strafe` are computed identically in the per-frame move_yaw block (lines 498-501) and in the 20Hz send block (lines 517-519). If someone changes the menu-open guard or input mapping in one place but not the other, movement and visual facing will disagree. Fix: compute `menu_open`, `forward`, `strafe` once before both blocks, store in local variables, and reuse in both.
+
+**Issue 2 — Magic hysteresis thresholds (`game-client/src/lib.rs:243-246` vs `game-render/src/animation.rs:107-112`):**
+The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` are magic numbers with no named constant. Meanwhile `animation.rs:from_movement()` uses its own threshold (`0.3`) to classify Walk. These three thresholds interact: the hysteresis in `lib.rs` overrides `from_movement()`'s decision, making the `0.3` threshold in `animation.rs` dead for the local player. Fix: define named constants in `game-render/src/animation.rs` (`WALK_ENTER_SPEED`, `WALK_EXIT_SPEED`) and use them in both `from_movement()` and the hysteresis block in `lib.rs`. Update `from_movement()` to use `WALK_ENTER_SPEED` instead of `0.3` so the base classifier and hysteresis agree.
+
+**Key files:**
+- `game-client/src/lib.rs:498-527` — input computation + send block
+- `game-client/src/lib.rs:241-247` — hysteresis block
+- `game-render/src/animation.rs:107-112` — `from_movement()` speed thresholds
+
+**Success criteria:**
+- `forward`, `strafe`, `menu_open` computed exactly once per frame in the main loop; both move_yaw and send blocks read the same values
+- Hysteresis thresholds are named constants exported from `game-render::animation`
+- `from_movement()` uses `WALK_ENTER_SPEED` (0.5) instead of 0.3, making its Walk classification consistent with the hysteresis guard (the guard becomes a no-op for Walk when the base classifier already uses the right threshold, but remains needed for the Idle exit case)
+- `cargo build --target wasm32-unknown-unknown` compiles clean; no behavioral change
+
+- [ ] 10a: In `game-client/src/lib.rs`, hoist `menu_open`/`forward`/`strafe` computation to before the move_yaw block (~line 497). Remove the duplicate computation from the send block (~lines 517-519). Both blocks reference the same local variables.
+- [ ] 10b: In `game-render/src/animation.rs`, add `pub const WALK_ENTER_SPEED: f32 = 0.5;` and `pub const WALK_EXIT_SPEED: f32 = 0.15;`. Change `from_movement()` threshold from `0.3` to `WALK_ENTER_SPEED`. In `game-client/src/lib.rs`, replace the magic `0.5` and `0.15` in the hysteresis block with `game_render::animation::WALK_ENTER_SPEED` and `game_render::animation::WALK_EXIT_SPEED`.
+
+---
+
+## Phase 11: Third-person orbit camera in snapshot tool
+
+**Problem:** When `--show-player` is used, the user must manually guess `--camera-pos` and `--camera-target` to frame the avatar. The game has a third-person orbit camera (`game-client/src/camera.rs`) that computes eye position from `(target, yaw, pitch, distance)` using spherical-to-cartesian math. The snapshot tool should reuse this to get automatic game-like framing.
+
+**Approach:** Extract the pure orbit math (4 lines of trig + `TARGET_Y_OFFSET` constant) into `game-core` so both the client `OrbitCamera` and the snapshot tool share the exact same camera computation. Then add an `--orbit` flag to the snapshot CLI that computes `camera_pos`/`camera_target` from the orbit function using the player position as target.
+
+**Why extract to game-core:** The orbit math is small (~4 lines), but it includes a non-obvious constant (`TARGET_Y_OFFSET = 1.2`, the chest-height framing offset). Extracting ensures the snapshot tool produces frames identical to the in-game camera. The client `OrbitCamera` delegates to the shared function — input handling, terrain collision, and smoothing remain in the client only.
+
+**Key files:**
+- `game-core/src/camera.rs` (NEW) — pure `orbit_eye()` function + constants (`TARGET_Y_OFFSET`, `MIN_PITCH`, `MAX_PITCH`, `MIN_DISTANCE`, `MAX_DISTANCE`)
+- `game-client/src/camera.rs` — refactor `OrbitCamera::eye_at()` and `orbit_center()` to call `game_core::camera::orbit_eye()`
+- `game-snapshot/src/main.rs` — add `--orbit`, `--orbit-yaw`, `--orbit-pitch`, `--orbit-distance` flags
+- `game-snapshot/src/render.rs` — compute camera from orbit function when `--orbit` is active
+
+**Success criteria:**
+- `game-snapshot --orbit --show-player` renders a well-framed third-person view with the avatar centered
+- Same yaw/pitch/distance in snapshot and in-game produce matching camera angles
+- Manual `--camera-pos`/`--camera-target` mode still works unchanged
+- Zero duplicated orbit math between client and snapshot tool
+
+- [ ] 11a: Create `game-core/src/camera.rs` with `pub fn orbit_eye(target: Vec3, yaw: f32, pitch: f32, distance: f32) -> (Vec3, Vec3)` returning `(eye_position, look_target)`. Move `TARGET_Y_OFFSET`, `MIN_PITCH`, `MAX_PITCH`, `MIN_DISTANCE`, `MAX_DISTANCE` there as public constants. Register the module in `game-core/src/lib.rs`.
+- [ ] 11b: Refactor `game-client/src/camera.rs` — `OrbitCamera::eye_at()` and `orbit_center()` call `game_core::camera::orbit_eye()`. Remove the duplicated trig and constant. Verify `make dev` compiles and behaves identically.
+- [ ] 11c: Add `--orbit` flag to snapshot tool. When set, implies `--show-player`. Add `--orbit-yaw` (default 0.0), `--orbit-pitch` (default 0.4), `--orbit-distance` (default 8.0). In `render.rs`, when orbit mode is active, call `game_core::camera::orbit_eye()` with player position to derive `camera_pos` and `camera_target`. Ignore `--camera-pos`/`--camera-target` in orbit mode.
+- [ ] 11d: Capture verification snapshots using `--orbit` at multiple yaw/pitch combos. Spawn 3 critics: (1) framing — player centered and fully visible at default orbit; (2) angle parity — orbit at yaw=0,π/4,π/2 produces expected views; (3) code quality — shared math, no duplication, clean CLI.
+
+---
+
+## Phase 12: Blob shadow under player avatar
+
+**Problem:** The player avatar appears to float above the terrain. It is not rendered in the shadow cascade passes (`frame.rs:54-76`), so it casts no shadow map depth. Its thin geometry (arm cylinders = 0.04 radius) produces negligible SSAO/contact shadow ground contact.
+
+**Approach:** Render a soft dark ellipse on the terrain under each player instance. A blob shadow fits the impressionist/stylized art direction better than hard real-time shadows, and is far simpler to implement. Draw an alpha-blended quad per player instance in the scene pass, immediately before the player mesh (so player draws on top). Reuses the existing player instance buffer (`pos_yaw` + `color`) — no new GPU data needed.
+
+**Key files:**
+- `game-render/src/shaders/blob_shadow.wgsl` (NEW, ~40 lines) — vertex shader reads player instance `pos_yaw`, emits a flat quad at player foot Y. Fragment outputs radial falloff: `alpha = smoothstep(1.0, 0.0, length(uv) * 2.0) * 0.45`. Slight sun-direction offset (`-sun_dir.xz * 0.1`) for grounding cue.
+- `game-render/src/blob_shadow.rs` (NEW, ~80 lines) — `BlobShadowRenderer`: alpha-blend pipeline (src=SrcAlpha, dst=OneMinusSrcAlpha, depth write disabled, depth test LessEqual read-only). 4-vertex quad, 6 indices. `draw()` binds uniform BG + player instance buffer, draws 4 verts × instance_count.
+- `game-render/src/player.rs` — expose `instance_buffer()` and `instance_count()` accessors so `BlobShadowRenderer` can bind the same data without copying.
+- `game-render/src/frame.rs` — add `blob_shadow: Option<&BlobShadowRenderer>` to `SceneRenderers`. Draw before `players.draw()` in the scene pass.
+- `game-render/src/lib.rs` — pub export `BlobShadowRenderer`.
+- `game-client/src/renderer.rs` — instantiate `BlobShadowRenderer`, pass to `SceneRenderers`.
+- `game-snapshot/src/render.rs` — create `BlobShadowRenderer` when `--show-player` is active.
+
+**Shadow parameters:** Ellipse radius ~0.35 world units (slightly wider than shoulder width 0.18×2). Opacity peak 0.45. Soft edge via smoothstep. Slight offset toward sun direction for grounding cue at low sun angles.
+
+**Success criteria:**
+- Soft dark oval visible under each player on terrain
+- Shadow opacity feels natural — not a hard black circle, not invisible
+- No z-fighting or depth artifacts (depth write disabled on shadow quad)
+- Works for multiple players (instance count > 1)
+- Snapshot verification from noon and dusk angles
+
+- [ ] 12a: Create `blob_shadow.wgsl` shader. Vertex: expand 4 unit-quad corners into world-space flat quad at player foot Y from `inst_pos_yaw`, sized ~0.35 radius, with slight sun-direction offset from uniforms. Fragment: radial falloff `smoothstep(1.0, 0.0, dist) * 0.45`, output `vec4(0, 0, 0, alpha)`.
+- [ ] 12b: Create `BlobShadowRenderer` in `blob_shadow.rs`. Alpha-blend pipeline (depth read-only, no depth write). Quad vertex buffer (4 verts, 6 indices). `draw()` binds uniform BG + player instance buffer, draws 4 verts × instance_count. Add `instance_buffer()` and `instance_count()` accessors to `PlayerRenderer`.
+- [ ] 12c: Wire into frame pipeline. Add `blob_shadow` field to `SceneRenderers` in `frame.rs`. Draw in scene pass before player. Instantiate in `renderer.rs` (client) and `render.rs` (snapshot tool when `--show-player`). Export from `lib.rs`.
+- [ ] 12d: Capture snapshots at noon + dusk with `--orbit --show-player`. Spawn 3 critics: (1) grounding — does shadow make avatar feel planted on terrain? (2) art direction — does it match impressionist style, not too harsh/not invisible? (3) code quality — DRY instance buffer sharing, no unnecessary complexity.
