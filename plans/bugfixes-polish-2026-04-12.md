@@ -377,10 +377,10 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - Terrain/rock crevice AO still provides depth (corners, overhangs should still darken)
 - Smooth AO without banding or visible half-res artifacts
 
-- [ ] 15a: Add a thickness heuristic to `ssao.wgsl`. In the sample loop (~line 88-91), replace the hard `step(0.04, diff)` with a smooth falloff that also rejects large depth differences: `let thickness = smoothstep(0.0, 0.04, diff) * (1.0 - smoothstep(RADIUS * 0.5, RADIUS, diff));`. This accepts small positive differences (real occlusion) but rejects large ones (sampling through thin geometry to far background). Tune the inner/outer thresholds.
-- [ ] 15b: Reduce constants to `RADIUS = 1.0` and `STRENGTH = 2.5`. These are better suited for mixed geometry (the previous values were tuned for large terrain features only). The reduced radius means the hemisphere stays closer to the surface, reducing the chance of sampling across thin geometry.
-- [ ] 15c: Linearize the bilateral blur depth threshold in `postprocess.wgsl:183`. Replace the fixed `depth_threshold = 0.005` with a linear-depth comparison: `let depth_threshold = 0.5 / linearize(center_depth);` (scales the threshold by inverse depth so it represents a consistent world-space tolerance). Add `linearize()` helper if not already added in Phase 14.
-- [ ] 15d: Take before/after snapshots. Spawn 3 critics: (1) player — no dark halos on limbs or body edges; (2) terrain — AO still provides depth definition in rock crevices, tree bases, terrain overhangs; (3) parameters — strength feels natural, not over-darkened or washed out.
+- [x] 15a: Replaced hard `step(0.04, diff) * range_ok` with thickness heuristic: `smoothstep(0.0, 0.04, diff) * (1.0 - smoothstep(RADIUS*0.5, RADIUS, diff))`. Accepts real occlusion, rejects sampling through thin geometry.
+- [x] 15b: Reduced RADIUS 2.0→1.0, STRENGTH 3.5→2.5. Better suited for mixed terrain + player geometry scales.
+- [x] 15c: Linearized bilateral blur: compare in linear depth space (`linearize_depth(sample_depth)` vs `center_linear`) with fixed 0.4 world-unit threshold. Critic caught initial bug (mixed NDC/world-space units) — fixed to compare linearized depths on both sides.
+- [x] 15d: 3 critics: (1) Player halos: initial FAIL (player not visible in snapshot) — retook at open terrain pos. PASS on retake. (2) Terrain AO: PASS — rock/tree base darkening preserved. (3) Code quality: initial FAIL on bilateral blur unit mismatch — fixed. Thickness heuristic and parameters PASS.
 
 ---
 

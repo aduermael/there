@@ -196,7 +196,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let center_depth = textureLoad(depth_texture, depth_pixel, 0);
 
     // Bilateral weights: Gaussian spatial * depth similarity
-    let depth_threshold = 0.005;
+    // Compare in linear (world-space) depth for consistent edge detection at any distance
+    let center_linear = linearize_depth(center_depth);
+    let depth_threshold = 0.4; // world units — blur within surfaces, sharp across silhouettes
     var ao_sum = textureSample(ao_texture, hdr_sampler, in.uv).r * 4.0;
     var weight_sum = 4.0;
 
@@ -210,7 +212,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let sample_uv = in.uv + offsets[i];
         let sample_depth_pixel = vec2<i32>(sample_uv * depth_dims);
         let sample_depth = textureLoad(depth_texture, sample_depth_pixel, 0);
-        let depth_diff = abs(sample_depth - center_depth);
+        let sample_linear = linearize_depth(sample_depth);
+        let depth_diff = abs(sample_linear - center_linear);
         let depth_weight = select(0.05, 1.0, depth_diff < depth_threshold);
         let w = spatial_weights[i] * depth_weight;
         ao_sum += textureSample(ao_texture, hdr_sampler, sample_uv).r * w;

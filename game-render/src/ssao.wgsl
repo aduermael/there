@@ -9,8 +9,8 @@
 const NEAR: f32 = 0.1;
 const FAR: f32 = 500.0;
 const SAMPLES: u32 = 12;
-const RADIUS: f32 = 2.0;
-const STRENGTH: f32 = 3.5;
+const RADIUS: f32 = 1.0;
+const STRENGTH: f32 = 2.5;
 
 fn linearize(d: f32) -> f32 {
     return NEAR * FAR / (FAR - d * (FAR - NEAR));
@@ -85,10 +85,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let actual_linear = linearize(actual_depth);
             let expected_linear = linearize(clamp(proj_ndc.z, 0.0, 1.0));
 
-            // Occluded when scene surface is closer than sample, with range falloff
+            // Occluded when scene surface is closer than sample, with thickness heuristic:
+            // accept small positive diffs (real occlusion), reject large ones
+            // (sampling through thin geometry to far background)
             let diff = expected_linear - actual_linear;
-            let range_ok = smoothstep(RADIUS, 0.0, diff);
-            occ += step(0.04, diff) * range_ok;
+            let thickness = smoothstep(0.0, 0.04, diff) * (1.0 - smoothstep(RADIUS * 0.5, RADIUS, diff));
+            occ += thickness;
         }
     }
 
