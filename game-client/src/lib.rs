@@ -191,6 +191,10 @@ impl GameState {
         self.camera.target = self.local_pos;
     }
 
+    fn update_camera(&mut self, dt: f32) {
+        self.camera.update(dt, &self.heightmap_data);
+    }
+
     fn build_player_instances(&mut self, now: f64) {
         self.players.clear();
         let yaw = self.camera.yaw;
@@ -435,6 +439,7 @@ fn start_render_loop(
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
             state.process_server_messages(messages, now);
             state.update_movement(dt);
+            state.update_camera(dt);
             state.build_player_instances(now);
 
             // Send input to server at ~20 Hz
@@ -461,7 +466,7 @@ fn start_render_loop(
             let (w, h) = state.renderer.surface_size();
             let aspect = w as f32 / h as f32;
 
-            let eye = state.camera.eye(&state.heightmap_data);
+            let eye = state.camera.eye();
             let view = glam::Mat4::look_at_rh(eye, state.camera.target, glam::Vec3::Y);
             let proj = glam::Mat4::perspective_rh(
                 std::f32::consts::FRAC_PI_4,

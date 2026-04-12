@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use glam::{Mat4, Vec3};
+use glam::Vec3;
 use wasm_bindgen::prelude::*;
 
 const SENSITIVITY: f32 = 0.005;
@@ -32,11 +32,19 @@ pub fn consume_touch_drag() -> (f32, f32) {
     })
 }
 
+/// Smoothing rate when terrain forces camera closer (fast snap-in).
+const APPROACH_RATE: f32 = 10.0;
+/// Smoothing rate when camera recovers to desired distance (slow ease-out).
+const RECOVER_RATE: f32 = 3.0;
+
 pub struct OrbitCamera {
     pub target: Vec3,
     pub yaw: f32,
     pub pitch: f32,
-    pub distance: f32,
+    /// User-desired distance (set by scroll wheel).
+    desired_distance: f32,
+    /// Smoothed effective distance (tracks collision-limited distance).
+    effective_distance: f32,
     dragging: bool,
     last_x: f32,
     last_y: f32,
@@ -44,11 +52,13 @@ pub struct OrbitCamera {
 
 impl OrbitCamera {
     pub fn new(target: Vec3, yaw: f32, pitch: f32, distance: f32) -> Self {
+        let d = distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
         Self {
             target,
             yaw,
             pitch: pitch.clamp(MIN_PITCH, MAX_PITCH),
-            distance: distance.clamp(MIN_DISTANCE, MAX_DISTANCE),
+            desired_distance: d,
+            effective_distance: d,
             dragging: false,
             last_x: 0.0,
             last_y: 0.0,
@@ -79,7 +89,7 @@ impl OrbitCamera {
     }
 
     pub fn on_wheel(&mut self, delta_y: f32) {
-        self.distance = (self.distance + delta_y * ZOOM_SPEED).clamp(MIN_DISTANCE, MAX_DISTANCE);
+        self.desired_distance = (self.desired_distance + delta_y * ZOOM_SPEED).clamp(MIN_DISTANCE, MAX_DISTANCE);
     }
 
     /// Apply drag deltas directly (used by touch camera control).
@@ -88,47 +98,53 @@ impl OrbitCamera {
         self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
     }
 
-    /// Camera position in world space (spherical → cartesian).
-    fn raw_eye(&self) -> Vec3 {
-        let x = self.distance * self.pitch.cos() * self.yaw.sin();
-        let y = self.distance * self.pitch.sin();
-        let z = self.distance * self.pitch.cos() * self.yaw.cos();
+    /// Camera position in world space (spherical → cartesian) at a given distance.
+    fn eye_at(&self, dist: f32) -> Vec3 {
+        let x = dist * self.pitch.cos() * self.yaw.sin();
+        let y = dist * self.pitch.sin();
+        let z = dist * self.pitch.cos() * self.yaw.cos();
         self.target + Vec3::new(x, y, z)
     }
 
-    /// Eye position with ray-based terrain collision.
-    /// Casts a ray from target toward raw_eye, sampling terrain along the way.
-    /// Pulls camera closer if any sample point is below terrain + clearance.
-    pub fn eye(&self, heightmap: &[f32]) -> Vec3 {
-        let raw = self.raw_eye();
+    /// Update camera each frame: raycast terrain collision + smooth distance.
+    pub fn update(&mut self, dt: f32, heightmap: &[f32]) {
+        // Raycast from target toward desired eye to find max safe distance
+        let raw = self.eye_at(self.desired_distance);
         let dir = raw - self.target;
         let full_dist = dir.length();
-        if full_dist < 0.001 {
-            return raw;
-        }
 
-        const CLEARANCE: f32 = 1.8;
-        const RAY_STEPS: u32 = 16;
-
-        let mut safe_t = 0.0_f32;
-        for i in 1..=RAY_STEPS {
-            let t = i as f32 / RAY_STEPS as f32;
-            let p = self.target + dir * t;
-            let terrain_y = game_core::terrain::sample_height(heightmap, p.x, p.z);
-            if p.y < terrain_y + CLEARANCE {
-                // This sample is underground — use the previous safe t
-                break;
-            }
-            safe_t = t;
-        }
-
-        if safe_t >= 1.0 - 1e-5 {
-            // Full distance is clear
-            raw
+        let collision_dist = if full_dist < 0.001 {
+            self.desired_distance
         } else {
-            // Pull camera to last safe point along the ray
-            self.target + dir * safe_t
-        }
+            const CLEARANCE: f32 = 1.8;
+            const RAY_STEPS: u32 = 16;
+
+            let mut safe_t = 0.0_f32;
+            for i in 1..=RAY_STEPS {
+                let t = i as f32 / RAY_STEPS as f32;
+                let p = self.target + dir * t;
+                let terrain_y = game_core::terrain::sample_height(heightmap, p.x, p.z);
+                if p.y < terrain_y + CLEARANCE {
+                    break;
+                }
+                safe_t = t;
+            }
+            safe_t * self.desired_distance
+        };
+
+        // Smooth: fast approach, slow recovery
+        let rate = if collision_dist < self.effective_distance {
+            APPROACH_RATE
+        } else {
+            RECOVER_RATE
+        };
+        let alpha = 1.0 - (-rate * dt).exp();
+        self.effective_distance += (collision_dist - self.effective_distance) * alpha;
+    }
+
+    /// Current eye position (call after update).
+    pub fn eye(&self) -> Vec3 {
+        self.eye_at(self.effective_distance)
     }
 
 }
