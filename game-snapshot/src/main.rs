@@ -56,6 +56,14 @@ struct Args {
     /// Orbit camera distance (default 8.0)
     #[arg(long, default_value_t = 8.0)]
     orbit_distance: f32,
+
+    /// Render 8 orbit views in a grid (implies --orbit --show-player)
+    #[arg(long, default_value_t = false)]
+    turntable: bool,
+
+    /// Number of columns in turntable grid (default 4)
+    #[arg(long, default_value_t = 4)]
+    turntable_cols: u32,
 }
 
 fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
@@ -81,44 +89,60 @@ fn main() {
         args.output,
     );
 
-    // --orbit implies --show-player
-    let show_player = args.show_player || args.orbit;
-
-    let player_opts = if show_player {
-        Some(render::PlayerOpts {
-            pos: args.player_pos,
-            yaw: args.player_yaw,
-        })
-    } else {
-        None
-    };
-
-    // In orbit mode, compute camera from orbit function using player position
-    let (camera_pos, camera_target, player_opts) = if args.orbit {
-        // Player XZ: use --player-pos if given, else default camera_target
+    let pixels = if args.turntable {
+        // Turntable mode: 8 orbit views in a grid
         let player_ground = args.player_pos.unwrap_or(args.camera_target);
         let heightmap_data = game_core::terrain::generate_heightmap();
         let ground_y = game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
         let player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
-        let (eye, target) = game_core::camera::orbit_eye(player_pos, args.orbit_yaw, args.orbit_pitch, args.orbit_distance);
-        // Pass resolved position to player renderer so avatar sits on terrain
-        let opts = Some(render::PlayerOpts {
-            pos: Some(player_pos),
-            yaw: args.player_yaw,
-        });
-        (eye, target, opts)
-    } else {
-        (args.camera_pos, args.camera_target, player_opts)
-    };
 
-    let pixels = pollster::block_on(render::render_frame(
-        args.width,
-        args.height,
-        camera_pos,
-        camera_target,
-        args.sun_angle,
-        player_opts,
-    ));
+        pollster::block_on(render::render_turntable(
+            args.width,
+            args.height,
+            player_pos,
+            args.orbit_pitch,
+            args.orbit_distance,
+            args.sun_angle,
+            args.turntable_cols,
+        ))
+    } else {
+        // --orbit implies --show-player
+        let show_player = args.show_player || args.orbit;
+
+        let player_opts = if show_player {
+            Some(render::PlayerOpts {
+                pos: args.player_pos,
+                yaw: args.player_yaw,
+            })
+        } else {
+            None
+        };
+
+        // In orbit mode, compute camera from orbit function using player position
+        let (camera_pos, camera_target, player_opts) = if args.orbit {
+            let player_ground = args.player_pos.unwrap_or(args.camera_target);
+            let heightmap_data = game_core::terrain::generate_heightmap();
+            let ground_y = game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
+            let player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
+            let (eye, target) = game_core::camera::orbit_eye(player_pos, args.orbit_yaw, args.orbit_pitch, args.orbit_distance);
+            let opts = Some(render::PlayerOpts {
+                pos: Some(player_pos),
+                yaw: args.player_yaw,
+            });
+            (eye, target, opts)
+        } else {
+            (args.camera_pos, args.camera_target, player_opts)
+        };
+
+        pollster::block_on(render::render_frame(
+            args.width,
+            args.height,
+            camera_pos,
+            camera_target,
+            args.sun_angle,
+            player_opts,
+        ))
+    };
 
     image::save_buffer(
         &args.output,
