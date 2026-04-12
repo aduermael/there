@@ -9,6 +9,8 @@ const MIN_PITCH: f32 = 0.05;
 const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
 const MIN_DISTANCE: f32 = 3.0;
 const MAX_DISTANCE: f32 = 20.0;
+/// Upward offset from player feet to orbit center (~chest height).
+const TARGET_Y_OFFSET: f32 = 1.2;
 // Accumulated touch drag deltas from the camera-control web component.
 thread_local! {
     static TOUCH_DRAG: Cell<(f32, f32)> = const { Cell::new((0.0, 0.0)) };
@@ -98,19 +100,26 @@ impl OrbitCamera {
         self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
     }
 
+    /// Orbit center (target with vertical offset for chest-height framing).
+    fn orbit_center(&self) -> Vec3 {
+        self.target + Vec3::new(0.0, TARGET_Y_OFFSET, 0.0)
+    }
+
     /// Camera position in world space (spherical → cartesian) at a given distance.
     fn eye_at(&self, dist: f32) -> Vec3 {
+        let center = self.orbit_center();
         let x = dist * self.pitch.cos() * self.yaw.sin();
         let y = dist * self.pitch.sin();
         let z = dist * self.pitch.cos() * self.yaw.cos();
-        self.target + Vec3::new(x, y, z)
+        center + Vec3::new(x, y, z)
     }
 
     /// Update camera each frame: raycast terrain collision + smooth distance.
     pub fn update(&mut self, dt: f32, heightmap: &[f32]) {
-        // Raycast from target toward desired eye to find max safe distance
+        // Raycast from orbit center toward desired eye to find max safe distance
+        let center = self.orbit_center();
         let raw = self.eye_at(self.desired_distance);
-        let dir = raw - self.target;
+        let dir = raw - center;
         let full_dist = dir.length();
 
         let collision_dist = if full_dist < 0.001 {
@@ -122,7 +131,7 @@ impl OrbitCamera {
             let mut safe_t = 0.0_f32;
             for i in 1..=RAY_STEPS {
                 let t = i as f32 / RAY_STEPS as f32;
-                let p = self.target + dir * t;
+                let p = center + dir * t;
                 let terrain_y = game_core::terrain::sample_height(heightmap, p.x, p.z);
                 if p.y < terrain_y + CLEARANCE {
                     break;
@@ -145,6 +154,11 @@ impl OrbitCamera {
     /// Current eye position (call after update).
     pub fn eye(&self) -> Vec3 {
         self.eye_at(self.effective_distance)
+    }
+
+    /// Camera look-at target (orbit center with vertical offset).
+    pub fn look_target(&self) -> Vec3 {
+        self.orbit_center()
     }
 
 }

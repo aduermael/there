@@ -467,7 +467,7 @@ fn start_render_loop(
             let aspect = w as f32 / h as f32;
 
             let eye = state.camera.eye();
-            let view = glam::Mat4::look_at_rh(eye, state.camera.target, glam::Vec3::Y);
+            let view = glam::Mat4::look_at_rh(eye, state.camera.look_target(), glam::Vec3::Y);
             let proj = glam::Mat4::perspective_rh(
                 std::f32::consts::FRAC_PI_4,
                 aspect,
