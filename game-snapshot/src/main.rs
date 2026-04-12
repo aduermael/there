@@ -1,4 +1,5 @@
-use clap::Parser;
+use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, parser::ValueSource};
+use serde::Deserialize;
 
 mod render;
 
@@ -64,6 +65,28 @@ struct Args {
     /// Number of columns in turntable grid (default 4)
     #[arg(long, default_value_t = 4)]
     turntable_cols: u32,
+
+    /// Load scenario from JSON file. CLI flags override JSON values.
+    #[arg(long)]
+    scenario: Option<String>,
+}
+
+/// JSON scenario config. All fields optional — defaults come from CLI.
+#[derive(Deserialize, Default)]
+struct ScenarioConfig {
+    width: Option<u32>,
+    height: Option<u32>,
+    sun_angle: Option<f32>,
+    output: Option<String>,
+    show_player: Option<bool>,
+    player_pos: Option<[f32; 3]>,
+    player_yaw: Option<f32>,
+    orbit: Option<bool>,
+    orbit_yaw: Option<f32>,
+    orbit_pitch: Option<f32>,
+    orbit_distance: Option<f32>,
+    turntable: Option<bool>,
+    turntable_cols: Option<u32>,
 }
 
 fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
@@ -77,82 +100,177 @@ fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
     Ok(glam::Vec3::new(x, y, z))
 }
 
+/// Returns true if the user explicitly passed this flag on the command line.
+fn was_explicit(matches: &ArgMatches, name: &str) -> bool {
+    matches.value_source(name) == Some(ValueSource::CommandLine)
+}
+
+/// Pick: explicit CLI value > JSON value > CLI default.
+macro_rules! merge {
+    ($matches:expr, $args:expr, $scenario:expr, $field:ident) => {
+        if was_explicit($matches, stringify!($field).replace('_', "-").as_str()) {
+            $args.$field
+        } else {
+            $scenario.$field.unwrap_or($args.$field)
+        }
+    };
+}
+
+/// Resolved configuration after merging CLI args and scenario JSON.
+struct Config {
+    width: u32,
+    height: u32,
+    camera_pos: glam::Vec3,
+    camera_target: glam::Vec3,
+    sun_angle: f32,
+    output: String,
+    show_player: bool,
+    player_pos: Option<glam::Vec3>,
+    player_yaw: Option<f32>,
+    orbit: bool,
+    orbit_yaw: f32,
+    orbit_pitch: f32,
+    orbit_distance: f32,
+    turntable: bool,
+    turntable_cols: u32,
+}
+
+fn build_config(matches: &ArgMatches, args: Args, scenario: ScenarioConfig) -> Config {
+    let player_pos_from_scenario = scenario.player_pos.map(|p| glam::Vec3::new(p[0], p[1], p[2]));
+    let player_pos = if was_explicit(matches, "player-pos") {
+        args.player_pos
+    } else {
+        player_pos_from_scenario.or(args.player_pos)
+    };
+
+    let player_yaw = if was_explicit(matches, "player-yaw") {
+        args.player_yaw
+    } else {
+        scenario.player_yaw.or(args.player_yaw)
+    };
+
+    let output = if was_explicit(matches, "output") {
+        args.output
+    } else {
+        scenario.output.unwrap_or(args.output)
+    };
+
+    Config {
+        width: merge!(matches, args, scenario, width),
+        height: merge!(matches, args, scenario, height),
+        camera_pos: args.camera_pos,
+        camera_target: args.camera_target,
+        sun_angle: merge!(matches, args, scenario, sun_angle),
+        output,
+        show_player: merge!(matches, args, scenario, show_player),
+        player_pos,
+        player_yaw,
+        orbit: merge!(matches, args, scenario, orbit),
+        orbit_yaw: merge!(matches, args, scenario, orbit_yaw),
+        orbit_pitch: merge!(matches, args, scenario, orbit_pitch),
+        orbit_distance: merge!(matches, args, scenario, orbit_distance),
+        turntable: merge!(matches, args, scenario, turntable),
+        turntable_cols: merge!(matches, args, scenario, turntable_cols),
+    }
+}
+
 fn main() {
     env_logger::init();
-    let args = Args::parse();
+
+    let matches = Args::command().get_matches();
+    let args = Args::from_arg_matches(&matches).unwrap();
+
+    // Load scenario JSON if provided
+    let scenario = if let Some(path) = &args.scenario {
+        let json = std::fs::read_to_string(path)
+            .unwrap_or_else(|e| panic!("Failed to read scenario file '{}': {}", path, e));
+        serde_json::from_str::<ScenarioConfig>(&json)
+            .unwrap_or_else(|e| panic!("Failed to parse scenario file '{}': {}", path, e))
+    } else {
+        ScenarioConfig::default()
+    };
+
+    let cfg = build_config(&matches, args, scenario);
 
     log::info!(
         "Rendering {}x{} frame, sun_angle={}, output={}",
-        args.width,
-        args.height,
-        args.sun_angle,
-        args.output,
+        cfg.width,
+        cfg.height,
+        cfg.sun_angle,
+        cfg.output,
     );
 
-    let pixels = if args.turntable {
-        // Turntable mode: 8 orbit views in a grid
-        let player_ground = args.player_pos.unwrap_or(args.camera_target);
+    let pixels = if cfg.turntable {
+        let player_ground = cfg.player_pos.unwrap_or(cfg.camera_target);
         let heightmap_data = game_core::terrain::generate_heightmap();
-        let ground_y = game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
+        let ground_y =
+            game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
         let player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
 
         pollster::block_on(render::render_turntable(
-            args.width,
-            args.height,
+            cfg.width,
+            cfg.height,
             player_pos,
-            args.orbit_pitch,
-            args.orbit_distance,
-            args.sun_angle,
-            args.turntable_cols,
+            cfg.orbit_pitch,
+            cfg.orbit_distance,
+            cfg.sun_angle,
+            cfg.turntable_cols,
         ))
     } else {
-        // --orbit implies --show-player
-        let show_player = args.show_player || args.orbit;
+        let show_player = cfg.show_player || cfg.orbit;
 
         let player_opts = if show_player {
             Some(render::PlayerOpts {
-                pos: args.player_pos,
-                yaw: args.player_yaw,
+                pos: cfg.player_pos,
+                yaw: cfg.player_yaw,
             })
         } else {
             None
         };
 
-        // In orbit mode, compute camera from orbit function using player position
-        let (camera_pos, camera_target, player_opts) = if args.orbit {
-            let player_ground = args.player_pos.unwrap_or(args.camera_target);
+        let (camera_pos, camera_target, player_opts) = if cfg.orbit {
+            let player_ground = cfg.player_pos.unwrap_or(cfg.camera_target);
             let heightmap_data = game_core::terrain::generate_heightmap();
-            let ground_y = game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
+            let ground_y = game_core::terrain::sample_height(
+                &heightmap_data,
+                player_ground.x,
+                player_ground.z,
+            );
             let player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
-            let (eye, target) = game_core::camera::orbit_eye(player_pos, args.orbit_yaw, args.orbit_pitch, args.orbit_distance);
+            let (eye, target) = game_core::camera::orbit_eye(
+                player_pos,
+                cfg.orbit_yaw,
+                cfg.orbit_pitch,
+                cfg.orbit_distance,
+            );
             let opts = Some(render::PlayerOpts {
                 pos: Some(player_pos),
-                yaw: args.player_yaw,
+                yaw: cfg.player_yaw,
             });
             (eye, target, opts)
         } else {
-            (args.camera_pos, args.camera_target, player_opts)
+            (cfg.camera_pos, cfg.camera_target, player_opts)
         };
 
         pollster::block_on(render::render_frame(
-            args.width,
-            args.height,
+            cfg.width,
+            cfg.height,
             camera_pos,
             camera_target,
-            args.sun_angle,
+            cfg.sun_angle,
             player_opts,
         ))
     };
 
     image::save_buffer(
-        &args.output,
+        &cfg.output,
         &pixels,
-        args.width,
-        args.height,
+        cfg.width,
+        cfg.height,
         image::ColorType::Rgba8,
     )
     .expect("Failed to save PNG");
 
-    log::info!("Saved {}", args.output);
-    println!("{}", args.output);
+    log::info!("Saved {}", cfg.output);
+    println!("{}", cfg.output);
 }
