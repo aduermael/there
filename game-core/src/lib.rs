@@ -1,3 +1,4 @@
+pub mod camera;
 pub mod protocol;
 pub mod movement;
 pub mod terrain;

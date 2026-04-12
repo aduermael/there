@@ -2,15 +2,10 @@ use std::cell::Cell;
 
 use glam::Vec3;
 use wasm_bindgen::prelude::*;
+use game_core::camera::{MIN_PITCH, MAX_PITCH, MIN_DISTANCE, MAX_DISTANCE};
 
 const SENSITIVITY: f32 = 0.005;
 const ZOOM_SPEED: f32 = 0.02;
-const MIN_PITCH: f32 = 0.05;
-const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
-const MIN_DISTANCE: f32 = 3.0;
-const MAX_DISTANCE: f32 = 20.0;
-/// Upward offset from player feet to orbit center (~chest height).
-const TARGET_Y_OFFSET: f32 = 1.2;
 // Accumulated touch drag deltas from the camera-control web component.
 thread_local! {
     static TOUCH_DRAG: Cell<(f32, f32)> = const { Cell::new((0.0, 0.0)) };
@@ -100,25 +95,15 @@ impl OrbitCamera {
         self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
     }
 
-    /// Orbit center (target with vertical offset for chest-height framing).
-    fn orbit_center(&self) -> Vec3 {
-        self.target + Vec3::new(0.0, TARGET_Y_OFFSET, 0.0)
-    }
-
-    /// Camera position in world space (spherical → cartesian) at a given distance.
-    fn eye_at(&self, dist: f32) -> Vec3 {
-        let center = self.orbit_center();
-        let x = dist * self.pitch.cos() * self.yaw.sin();
-        let y = dist * self.pitch.sin();
-        let z = dist * self.pitch.cos() * self.yaw.cos();
-        center + Vec3::new(x, y, z)
+    /// Camera position and look target at a given distance, via shared orbit math.
+    fn orbit_at(&self, dist: f32) -> (Vec3, Vec3) {
+        game_core::camera::orbit_eye(self.target, self.yaw, self.pitch, dist)
     }
 
     /// Update camera each frame: raycast terrain collision + smooth distance.
     pub fn update(&mut self, dt: f32, heightmap: &[f32]) {
         // Raycast from orbit center toward desired eye to find max safe distance
-        let center = self.orbit_center();
-        let raw = self.eye_at(self.desired_distance);
+        let (raw, center) = self.orbit_at(self.desired_distance);
         let dir = raw - center;
         let full_dist = dir.length();
 
@@ -158,12 +143,12 @@ impl OrbitCamera {
 
     /// Current eye position (call after update).
     pub fn eye(&self) -> Vec3 {
-        self.eye_at(self.effective_distance)
+        self.orbit_at(self.effective_distance).0
     }
 
     /// Camera look-at target (orbit center with vertical offset).
     pub fn look_target(&self) -> Vec3 {
-        self.orbit_center()
+        self.orbit_at(self.effective_distance).1
     }
 
 }

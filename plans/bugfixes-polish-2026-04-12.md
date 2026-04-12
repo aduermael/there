@@ -272,9 +272,9 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - Manual `--camera-pos`/`--camera-target` mode still works unchanged
 - Zero duplicated orbit math between client and snapshot tool
 
-- [ ] 11a: Create `game-core/src/camera.rs` with `pub fn orbit_eye(target: Vec3, yaw: f32, pitch: f32, distance: f32) -> (Vec3, Vec3)` returning `(eye_position, look_target)`. Move `TARGET_Y_OFFSET`, `MIN_PITCH`, `MAX_PITCH`, `MIN_DISTANCE`, `MAX_DISTANCE` there as public constants. Register the module in `game-core/src/lib.rs`.
-- [ ] 11b: Refactor `game-client/src/camera.rs` — `OrbitCamera::eye_at()` and `orbit_center()` call `game_core::camera::orbit_eye()`. Remove the duplicated trig and constant. Verify `make dev` compiles and behaves identically.
-- [ ] 11c: Add `--orbit` flag to snapshot tool. When set, implies `--show-player`. Add `--orbit-yaw` (default 0.0), `--orbit-pitch` (default 0.4), `--orbit-distance` (default 8.0). In `render.rs`, when orbit mode is active, call `game_core::camera::orbit_eye()` with player position to derive `camera_pos` and `camera_target`. Ignore `--camera-pos`/`--camera-target` in orbit mode.
+- [x] 11a: Create `game-core/src/camera.rs` with `pub fn orbit_eye(target: Vec3, yaw: f32, pitch: f32, distance: f32) -> (Vec3, Vec3)` returning `(eye_position, look_target)`. Move `TARGET_Y_OFFSET`, `MIN_PITCH`, `MAX_PITCH`, `MIN_DISTANCE`, `MAX_DISTANCE` there as public constants. Register the module in `game-core/src/lib.rs`.
+- [x] 11b: Refactor `game-client/src/camera.rs` — `OrbitCamera::eye_at()` and `orbit_center()` call `game_core::camera::orbit_eye()`. Remove the duplicated trig and constant. Verify `make dev` compiles and behaves identically.
+- [x] 11c: Add `--orbit` flag to snapshot tool. When set, implies `--show-player`. Add `--orbit-yaw` (default 0.0), `--orbit-pitch` (default 0.4), `--orbit-distance` (default 8.0). In `render.rs`, when orbit mode is active, call `game_core::camera::orbit_eye()` with player position to derive `camera_pos` and `camera_target`. Ignore `--camera-pos`/`--camera-target` in orbit mode.
 - [ ] 11d: Capture verification snapshots using `--orbit` at multiple yaw/pitch combos. Spawn 3 critics: (1) framing — player centered and fully visible at default orbit; (2) angle parity — orbit at yaw=0,π/4,π/2 produces expected views; (3) code quality — shared math, no duplication, clean CLI.
 
 ---

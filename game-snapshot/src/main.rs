@@ -40,6 +40,22 @@ struct Args {
     /// Player facing yaw in radians (0 = -Z). Default: face toward camera.
     #[arg(long)]
     player_yaw: Option<f32>,
+
+    /// Use third-person orbit camera (implies --show-player). Derives camera from player position.
+    #[arg(long, default_value_t = false)]
+    orbit: bool,
+
+    /// Orbit camera yaw in radians (default 0.0)
+    #[arg(long, default_value_t = 0.0)]
+    orbit_yaw: f32,
+
+    /// Orbit camera pitch in radians (default 0.4)
+    #[arg(long, default_value_t = 0.4)]
+    orbit_pitch: f32,
+
+    /// Orbit camera distance (default 8.0)
+    #[arg(long, default_value_t = 8.0)]
+    orbit_distance: f32,
 }
 
 fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
@@ -65,7 +81,10 @@ fn main() {
         args.output,
     );
 
-    let player_opts = if args.show_player {
+    // --orbit implies --show-player
+    let show_player = args.show_player || args.orbit;
+
+    let player_opts = if show_player {
         Some(render::PlayerOpts {
             pos: args.player_pos,
             yaw: args.player_yaw,
@@ -74,11 +93,29 @@ fn main() {
         None
     };
 
+    // In orbit mode, compute camera from orbit function using player position
+    let (camera_pos, camera_target, player_opts) = if args.orbit {
+        // Player XZ: use --player-pos if given, else default camera_target
+        let player_ground = args.player_pos.unwrap_or(args.camera_target);
+        let heightmap_data = game_core::terrain::generate_heightmap();
+        let ground_y = game_core::terrain::sample_height(&heightmap_data, player_ground.x, player_ground.z);
+        let player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
+        let (eye, target) = game_core::camera::orbit_eye(player_pos, args.orbit_yaw, args.orbit_pitch, args.orbit_distance);
+        // Pass resolved position to player renderer so avatar sits on terrain
+        let opts = Some(render::PlayerOpts {
+            pos: Some(player_pos),
+            yaw: args.player_yaw,
+        });
+        (eye, target, opts)
+    } else {
+        (args.camera_pos, args.camera_target, player_opts)
+    };
+
     let pixels = pollster::block_on(render::render_frame(
         args.width,
         args.height,
-        args.camera_pos,
-        args.camera_target,
+        camera_pos,
+        camera_target,
         args.sun_angle,
         player_opts,
     ));
