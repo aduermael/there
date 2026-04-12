@@ -215,3 +215,30 @@ Full scenario suite covering all movement + camera behaviors.
 - [x] 5a: Create complete scenario suite (`snapshots/scenarios/verification/`) covering the full test matrix — 8 scenarios.
 - [x] 5b: Run all scenarios and verify with 3 sub-agent critics. Iterate up to 5 times until all pass.
 - [x] 5c: No issues found — all 3 critics passed on first iteration (8/8 correctness, 0 regressions, 0 DRY violations).
+
+---
+
+## Phase 6: Fix Camera/Player Rotation — Standard 3rd-Person
+
+**Root cause:** Phase 4 implemented camera auto-follow (camera chases behind movement direction). The correct behavior is the opposite: camera stays user-controlled, player character faces camera direction when moving.
+
+**Desired behavior (standard 3rd-person):**
+- Camera stays where the user puts it (drag/touch orbit). No auto-rotation.
+- When moving (any direction), the player character faces `camera.yaw` — the camera's look direction.
+- When idle, camera orbits freely; player retains last facing direction.
+- Strafing: player runs sideways relative to the camera but still faces the camera's forward direction.
+
+**What to remove:**
+- `camera.follow_behind()` call in client frame loop
+- `camera_follow_yaw()` in snapshot simulation loop
+- Dead code: `follow_behind()` method, `camera_follow_yaw()` function, `CAMERA_FOLLOW_SPEED` constant
+
+**What to change:**
+- Client: `local_move_yaw = move_yaw(forward, strafe, camera.yaw)` → `local_move_yaw = camera.yaw`
+- Server send: `move_yaw` field already receives the right value since we'll send `camera.yaw`
+- Snapshot sim: `player_yaw = move_yaw(...)` → `player_yaw = orbit_yaw`
+
+- [x] 6a: Client fix — remove `follow_behind()` from frame loop, set `local_move_yaw = camera.yaw` when moving. Restore frame loop order: movement → set facing → touch drag → update_camera → build_instances.
+- [ ] 6b: Snapshot sim fix — remove `camera_follow_yaw()` from tick loop, set `player_yaw = orbit_yaw` when moving. Camera orbit_yaw stays fixed.
+- [ ] 6c: Dead code cleanup — remove `follow_behind()` from OrbitCamera, `camera_follow_yaw()` from movement.rs, `CAMERA_FOLLOW_SPEED` from game-core. Keep `move_yaw()` (server still uses it for remote players).
+- [ ] 6d: Update scenarios — repurpose follow_* scenarios to test "player faces camera direction". Update verification suite. Run all 3 critics to verify.

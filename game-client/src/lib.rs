@@ -484,39 +484,33 @@ fn start_render_loop(
                 state.sun_angle = js_get_sun_angle();
             }
 
-            // Process messages → movement → camera follow → build instances
+            // Process messages → movement → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
             state.process_server_messages(messages, now);
 
-            // 1. Compute input
+            // Compute input
             let menu_open = js_is_menu_open();
             let forward = if menu_open { 0.0 } else { state.input.forward() };
             let strafe = if menu_open { 0.0 } else { state.input.strafe() };
 
-            // 2. Apply movement using current camera.yaw
+            // Apply movement using current camera.yaw
             state.update_movement(dt);
 
-            // 3. Compute local_move_yaw BEFORE camera follow modifies camera.yaw
+            // Player faces camera direction when moving (standard 3rd-person)
             if forward != 0.0 || strafe != 0.0 {
-                state.local_move_yaw = game_core::movement::move_yaw(forward, strafe, state.camera.yaw);
+                state.local_move_yaw = state.camera.yaw;
             }
 
-            // 4. Camera auto-follow behind movement direction (only while moving)
-            if forward != 0.0 || strafe != 0.0 {
-                let move_yaw = state.local_move_yaw;
-                state.camera.follow_behind(move_yaw, dt);
-            }
-
-            // 5. Touch drag — user can fight the auto-follow
+            // Touch drag — user controls camera freely
             let (tdx, tdy) = camera::consume_touch_drag();
             if tdx != 0.0 || tdy != 0.0 {
                 state.camera.apply_drag(tdx, tdy);
             }
 
-            // 6. Camera terrain collision + distance smoothing
+            // Camera terrain collision + distance smoothing
             state.update_camera(dt);
 
-            // 7. Visual yaw interpolation toward local_move_yaw
+            // Visual yaw interpolation toward local_move_yaw
             state.build_player_instances(now, dt);
 
             // Send input to server at ~20 Hz
