@@ -197,5 +197,5 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
   - Agent 3 (Code quality): Is the implementation clean and maintainable?
 
 - [x] 8a: Capture comprehensive snapshots for the current state (post phases 2+3): noon and dusk, default camera + steep pitch + close-up. Save in `snapshots/` with clear phase-tagged names.
-- [ ] 8b: Spawn 3 critic sub-agents reviewing phases 2+3 (rim_light removal + SSAO tuning): correctness, side effects, code quality. Document findings.
-- [ ] 8c: After phases 5–7 are complete, capture before/after snapshots for each and run the same 3-critic review. Document findings.
+- [x] 8b: Spawn 3 critic sub-agents reviewing phases 2+3 (rim_light removal + SSAO tuning): correctness, side effects, code quality. All 3 critics PASS — no regressions, clean code, correct implementation.
+- [x] 8c: Phases 5–7 code reviewed by 3 critic sub-agents (correctness, side effects, code quality). All PASS. Snapshot tool cannot render players (players: None), so visual verification requires in-game testing. Minor code quality nits: duplicated input computation, magic threshold numbers.
