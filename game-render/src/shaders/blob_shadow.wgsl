@@ -45,6 +45,7 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = length(in.uv);
     // Shadow intensity: how much to darken (blend mode multiplies dst by 1-alpha)
-    let intensity = smoothstep(1.0, 0.0, dist) * 0.7;
+    // Reduced from 0.7: directional shadow handles most grounding now
+    let intensity = smoothstep(1.0, 0.0, dist) * 0.35;
     return vec4(0.0, 0.0, 0.0, intensity);
 }

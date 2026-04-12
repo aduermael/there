@@ -12,7 +12,7 @@ fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
     return normalize(cross(dx, dy));
 }
 
-fn sample_shadow(world_pos: vec3<f32>) -> f32 {
+fn sample_shadow(world_pos: vec3<f32>, normal: vec3<f32>) -> f32 {
     let dist = length(world_pos - u.camera_pos);
 
     // Select cascade based on distance from camera
@@ -44,7 +44,9 @@ fn sample_shadow(world_pos: vec3<f32>) -> f32 {
     }
 
     let current_depth = light_ndc.z;
-    let bias = 0.003;
+    // Slope-scaled bias: steeper angles to the sun get more bias to prevent acne
+    let ndotl = max(dot(normal, u.sun_dir), 0.0);
+    let bias = max(0.005 * (1.0 - ndotl), 0.001);
     let d = current_depth - bias;
 
     // 8-tap rotated Poisson disk PCF

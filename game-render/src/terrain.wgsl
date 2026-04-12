@@ -116,7 +116,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     base_color = max(base_color, vec3(0.02));
 
-    let shadow = sample_shadow(in.world_pos);
+    let shadow = sample_shadow(in.world_pos, n);
     let lit = hemisphere_lighting(n, base_color, shadow, in.world_pos);
     let color = apply_fog(in.world_pos, lit);
 

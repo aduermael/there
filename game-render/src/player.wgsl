@@ -74,7 +74,7 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> Vertex
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = normalize(in.world_normal);
-    let shadow = sample_shadow(in.world_pos);
+    let shadow = sample_shadow(in.world_pos, n);
     let lit = hemisphere_lighting(n, in.color, shadow, in.world_pos);
     let color = apply_fog(in.world_pos, lit);
     return vec4(color, 1.0);

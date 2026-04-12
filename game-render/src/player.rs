@@ -37,6 +37,7 @@ struct HumanoidVertex {
 
 pub struct PlayerRenderer {
     mesh: InstancedMeshRenderer,
+    shadow_pipeline: wgpu::RenderPipeline,
     skeleton: Skeleton,
     bone_buffer: wgpu::Buffer,
     bone_bind_group: wgpu::BindGroup,
@@ -104,55 +105,116 @@ impl PlayerRenderer {
             push_constant_ranges: &[],
         });
 
+        let vertex_buffers = &[
+            // Vertex buffer: position(3f) + normal(3f) + bone_index(u32) + pad(u32) = 32 bytes
+            wgpu::VertexBufferLayout {
+                array_stride: 32,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &[
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x3,
+                        offset: 0,
+                        shader_location: 0,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x3,
+                        offset: 12,
+                        shader_location: 1,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Uint32,
+                        offset: 24,
+                        shader_location: 2,
+                    },
+                ],
+            },
+            // Instance buffer: pos_yaw(4f) + color(4f) = 32 bytes
+            wgpu::VertexBufferLayout {
+                array_stride: 32,
+                step_mode: wgpu::VertexStepMode::Instance,
+                attributes: &[
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x4,
+                        offset: 0,
+                        shader_location: 3,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x4,
+                        offset: 16,
+                        shader_location: 4,
+                    },
+                ],
+            },
+        ];
+
         let pipeline = crate::pipeline::create_scene_pipeline(
             device,
             "Player Pipeline",
             &shader,
             &pipeline_layout,
-            &[
-                // Vertex buffer: position(3f) + normal(3f) + bone_index(u32) + pad(u32) = 32 bytes
-                wgpu::VertexBufferLayout {
-                    array_stride: 32,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &[
-                        wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Float32x3,
-                            offset: 0,
-                            shader_location: 0,
-                        },
-                        wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Float32x3,
-                            offset: 12,
-                            shader_location: 1,
-                        },
-                        wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Uint32,
-                            offset: 24,
-                            shader_location: 2,
-                        },
-                    ],
-                },
-                // Instance buffer: pos_yaw(4f) + color(4f) = 32 bytes
-                wgpu::VertexBufferLayout {
-                    array_stride: 32,
-                    step_mode: wgpu::VertexStepMode::Instance,
-                    attributes: &[
-                        wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Float32x4,
-                            offset: 0,
-                            shader_location: 3,
-                        },
-                        wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Float32x4,
-                            offset: 16,
-                            shader_location: 4,
-                        },
-                    ],
-                },
-            ],
+            vertex_buffers,
             surface_format,
             Some(wgpu::Face::Back),
             wgpu::CompareFunction::Less,
+        );
+
+        // Shadow pipeline: group 0=uniforms, group 1=bones (no shadow map needed).
+        // Separate shader module because bones move from group 2 → group 1.
+        // NOTE: vs_shadow skinning logic must match vs_main in player.wgsl.
+        let shadow_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Player Shadow Shader"),
+            source: wgpu::ShaderSource::Wgsl(
+                format!(
+                    "{}\n{}",
+                    include_str!("uniforms.wgsl"),
+                    r#"
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(1) @binding(0) var<storage, read> bone_matrices: array<mat4x4<f32>>;
+const NUM_BONES: u32 = 15u;
+
+struct ShadowVertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) bone_index: u32,
+    @location(3) inst_pos_yaw: vec4<f32>,
+    @location(4) inst_color: vec4<f32>,
+};
+
+@vertex
+fn vs_shadow(in: ShadowVertexInput, @builtin(instance_index) instance_id: u32) -> @builtin(position) vec4<f32> {
+    let bone_offset = instance_id * NUM_BONES + in.bone_index;
+    let bone_mat = bone_matrices[bone_offset];
+    let skinned_pos = (bone_mat * vec4(in.position, 1.0)).xyz;
+    let yaw = in.inst_pos_yaw.w;
+    let c = cos(yaw);
+    let s = sin(yaw);
+    let rotated_pos = vec3(
+        skinned_pos.x * c - skinned_pos.z * s,
+        skinned_pos.y,
+        skinned_pos.x * s + skinned_pos.z * c,
+    );
+    let world_pos = rotated_pos + in.inst_pos_yaw.xyz;
+    return u.sun_view_proj * vec4(world_pos, 1.0);
+}
+"#,
+                )
+                .into(),
+            ),
+        });
+
+        let shadow_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Player Shadow Layout"),
+                bind_group_layouts: &[uniform_bgl, &bone_bgl],
+                push_constant_ranges: &[],
+            });
+
+        let shadow_pipeline = crate::pipeline::create_shadow_pipeline(
+            device,
+            "Player Shadow Pipeline",
+            &shadow_shader,
+            &shadow_pipeline_layout,
+            vertex_buffers,
         );
 
         let (vertices, indices) = generate_humanoid(&skeleton);
@@ -189,6 +251,7 @@ impl PlayerRenderer {
 
         Self {
             mesh,
+            shadow_pipeline,
             skeleton,
             bone_buffer,
             bone_bind_group,
@@ -231,6 +294,21 @@ impl PlayerRenderer {
     ) {
         pass.set_bind_group(2, &self.bone_bind_group, &[]);
         self.mesh.draw(pass, uniform_bg, shadow_bg);
+    }
+
+    /// Draw player into shadow map (depth-only, skinned + sun VP transform).
+    pub fn draw_shadow<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        uniform_bg: &'a wgpu::BindGroup,
+    ) {
+        if self.mesh.instance_count() == 0 {
+            return;
+        }
+        pass.set_pipeline(&self.shadow_pipeline);
+        pass.set_bind_group(0, uniform_bg, &[]);
+        pass.set_bind_group(1, &self.bone_bind_group, &[]);
+        self.mesh.draw_raw(pass);
     }
 }
 

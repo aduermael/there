@@ -74,6 +74,9 @@ pub fn encode_frame(
         scene.terrain.draw_shadow(&mut pass, uniform_bg);
         scene.rocks.draw_shadow(&mut pass, uniform_bg);
         scene.trees.draw_shadow(&mut pass, uniform_bg);
+        if let Some(players) = scene.players {
+            players.draw_shadow(&mut pass, uniform_bg);
+        }
     }
 
     // Pass 2: Scene → HDR intermediate

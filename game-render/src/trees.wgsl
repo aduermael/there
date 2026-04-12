@@ -115,7 +115,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Texture is primary color source, instance color provides hue variation
     let color = mix(in.color, tex, 0.55) * 1.7;
 
-    let shadow = sample_shadow(in.world_pos);
+    let shadow = sample_shadow(in.world_pos, n);
     let lit = hemisphere_lighting(n, color, shadow, in.world_pos);
     let final_color = apply_fog(in.world_pos, lit);
     return vec4(final_color, 1.0);

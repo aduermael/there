@@ -102,4 +102,17 @@ impl InstancedMeshRenderer {
         pass.draw_indexed(0..self.index_count, 0, 0..count);
     }
 
+    /// Bind vertex/instance/index buffers and draw. Pipeline and bind groups
+    /// must be set by the caller (used for shadow passes with custom layouts).
+    pub fn draw_raw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
+        let count = self.instance_count.get();
+        if count == 0 {
+            return;
+        }
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        pass.draw_indexed(0..self.index_count, 0, 0..count);
+    }
+
 }
