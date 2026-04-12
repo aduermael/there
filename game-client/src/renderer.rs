@@ -258,23 +258,6 @@ impl Renderer {
         self.players.upload_bones(&self.queue, instance_index, matrices);
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width > 0 && height > 0 {
-            self.config.width = width;
-            self.config.height = height;
-            self.surface.configure(&self.device, &self.config);
-            self.depth_view = create_depth_texture(&self.device, width, height);
-            self.water.resize(&self.device, &self.depth_view);
-            self.ssao.resize(&self.device, &self.depth_view, width, height);
-            self.bloom.resize(&self.device, width, height);
-            self.exposure.resize(&self.device, width, height);
-            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), self.exposure.exposure_buffer(), width, height);
-            self.bloom.build_bind_groups(&self.device, self.postprocess.intermediate_view());
-            self.exposure.build_bind_groups(&self.device, self.postprocess.intermediate_view());
-            self.fxaa.resize(&self.device, width, height);
-        }
-    }
-
     pub fn render(
         &self,
         camera_pos: glam::Vec3,

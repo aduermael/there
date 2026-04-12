@@ -284,16 +284,6 @@ impl BloomRenderer {
         &self.up_views[0]
     }
 
-    pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
-        self.mip_sizes = compute_mip_sizes(width, height);
-        let (bloom_down, down_views) = create_bloom_texture(device, "Bloom Down", &self.mip_sizes);
-        let (bloom_up, up_views) = create_bloom_texture(device, "Bloom Up", &self.mip_sizes);
-        self._bloom_down = bloom_down;
-        self._bloom_up = bloom_up;
-        self.down_views = down_views;
-        self.up_views = up_views;
-        // Caller must call build_bind_groups() after resize
-    }
 }
 
 fn div_ceil(a: u32, b: u32) -> u32 {

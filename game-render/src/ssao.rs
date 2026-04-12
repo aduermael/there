@@ -2,7 +2,6 @@ pub const SSAO_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R8Unorm;
 
 pub struct SsaoRenderer {
     pipeline: wgpu::RenderPipeline,
-    depth_bgl: wgpu::BindGroupLayout,
     depth_bind_group: wgpu::BindGroup,
     ao_view: wgpu::TextureView,
 }
@@ -52,7 +51,6 @@ impl SsaoRenderer {
 
         Self {
             pipeline,
-            depth_bgl,
             depth_bind_group,
             ao_view,
         }
@@ -89,17 +87,6 @@ impl SsaoRenderer {
             view_formats: &[],
         });
         texture.create_view(&wgpu::TextureViewDescriptor::default())
-    }
-
-    pub fn resize(
-        &mut self,
-        device: &wgpu::Device,
-        depth_view: &wgpu::TextureView,
-        width: u32,
-        height: u32,
-    ) {
-        self.depth_bind_group = Self::create_depth_bg(device, &self.depth_bgl, depth_view);
-        self.ao_view = Self::create_ao_texture(device, (width / 2).max(1), (height / 2).max(1));
     }
 
     pub fn ao_view(&self) -> &wgpu::TextureView {

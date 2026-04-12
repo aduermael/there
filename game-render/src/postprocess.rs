@@ -2,8 +2,6 @@ pub const INTERMEDIATE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16
 
 pub struct PostProcessRenderer {
     pipeline: wgpu::RenderPipeline,
-    bind_group_layout: wgpu::BindGroupLayout,
-    sampler: wgpu::Sampler,
     intermediate_view: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
 }
@@ -111,8 +109,6 @@ impl PostProcessRenderer {
 
         Self {
             pipeline,
-            bind_group_layout,
-            sampler,
             intermediate_view,
             bind_group,
         }
@@ -175,13 +171,6 @@ impl PostProcessRenderer {
             ],
         });
         (view, bind_group)
-    }
-
-    pub fn resize(&mut self, device: &wgpu::Device, ao_view: &wgpu::TextureView, depth_view: &wgpu::TextureView, bloom_view: &wgpu::TextureView, exposure_buffer: &wgpu::Buffer, width: u32, height: u32) {
-        let (view, bind_group) =
-            Self::create_intermediate(device, &self.bind_group_layout, &self.sampler, ao_view, depth_view, bloom_view, exposure_buffer, width, height);
-        self.intermediate_view = view;
-        self.bind_group = bind_group;
     }
 
     pub fn intermediate_view(&self) -> &wgpu::TextureView {

@@ -223,12 +223,6 @@ impl ExposureRenderer {
         });
     }
 
-    pub fn resize(&mut self, _device: &wgpu::Device, width: u32, height: u32) {
-        self.width = width;
-        self.height = height;
-        // Bind groups rebuilt via build_bind_groups() when HDR view changes
-    }
-
     /// Dispatch histogram + reduce compute passes.
     pub fn compute(&self, encoder: &mut wgpu::CommandEncoder) {
         // Clear histogram buffer

@@ -8,7 +8,6 @@ pub struct WaterRenderer {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
-    depth_bgl: wgpu::BindGroupLayout,
     depth_bind_group: wgpu::BindGroup,
 }
 
@@ -161,7 +160,6 @@ impl WaterRenderer {
             vertex_buffer,
             index_buffer,
             index_count,
-            depth_bgl,
             depth_bind_group,
         }
     }
@@ -179,10 +177,6 @@ impl WaterRenderer {
                 resource: wgpu::BindingResource::TextureView(depth_view),
             }],
         })
-    }
-
-    pub fn resize(&mut self, device: &wgpu::Device, depth_view: &wgpu::TextureView) {
-        self.depth_bind_group = Self::create_depth_bg(device, &self.depth_bgl, depth_view);
     }
 
     pub fn draw<'a>(

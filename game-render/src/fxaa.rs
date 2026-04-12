@@ -1,8 +1,5 @@
 pub struct FxaaRenderer {
     pipeline: wgpu::RenderPipeline,
-    bind_group_layout: wgpu::BindGroupLayout,
-    sampler: wgpu::Sampler,
-    format: wgpu::TextureFormat,
     ldr_view: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
 }
@@ -82,9 +79,6 @@ impl FxaaRenderer {
 
         Self {
             pipeline,
-            bind_group_layout,
-            sampler,
-            format: output_format,
             ldr_view,
             bind_group,
         }
@@ -133,13 +127,6 @@ impl FxaaRenderer {
     /// View of the LDR intermediate texture (PostProcess renders to this).
     pub fn ldr_view(&self) -> &wgpu::TextureView {
         &self.ldr_view
-    }
-
-    pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
-        let (view, bg) =
-            Self::create_ldr(device, &self.bind_group_layout, &self.sampler, self.format, width, height);
-        self.ldr_view = view;
-        self.bind_group = bg;
     }
 
     pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {

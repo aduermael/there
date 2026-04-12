@@ -27,10 +27,8 @@ pub struct GrassRenderer {
     // Geometry
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    index_count: u32,
 
     // GPU-driven buffers
-    instance_buffer: wgpu::Buffer,  // storage: compute writes, render reads
     indirect_buffer: wgpu::Buffer,  // storage + indirect: draw args
     indirect_reset: wgpu::Buffer,   // copy source to reset indirect each frame
 }
@@ -263,8 +261,6 @@ impl GrassRenderer {
             render_instance_bg,
             vertex_buffer,
             index_buffer,
-            index_count,
-            instance_buffer,
             indirect_buffer,
             indirect_reset,
         }
