@@ -496,21 +496,24 @@ fn start_render_loop(
             // Apply movement using current camera.yaw
             state.update_movement(dt);
 
-            // Player faces camera direction when moving (standard 3rd-person)
-            if forward != 0.0 || strafe != 0.0 {
-                state.local_move_yaw = state.camera.yaw;
-            }
-
             // Touch drag — user controls camera freely
             let (tdx, tdy) = camera::consume_touch_drag();
             if tdx != 0.0 || tdy != 0.0 {
                 state.camera.apply_drag(tdx, tdy);
             }
 
+            // Player faces camera direction when moving (standard 3rd-person).
+            // Set AFTER touch drag so facing uses the latest camera.yaw.
+            // Directly set visual_yaw for instant tracking while moving.
+            if forward != 0.0 || strafe != 0.0 {
+                state.local_move_yaw = state.camera.yaw;
+                state.local_visual_yaw = state.camera.yaw;
+            }
+
             // Camera terrain collision + distance smoothing
             state.update_camera(dt);
 
-            // Visual yaw interpolation toward local_move_yaw
+            // Visual yaw interpolation (only smooths idle→moving transitions)
             state.build_player_instances(now, dt);
 
             // Send input to server at ~20 Hz
