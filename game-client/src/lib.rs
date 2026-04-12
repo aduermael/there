@@ -228,16 +228,23 @@ impl GameState {
             color: [local_color[0], local_color[1], local_color[2], 0.0],
         });
 
-        // Local player animation
+        // Local player animation (with hysteresis to prevent Idle↔Walk flicker)
         let safe_dt = if dt > 0.0 { dt } else { 1.0 / 60.0 };
         let local_vel = (self.local_pos - self.prev_local_pos) / safe_dt;
         let horiz_speed = glam::Vec2::new(local_vel.x, local_vel.z).length();
-        let anim_state = AnimState::from_movement(
+        let mut anim_state = AnimState::from_movement(
             horiz_speed,
             self.vertical_velocity,
             self.local_pos.y,
             game_core::WATER_LEVEL,
         );
+        // Hysteresis: require speed > 0.5 to enter Walk, < 0.15 to exit back to Idle
+        let cur = self.local_anim.current_state();
+        if cur == AnimState::Idle && anim_state == AnimState::Walk && horiz_speed < 0.5 {
+            anim_state = AnimState::Idle;
+        } else if cur == AnimState::Walk && anim_state == AnimState::Idle && horiz_speed > 0.15 {
+            anim_state = AnimState::Walk;
+        }
         self.local_anim.set_state(anim_state);
         let local_pose = self.local_anim.update(dt);
         let skeleton = self.renderer.player_skeleton();
