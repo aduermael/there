@@ -1,0 +1,15 @@
+{
+  "show_player": true,
+  "orbit": true,
+  "orbit_yaw": 0.0,
+  "orbit_pitch": 0.5,
+  "orbit_distance": 5.0,
+  "player_pos": [150, -1, 150],
+  "sun_angle": 0.25,
+  "steps": [
+    { "input": { "forward": 1.0 }, "duration_secs": 1.0 },
+    { "snapshot": "snapshots/scenarios/follow_then_idle_moving.png" },
+    { "input": { "forward": 0.0 }, "duration_secs": 1.0 },
+    { "snapshot": "snapshots/scenarios/follow_then_idle_stopped.png" }
+  ]
+}

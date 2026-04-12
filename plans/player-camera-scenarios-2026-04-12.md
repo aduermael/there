@@ -192,7 +192,7 @@ When the player moves, the camera smoothly rotates to position behind the player
 - [x] 4a: Add `CAMERA_FOLLOW_SPEED` constant and `follow_behind(&mut self, move_yaw: f32, dt: f32)` method to `OrbitCamera` in `game-client/src/camera.rs`. Uses `game_core::movement::lerp_angle` to interpolate `self.yaw` toward `move_yaw + PI`.
 - [x] 4b: Integrate into frame loop in `lib.rs`: call `camera.follow_behind(local_move_yaw, dt)` after computing `local_move_yaw` and before `update_camera(dt)`, only when movement input is active.
 - [x] 4c: Add camera follow simulation to snapshot tool's step loop (Phase 2). During `Input` steps, after each movement tick, also interpolate the simulated orbit_yaw toward behind the movement direction at the same follow speed.
-- [ ] 4d: Create 3 auto-follow test scenarios in `snapshots/scenarios/`: `follow_forward.json` (walk forward 2s — camera should end up behind), `follow_strafe.json` (strafe right 2s — camera should swing right), `follow_then_idle.json` (walk 1s, stop, rotate camera in different orbit_yaw, verify player didn't move). Run all and verify with 3 sub-agent critics.
+- [x] 4d: Create 3 auto-follow test scenarios in `snapshots/scenarios/`: `follow_forward.json` (walk forward 2s — camera should end up behind), `follow_strafe.json` (strafe right 2s — camera should swing right), `follow_then_idle.json` (walk 1s, stop, rotate camera in different orbit_yaw, verify player didn't move). Run all and verify with 3 sub-agent critics.
 
 ---
 

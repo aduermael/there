@@ -34,6 +34,15 @@ pub fn lerp_angle(current: f32, target: f32, max_step: f32) -> f32 {
     (result + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
+/// Compute camera yaw that follows behind the player's movement direction.
+/// `current_yaw` is the current camera orbit yaw, `move_yaw` is the player's
+/// movement direction. Returns the updated camera yaw.
+pub fn camera_follow_yaw(current_yaw: f32, move_yaw: f32, dt: f32) -> f32 {
+    let behind = move_yaw + std::f32::consts::PI;
+    let max_step = crate::CAMERA_FOLLOW_SPEED * dt;
+    lerp_angle(current_yaw, behind, max_step)
+}
+
 /// Apply movement to a position given input and dt.
 /// Returns the new position, snapped to terrain height.
 pub fn apply_movement(

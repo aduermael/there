@@ -29,9 +29,6 @@ pub fn consume_touch_drag() -> (f32, f32) {
     })
 }
 
-/// Camera auto-follow speed (radians/sec) when player is moving.
-const CAMERA_FOLLOW_SPEED: f32 = 4.0;
-
 /// Smoothing rate when terrain forces camera closer (fast snap-in).
 const APPROACH_RATE: f32 = 10.0;
 /// Smoothing rate when camera recovers to desired distance (slow ease-out).
@@ -102,9 +99,7 @@ impl OrbitCamera {
     /// `move_yaw` is the direction the player is moving. Camera targets `move_yaw + PI`
     /// (behind the player). Only call when player is actively moving.
     pub fn follow_behind(&mut self, move_yaw: f32, dt: f32) {
-        let behind = move_yaw + std::f32::consts::PI;
-        let max_step = CAMERA_FOLLOW_SPEED * dt;
-        self.yaw = game_core::movement::lerp_angle(self.yaw, behind, max_step);
+        self.yaw = game_core::movement::camera_follow_yaw(self.yaw, move_yaw, dt);
     }
 
     /// Camera position and look target at a given distance, via shared orbit math.

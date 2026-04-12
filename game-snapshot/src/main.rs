@@ -244,7 +244,6 @@ fn main() {
         let mut player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
         let mut player_yaw = cfg.player_yaw.unwrap_or(0.0);
         let mut orbit_yaw = cfg.orbit_yaw;
-        let camera_follow_speed = 4.0_f32; // matches client CAMERA_FOLLOW_SPEED
 
         for step in &cfg.steps {
             match step {
@@ -252,12 +251,7 @@ fn main() {
                     let ticks = (*duration_secs / game_core::TICK_INTERVAL_SECS) as u32;
                     let is_moving = input.forward != 0.0 || input.strafe != 0.0;
                     for _ in 0..ticks {
-                        // Compute move_yaw before camera follow (matches client frame order)
-                        if is_moving {
-                            player_yaw = game_core::movement::move_yaw(
-                                input.forward, input.strafe, orbit_yaw,
-                            );
-                        }
+                        // Match client frame order: movement → move_yaw → camera follow
                         player_pos = game_core::movement::apply_movement(
                             player_pos,
                             input.forward,
@@ -266,11 +260,13 @@ fn main() {
                             game_core::TICK_INTERVAL_SECS,
                             heightmap,
                         );
-                        // Camera auto-follow: orbit yaw tracks behind movement direction
                         if is_moving {
-                            let behind = player_yaw + std::f32::consts::PI;
-                            let max_step = camera_follow_speed * game_core::TICK_INTERVAL_SECS;
-                            orbit_yaw = game_core::movement::lerp_angle(orbit_yaw, behind, max_step);
+                            player_yaw = game_core::movement::move_yaw(
+                                input.forward, input.strafe, orbit_yaw,
+                            );
+                            orbit_yaw = game_core::movement::camera_follow_yaw(
+                                orbit_yaw, player_yaw, game_core::TICK_INTERVAL_SECS,
+                            );
                         }
                     }
                     sim.update_player(player_pos, player_yaw);
