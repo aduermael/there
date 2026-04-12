@@ -97,3 +97,105 @@ Note: The player shader (`player.wgsl:78-79`) does NOT use `rim_light` — anoth
 - [x] 4a: Compute `move_yaw` on the client from forward/strafe + camera_yaw. Add `move_yaw` to the input message sent to server. Update protocol structs in both client and server.
 - [x] 4b: Server applies `move_yaw` as `player.yaw` only when movement input is nonzero. Add smooth yaw interpolation (shortest-arc lerp toward `move_yaw` each tick). Keep `camera_yaw` / `input_yaw` for movement physics unchanged.
 - [x] 4c: Client uses computed `move_yaw` for local player instance rendering (`lib.rs:208-215`) instead of `camera.yaw`. Verify remote players also display correct rotation from server state.
+
+---
+
+## Phase 5: Fix character rotation bugs
+
+Phase 4 introduced two bugs that prevent correct character facing.
+
+**Bug 1 — `atan2` sign error (character faces wrong direction):**
+`game-client/src/lib.rs:506` computes `move_x.atan2(move_z)`. But the player model faces direction `(-sin(yaw), -cos(yaw))` at a given yaw (see `player.wgsl:49-57`). When pressing forward at camera yaw=0, the movement vector is `(0, -1)`, so `atan2(0, -1) = PI` — rotating the model 180° to face +Z (toward camera) instead of -Z (away from camera). The correct formula is `(-move_x).atan2(-move_z)`, which for the same case gives `atan2(0, 1) = 0`, matching camera yaw.
+
+**Bug 2 — `local_move_yaw` only updates at 20Hz (rotation lags camera):**
+`local_move_yaw` is computed inside the `if now - state.last_send_time >= 50.0` send block (`lib.rs:492-514`). Between sends, the visual yaw target is stale. When the camera rotates while walking, `local_visual_yaw` chases a stale target for up to 50ms, making rotation feel unresponsive.
+
+**Key files:**
+- `game-client/src/lib.rs:500-510` — move_yaw computation (inside send block)
+- `game-client/src/lib.rs:207-219` — `build_player_instances()` with visual yaw interpolation
+
+**Fix:**
+- Move `local_move_yaw` computation before `build_player_instances()`, running every frame from `state.input.forward()`, `state.input.strafe()`, and `state.camera.yaw`. The send block just reads the already-computed `state.local_move_yaw`.
+- Fix the atan2: use `(-move_x).atan2(-move_z)`.
+- Apply the same atan2 fix on the server side (`game-server/src/game_loop.rs`) if the server ever needs to recompute — but currently the server just uses the client-sent `move_yaw`, so only the client formula matters.
+
+**Success criteria:**
+- Pressing forward: character faces away from camera (back visible)
+- Rotating camera while holding forward: character smoothly tracks new forward direction every frame
+- Strafing left: character faces left relative to camera
+
+- [ ] 5a: Move `local_move_yaw` computation out of the send block into the main frame loop (before `build_player_instances`). Fix the atan2 sign to `(-move_x).atan2(-move_z)`. Send block reads `state.local_move_yaw` instead of recomputing.
+
+---
+
+## Phase 6: Fix avatar mesh winding order (see-through body parts)
+
+**Problem:** Some faces of the player avatar are invisible — you can see through parts of the body.
+
+**Root cause:** The mesh generation functions in `game-render/src/player.rs` produce inconsistent or reversed triangle winding, and the player pipeline uses `cull_mode: Some(wgpu::Face::Back)` (`player.rs:154`). With WebGPU's default CCW front-face convention, back-facing (CW) triangles are culled.
+
+**Winding analysis — `add_box()` (line 370):**
+All six faces use index pattern `[i, i+1, i+2, i, i+2, i+3]`. Testing the +Y face: vertices go `(+hx,+hz)→(-hx,+hz)→(-hx,-hz)→(+hx,-hz)` in XZ. The cross product of edge1×edge2 for triangle (0,1,2) points in -Y, but the intended outward normal is +Y. **All box faces have reversed winding** — the cross product consistently points inward.
+
+**Winding analysis — `add_cylinder()` bottom cap (lines 455-460):**
+Uses `[center, j, j+1]` (same rotation sense as vertices), while the top cap (lines 430-435) uses `[center, j+1, j]` (reversed). Since the top cap normal is +Y and bottom is -Y, they need opposite winding to both face outward — but the current implementation gives them the same effective winding. **Bottom cap winding is wrong.**
+
+**Winding analysis — `add_ellipsoid()` (line 507):**
+Uses `[a, b, a+1, a+1, b, b+1]`. Depending on the hemisphere, outward normals flip. Needs verification — likely correct for one hemisphere, wrong for the other.
+
+**Fix approach:** Reverse the index winding in `add_box()` from `[i, i+1, i+2, i, i+2, i+3]` to `[i, i+2, i+1, i, i+3, i+2]`. Fix the cylinder bottom cap to match the top cap's outward convention. Verify ellipsoid winding and fix if needed. Alternative: the simplest correct fix may be to disable culling (`cull_mode: None`) since the avatar is small on screen and the performance cost is negligible, but fixing winding is more correct.
+
+**Success criteria:**
+- No see-through holes on any part of the avatar from any viewing angle
+- All body parts (torso, head, arms, legs) fully opaque
+- Snapshot verification from multiple angles
+
+- [ ] 6a: Fix `add_box()` index winding: reverse to `[i, i+2, i+1, i, i+3, i+2]`. Fix `add_cylinder()` bottom cap: swap `j` and `(j+1)%segments` to match top cap outward convention. Verify `add_ellipsoid()` winding — if wrong, reverse its two triangles similarly. Take snapshots of the avatar from front, side, and back to verify no holes remain.
+
+---
+
+## Phase 7: Fix idle animation arm jitter
+
+**Problem:** The avatar moves its arms weirdly sometimes, even when standing still.
+
+**Root cause (3 contributing factors):**
+
+1. **Velocity threshold too sensitive** — `AnimState::from_movement()` (`animation.rs:110`) uses `speed > 0.3` for Walk. The local player's speed is derived every frame from position deltas (`lib.rs:222`: `(local_pos - prev_local_pos) / dt`). Tiny floating-point drift, terrain height adjustments, or server reconciliation nudges produce speeds that flutter around 0.3, causing rapid Idle↔Walk state flipping.
+
+2. **Idle clip missing lower arm tracks** — `idle_clip()` (`clips.rs:61-96`) defines `UPPER_ARM_L/R` but NOT `LOWER_ARM_L/R`. These default to identity quaternion (from `empty_tracks()`). The walk clip defines `LOWER_ARM_L/R` with rotations from `-0.1` to `-0.4` radians. When blending Idle→Walk, the lower arms interpolate between identity (straight) and bent — creating visible twitching.
+
+3. **Rapid crossfade restarts** — `set_state()` (`animation.rs:182-189`) triggers a 0.2s crossfade on every state change. When the state flips Idle→Walk→Idle every few frames, the blend never completes, producing continuous partial arm rotations.
+
+**Fix:**
+- Add hysteresis to `from_movement()`: use threshold 0.5 to enter Walk, 0.15 to exit back to Idle. This requires tracking the current state (or passing it in).
+- Add `LOWER_ARM_L/R` identity tracks to `idle_clip()` so blending with walk doesn't produce visible arm jumps.
+- The hysteresis is the primary fix; the idle tracks are defense-in-depth.
+
+**Success criteria:**
+- Standing still on terrain: avatar arms are completely still (no twitching)
+- Starting to walk: clean transition to arm swing
+- Stopping: clean transition back to idle arms
+
+- [ ] 7a: Add explicit `LOWER_ARM_L` and `LOWER_ARM_R` tracks to `idle_clip()` in `clips.rs`, using the resting pose values (e.g. `rx(-0.15)` constant, matching the walk midpoint so blends are smooth).
+- [ ] 7b: Add hysteresis to animation state selection. In `lib.rs` where `AnimState::from_movement()` is called for the local player, only transition from Idle→Walk when `horiz_speed > 0.5` and from Walk→Idle when `horiz_speed < 0.15`. Keep the server-side thresholds as-is (server anim_state is for remote players, less critical).
+
+---
+
+## Phase 8: Retroactive snapshot verification for visual phases
+
+Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach requires saving before/after snapshots in `snapshots/` and spawning critic sub-agents to audit each change. This was not done during phases 2–3. This phase retroactively captures the current state and runs critics for all visual changes.
+
+**Snapshot protocol:**
+- Save to `snapshots/` with naming: `{phase}_{description}_{angle}.png`
+- Capture at multiple sun angles (noon 0.25, dusk 0.5) and camera positions
+- For avatar-related phases, use close camera positions where the player is visible
+
+**Critic protocol:**
+- Spawn 3 sub-agents per visual phase, each reviewing from a different angle:
+  - Agent 1 (Correctness): Does the fix achieve what was intended? Compare before/after.
+  - Agent 2 (Side effects): Are there regressions in other visual elements?
+  - Agent 3 (Code quality): Is the implementation clean and maintainable?
+
+- [ ] 8a: Capture comprehensive snapshots for the current state (post phases 2+3): noon and dusk, default camera + steep pitch + close-up. Save in `snapshots/` with clear phase-tagged names.
+- [ ] 8b: Spawn 3 critic sub-agents reviewing phases 2+3 (rim_light removal + SSAO tuning): correctness, side effects, code quality. Document findings.
+- [ ] 8c: After phases 5–7 are complete, capture before/after snapshots for each and run the same 3-critic review. Document findings.
