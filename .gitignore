@@ -1,4 +1,6 @@
 target/
 web/pkg/
 *.wasm
-snapshots/
+snapshots/*
+!snapshots/scenarios/
+snapshots/scenarios/*.png

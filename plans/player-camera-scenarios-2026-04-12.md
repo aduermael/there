@@ -69,7 +69,7 @@ All fields optional — defaults match current CLI defaults. `player_pos` Y=-1 m
 - `--scenario idle_front.json --sun-angle 0.75` correctly overrides sun angle
 - All 4 initial scenarios render valid PNGs
 
-- [ ] 1a: Create `snapshots/scenarios/` directory with 4 static scenarios: `idle_front.json` (orbit yaw=PI, camera facing player front), `idle_back.json` (orbit yaw=0), `idle_side.json` (orbit yaw=PI/2), `turntable.json` (turntable mode).
+- [x] 1a: Create `snapshots/scenarios/` directory with 4 static scenarios: `idle_front.json` (orbit yaw=PI, camera facing player front), `idle_back.json` (orbit yaw=0), `idle_side.json` (orbit yaw=PI/2), `turntable.json` (turntable mode).
 - [ ] 1b: Add `serde_json` dependency. Create a `ScenarioConfig` struct with `#[derive(Deserialize, Default)]` matching the JSON schema. Add `--scenario` flag to `Args`. In `main()`, if scenario is provided: load JSON → deserialize → merge with CLI defaults (JSON wins, then explicit CLI flags override). Refactor main logic to work from the merged config.
 - [ ] 1c: Run all 4 scenarios, verify outputs. Test one CLI override (`--sun-angle`). Snapshot verification with 3 sub-agent critics.
 

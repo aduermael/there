@@ -1,0 +1,11 @@
+{
+  "show_player": true,
+  "orbit": true,
+  "orbit_pitch": 0.4,
+  "orbit_distance": 8.0,
+  "player_pos": [128, -1, 128],
+  "sun_angle": 0.25,
+  "turntable": true,
+  "turntable_cols": 4,
+  "output": "snapshots/scenarios/turntable.png"
+}
