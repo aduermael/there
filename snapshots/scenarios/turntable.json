@@ -1,9 +1,9 @@
 {
   "show_player": true,
   "orbit": true,
-  "orbit_pitch": 0.4,
-  "orbit_distance": 8.0,
-  "player_pos": [128, -1, 128],
+  "orbit_pitch": 0.5,
+  "orbit_distance": 5.0,
+  "player_pos": [150, -1, 150],
   "sun_angle": 0.25,
   "turntable": true,
   "turntable_cols": 4,

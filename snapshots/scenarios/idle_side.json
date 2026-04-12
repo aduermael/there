@@ -2,9 +2,9 @@
   "show_player": true,
   "orbit": true,
   "orbit_yaw": 1.57079633,
-  "orbit_pitch": 0.4,
-  "orbit_distance": 8.0,
-  "player_pos": [128, -1, 128],
+  "orbit_pitch": 0.5,
+  "orbit_distance": 5.0,
+  "player_pos": [150, -1, 150],
   "player_yaw": 0.0,
   "sun_angle": 0.25,
   "output": "snapshots/scenarios/idle_side.png"

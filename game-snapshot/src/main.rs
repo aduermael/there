@@ -108,7 +108,7 @@ fn was_explicit(matches: &ArgMatches, name: &str) -> bool {
 /// Pick: explicit CLI value > JSON value > CLI default.
 macro_rules! merge {
     ($matches:expr, $args:expr, $scenario:expr, $field:ident) => {
-        if was_explicit($matches, stringify!($field).replace('_', "-").as_str()) {
+        if was_explicit($matches, stringify!($field)) {
             $args.$field
         } else {
             $scenario.$field.unwrap_or($args.$field)
@@ -137,13 +137,13 @@ struct Config {
 
 fn build_config(matches: &ArgMatches, args: Args, scenario: ScenarioConfig) -> Config {
     let player_pos_from_scenario = scenario.player_pos.map(|p| glam::Vec3::new(p[0], p[1], p[2]));
-    let player_pos = if was_explicit(matches, "player-pos") {
+    let player_pos = if was_explicit(matches, "player_pos") {
         args.player_pos
     } else {
         player_pos_from_scenario.or(args.player_pos)
     };
 
-    let player_yaw = if was_explicit(matches, "player-yaw") {
+    let player_yaw = if was_explicit(matches, "player_yaw") {
         args.player_yaw
     } else {
         scenario.player_yaw.or(args.player_yaw)
