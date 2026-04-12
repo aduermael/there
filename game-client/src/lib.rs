@@ -248,14 +248,8 @@ impl GameState {
             }
             let interp_yaw = rp.prev[3] + dyaw * t;
 
-            // Derive remote animation state from velocity between snapshots
-            let dx = rp.target[0] - rp.prev[0];
-            let dz = rp.target[2] - rp.prev[2];
-            let dy = rp.target[1] - rp.prev[1];
-            let tick_secs = game_core::TICK_INTERVAL_SECS;
-            let remote_speed = (dx * dx + dz * dz).sqrt() / tick_secs;
-            let remote_vy = dy / tick_secs;
-            let remote_anim = AnimState::from_movement(remote_speed, remote_vy, y, game_core::WATER_LEVEL);
+            // Use server-authoritative animation state for remote players
+            let remote_anim = AnimState::from_u8(rp.server_anim_state);
             rp.anim.set_state(remote_anim);
             let pose = rp.anim.update(dt);
             let matrices = skeleton.compute_skin_matrices(&pose);
