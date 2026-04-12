@@ -1,0 +1,14 @@
+{
+  "show_player": true,
+  "orbit": true,
+  "orbit_yaw": 3.14159265,
+  "orbit_pitch": 0.5,
+  "orbit_distance": 5.0,
+  "player_pos": [150, -1, 150],
+  "sun_angle": 0.25,
+  "steps": [
+    { "snapshot": "snapshots/scenarios/verification/v8_rotated_before.png" },
+    { "input": { "forward": 1.0 }, "duration_secs": 2.0 },
+    { "snapshot": "snapshots/scenarios/verification/v8_rotated_after_walk.png" }
+  ]
+}

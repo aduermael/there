@@ -212,6 +212,6 @@ Full scenario suite covering all movement + camera behaviors.
 | Idle camera rotate | Player doesn't rotate |
 | Walk after idle rotate | Player faces new direction, camera follows |
 
-- [ ] 5a: Create complete scenario suite (`snapshots/scenarios/verification/`) covering the full test matrix — 8 scenarios.
+- [x] 5a: Create complete scenario suite (`snapshots/scenarios/verification/`) covering the full test matrix — 8 scenarios.
 - [ ] 5b: Run all scenarios and verify with 3 sub-agent critics. Iterate up to 5 times until all pass.
 - [ ] 5c: Fix any remaining issues discovered during verification. Run affected scenarios again.

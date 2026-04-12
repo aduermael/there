@@ -4,3 +4,5 @@ web/pkg/
 snapshots/*
 !snapshots/scenarios/
 snapshots/scenarios/*.png
+!snapshots/scenarios/verification/
+snapshots/scenarios/verification/*.png
