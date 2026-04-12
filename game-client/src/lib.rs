@@ -484,22 +484,39 @@ fn start_render_loop(
                 state.sun_angle = js_get_sun_angle();
             }
 
-            // Process messages → update movement → build instances
+            // Process messages → movement → camera follow → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
             state.process_server_messages(messages, now);
-            state.update_movement(dt);
-            state.update_camera(dt);
 
-            // Compute input once per frame (used by both move_yaw and 20Hz send)
+            // 1. Compute input
             let menu_open = js_is_menu_open();
             let forward = if menu_open { 0.0 } else { state.input.forward() };
             let strafe = if menu_open { 0.0 } else { state.input.strafe() };
 
-            // Compute local_move_yaw every frame so visual yaw tracks camera smoothly
+            // 2. Apply movement using current camera.yaw
+            state.update_movement(dt);
+
+            // 3. Compute local_move_yaw BEFORE camera follow modifies camera.yaw
             if forward != 0.0 || strafe != 0.0 {
                 state.local_move_yaw = game_core::movement::move_yaw(forward, strafe, state.camera.yaw);
             }
 
+            // 4. Camera auto-follow behind movement direction (only while moving)
+            if forward != 0.0 || strafe != 0.0 {
+                let move_yaw = state.local_move_yaw;
+                state.camera.follow_behind(move_yaw, dt);
+            }
+
+            // 5. Touch drag — user can fight the auto-follow
+            let (tdx, tdy) = camera::consume_touch_drag();
+            if tdx != 0.0 || tdy != 0.0 {
+                state.camera.apply_drag(tdx, tdy);
+            }
+
+            // 6. Camera terrain collision + distance smoothing
+            state.update_camera(dt);
+
+            // 7. Visual yaw interpolation toward local_move_yaw
             state.build_player_instances(now, dt);
 
             // Send input to server at ~20 Hz
@@ -513,12 +530,6 @@ fn start_render_loop(
                     state.jump_sent = false;
                 }
                 state.last_send_time = now;
-            }
-
-            // Apply touch camera drag (from camera-control web component)
-            let (tdx, tdy) = camera::consume_touch_drag();
-            if tdx != 0.0 || tdy != 0.0 {
-                state.camera.apply_drag(tdx, tdy);
             }
 
             // Compute uniforms and render
