@@ -88,6 +88,10 @@ pub fn idle_clip() -> AnimationClip {
         (3.0, rx(0.0)),
     ]);
 
+    // Lower arms at slight bend — matches walk midpoint so blends are smooth
+    tracks[LOWER_ARM_L] = constant(rx(-0.15));
+    tracks[LOWER_ARM_R] = constant(rx(-0.15));
+
     AnimationClip {
         name: "idle",
         duration: dur,

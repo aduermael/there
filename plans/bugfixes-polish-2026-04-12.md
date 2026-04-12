@@ -176,7 +176,7 @@ Uses `[a, b, a+1, a+1, b, b+1]`. Depending on the hemisphere, outward normals fl
 - Starting to walk: clean transition to arm swing
 - Stopping: clean transition back to idle arms
 
-- [ ] 7a: Add explicit `LOWER_ARM_L` and `LOWER_ARM_R` tracks to `idle_clip()` in `clips.rs`, using the resting pose values (e.g. `rx(-0.15)` constant, matching the walk midpoint so blends are smooth).
+- [x] 7a: Add explicit `LOWER_ARM_L` and `LOWER_ARM_R` tracks to `idle_clip()` in `clips.rs`, using the resting pose values (e.g. `rx(-0.15)` constant, matching the walk midpoint so blends are smooth).
 - [ ] 7b: Add hysteresis to animation state selection. In `lib.rs` where `AnimState::from_movement()` is called for the local player, only transition from Idle→Walk when `horiz_speed > 0.5` and from Walk→Idle when `horiz_speed < 0.15`. Keep the server-side thresholds as-is (server anim_state is for remote players, less critical).
 
 ---
