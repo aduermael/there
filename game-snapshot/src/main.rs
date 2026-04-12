@@ -87,6 +87,30 @@ struct ScenarioConfig {
     orbit_distance: Option<f32>,
     turntable: Option<bool>,
     turntable_cols: Option<u32>,
+    #[serde(default)]
+    steps: Vec<Step>,
+}
+
+/// A single step in a movement simulation scenario.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Step {
+    Input {
+        input: InputState,
+        duration_secs: f32,
+    },
+    Snapshot {
+        snapshot: String,
+    },
+}
+
+/// Input state for a simulation step. All fields default to 0.0.
+#[derive(Deserialize, Default, Clone, Copy)]
+struct InputState {
+    #[serde(default)]
+    forward: f32,
+    #[serde(default)]
+    strafe: f32,
 }
 
 fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
@@ -133,6 +157,7 @@ struct Config {
     orbit_distance: f32,
     turntable: bool,
     turntable_cols: u32,
+    steps: Vec<Step>,
 }
 
 fn build_config(matches: &ArgMatches, args: Args, scenario: ScenarioConfig) -> Config {
@@ -171,6 +196,7 @@ fn build_config(matches: &ArgMatches, args: Args, scenario: ScenarioConfig) -> C
         orbit_distance: merge!(matches, args, scenario, orbit_distance),
         turntable: merge!(matches, args, scenario, turntable),
         turntable_cols: merge!(matches, args, scenario, turntable_cols),
+        steps: scenario.steps,
     }
 }
 
