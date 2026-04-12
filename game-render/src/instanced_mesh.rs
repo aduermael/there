@@ -75,6 +75,14 @@ impl InstancedMeshRenderer {
         }
     }
 
+    pub fn instance_buffer(&self) -> &wgpu::Buffer {
+        &self.instance_buffer
+    }
+
+    pub fn instance_count(&self) -> u32 {
+        self.instance_count.get()
+    }
+
     pub fn draw<'a>(
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,

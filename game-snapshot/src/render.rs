@@ -1,9 +1,10 @@
 use game_render::{
     compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
-    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer, PlayerInstance,
-    player_color, PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
-    TerrainRenderer, TextureAtlas, TreeRenderer, WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
+    PlayerRenderer, PlayerInstance, player_color, PostProcessRenderer, RockRenderer,
+    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
+    WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
@@ -230,7 +231,11 @@ pub async fn render_frame(
     // --- FXAA renderer ---
     let fxaa = FxaaRenderer::new(&device, TEXTURE_FORMAT, width, height);
 
-    // --- Optional player renderer ---
+    // --- Optional player + blob shadow renderers ---
+    let blob_shadow_renderer = player.as_ref().map(|_| {
+        BlobShadowRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl)
+    });
+
     let player_renderer = player.map(|opts| {
         let pr = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
@@ -284,6 +289,7 @@ pub async fn render_frame(
         grass: &grass_renderer,
         rocks: &rock_renderer,
         trees: &tree_renderer,
+        blob_shadow: blob_shadow_renderer.as_ref(),
         players: player_renderer.as_ref(),
         ssao: &ssao,
         bloom: &bloom,

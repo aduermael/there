@@ -1,7 +1,7 @@
 use crate::{
-    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer,
-    PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
-    WaterRenderer,
+    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
+    PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer,
+    TerrainRenderer, TreeRenderer, WaterRenderer,
 };
 
 /// All the renderers needed to draw a complete frame.
@@ -12,6 +12,7 @@ pub struct SceneRenderers<'a> {
     pub grass: &'a GrassRenderer,
     pub rocks: &'a RockRenderer,
     pub trees: &'a TreeRenderer,
+    pub blob_shadow: Option<&'a BlobShadowRenderer>,
     pub players: Option<&'a PlayerRenderer>,
     pub ssao: &'a SsaoRenderer,
     pub bloom: &'a BloomRenderer,
@@ -106,6 +107,9 @@ pub fn encode_frame(
         scene.rocks.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
         scene.trees.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
         if let Some(players) = scene.players {
+            if let Some(blob_shadow) = scene.blob_shadow {
+                blob_shadow.draw(&mut pass, uniform_bg, players.instance_buffer(), players.instance_count());
+            }
             players.draw(&mut pass, uniform_bg, shadow_bg, 0);
         }
     }

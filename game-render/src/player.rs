@@ -212,6 +212,16 @@ impl PlayerRenderer {
             .update_instances(queue, bytemuck::cast_slice(instances), instances.len() as u32);
     }
 
+    /// Access the instance buffer for shared use (e.g. blob shadow renderer).
+    pub fn instance_buffer(&self) -> &wgpu::Buffer {
+        self.mesh.instance_buffer()
+    }
+
+    /// Current number of active player instances.
+    pub fn instance_count(&self) -> u32 {
+        self.mesh.instance_count()
+    }
+
     pub fn draw<'a>(
         &'a self,
         pass: &mut wgpu::RenderPass<'a>,

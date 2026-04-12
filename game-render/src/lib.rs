@@ -1,4 +1,5 @@
 mod terrain;
+mod blob_shadow;
 mod player;
 pub mod skeleton;
 pub mod animation;
@@ -21,6 +22,7 @@ mod texture_atlas;
 pub(crate) mod instanced_mesh;
 
 pub use terrain::{TerrainRenderer, Uniforms, create_depth_texture, DEPTH_FORMAT};
+pub use blob_shadow::BlobShadowRenderer;
 pub use player::{PlayerRenderer, PlayerInstance, player_color};
 pub use rocks::RockRenderer;
 pub use trees::TreeRenderer;

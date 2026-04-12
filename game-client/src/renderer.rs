@@ -2,11 +2,11 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
-    PostProcessRenderer, RockRenderer, SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer,
-    TerrainRenderer, TextureAtlas, TreeRenderer, WaterRenderer, Uniforms, create_depth_texture,
-    create_shadow_bgl, create_shadow_bind_group, create_shadow_texture, encode_frame,
-    INTERMEDIATE_FORMAT,
+    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
+    PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SceneRenderers,
+    ShadowCascades, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
+    WaterRenderer, Uniforms, create_depth_texture, create_shadow_bgl, create_shadow_bind_group,
+    create_shadow_texture, encode_frame, INTERMEDIATE_FORMAT,
 };
 
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
@@ -25,6 +25,7 @@ pub struct Renderer {
     sky: SkyRenderer,
     water: WaterRenderer,
     terrain: TerrainRenderer,
+    blob_shadow: BlobShadowRenderer,
     players: PlayerRenderer,
     rocks: RockRenderer,
     trees: TreeRenderer,
@@ -179,6 +180,7 @@ impl Renderer {
         let terrain =
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data, &atlas.view, &atlas.sampler);
         let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &depth_view);
+        let blob_shadow = BlobShadowRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
         let players = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
         let rocks = RockRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view, &atlas.bind_group_layout);
@@ -225,6 +227,7 @@ impl Renderer {
             sky,
             water,
             terrain,
+            blob_shadow,
             players,
             rocks,
             trees,
@@ -295,6 +298,7 @@ impl Renderer {
             grass: &self.grass,
             rocks: &self.rocks,
             trees: &self.trees,
+            blob_shadow: Some(&self.blob_shadow),
             players: Some(&self.players),
             ssao: &self.ssao,
             bloom: &self.bloom,
