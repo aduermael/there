@@ -222,4 +222,4 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
 
 - [x] 9a: Add `--show-player`, `--player-pos`, and `--player-yaw` CLI flags to `main.rs`. Thread the new parameters through to `render_frame()`.
 - [x] 9b: In `render.rs`, when show-player is true: create `PlayerRenderer`, create one `PlayerInstance` at the given position (Y from heightmap if not specified), upload bind-pose bones, pass `Some(&player_renderer)` to `SceneRenderers`.
-- [ ] 9c: Rebuild `game-snapshot` and capture avatar snapshots from multiple angles (front, side, back, close-up). Spawn 3 critic sub-agents to verify: (1) no see-through mesh holes, (2) natural scene integration (lighting/shadows/SSAO), (3) code quality of the snapshot tool changes.
+- [x] 9c: Captured avatar snapshots from 4 angles + dusk. 3 critics: (1) Mesh holes: PASS — fully opaque from all angles. (2) Scene integration: PASS — good lighting/color, note: lacks ground shadow (separate enhancement). (3) Code quality: PASS — fixed default yaw to face toward camera. Clean implementation.

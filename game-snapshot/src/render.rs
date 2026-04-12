@@ -253,10 +253,11 @@ pub async fn render_frame(
         };
 
         // Determine yaw: default faces toward camera
+        // Player model faces (-sin(yaw), -cos(yaw)), so to face toward camera:
         let yaw = opts.yaw.unwrap_or_else(|| {
             let dx = camera_pos.x - pos.x;
             let dz = camera_pos.z - pos.z;
-            dx.atan2(dz)
+            (-dx).atan2(-dz)
         });
 
         let instance = PlayerInstance {
