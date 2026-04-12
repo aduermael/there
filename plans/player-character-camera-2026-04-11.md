@@ -64,7 +64,7 @@ Sync animation state across network. Clean up artifacts.
 - [x] 4a: Server-side animation state — in `game-server/src/room.rs`, add `anim_state: u8` to `Player` struct. In `game_loop.rs`, derive animation state each tick from player movement (same logic as client: speed, vertical_velocity, y vs water level). Cheap — just an enum discriminant, no heavy computation.
 - [x] 4b: Extend protocol — add `anim_state: u8` to `PlayerState` in `protocol.rs`. Update server snapshot building to include it. Update client `RemotePlayer` to store and interpolate animation state (discrete — use the latest received state, don't interpolate between states). Backward compatible: new field with sensible default.
 - [x] 4c: Remote player animation — on the client, use received `anim_state` to drive animation for remote players instead of velocity-derived state. This ensures all clients see the same animation state as the server's authoritative view. Retain velocity-based fallback for the local player (immediate responsiveness without network round-trip).
-- [ ] 4d: Final cleanup — remove any remaining capsule rendering code. Verify no shadow/AO artifacts from player model (per-vertex normals should fix SSAO quality). Verify player model renders correctly in all 4 snapshot times of day. Clean up any dead code from the capsule system.
+- [x] 4d: Final cleanup — remove any remaining capsule rendering code. Verify no shadow/AO artifacts from player model (per-vertex normals should fix SSAO quality). Verify player model renders correctly in all 4 snapshot times of day. Clean up any dead code from the capsule system.
 
 ---
 

@@ -309,7 +309,6 @@ fn add_box(
     hz: f32,
     bone: usize,
 ) {
-    let base = verts.len() as u32;
     let bone_index = bone as u32;
 
     // 6 faces × 4 verts = 24 verts (unique normals per face)
@@ -370,8 +369,6 @@ fn add_box(
         }
         indices.extend_from_slice(&[i, i + 1, i + 2, i, i + 2, i + 3]);
     }
-
-    let _ = base;
 }
 
 /// Add a cylinder along the -Y axis from `top_center` downward by `height`.
