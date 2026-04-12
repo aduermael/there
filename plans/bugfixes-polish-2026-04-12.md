@@ -307,3 +307,27 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - [ ] 12b: Create `BlobShadowRenderer` in `blob_shadow.rs`. Alpha-blend pipeline (depth read-only, no depth write). Quad vertex buffer (4 verts, 6 indices). `draw()` binds uniform BG + player instance buffer, draws 4 verts × instance_count. Add `instance_buffer()` and `instance_count()` accessors to `PlayerRenderer`.
 - [ ] 12c: Wire into frame pipeline. Add `blob_shadow` field to `SceneRenderers` in `frame.rs`. Draw in scene pass before player. Instantiate in `renderer.rs` (client) and `render.rs` (snapshot tool when `--show-player`). Export from `lib.rs`.
 - [ ] 12d: Capture snapshots at noon + dusk with `--orbit --show-player`. Spawn 3 critics: (1) grounding — does shadow make avatar feel planted on terrain? (2) art direction — does it match impressionist style, not too harsh/not invisible? (3) code quality — DRY instance buffer sharing, no unnecessary complexity.
+
+---
+
+## Phase 13: Turntable snapshot mode for avatar debugging
+
+**Problem:** Verifying the avatar mesh from a single angle is unreliable — the Phase 6 winding bug passed critic review because the snapshot only showed angles where faces happened to be correct. A turntable view (multiple angles in one image) would have caught the +Z/-Z face issue immediately.
+
+**Approach:** Add a `--turntable` flag to `game-snapshot` that renders N frames rotating the orbit camera around the player at evenly spaced yaw angles, then composites them into a single grid PNG. Depends on Phase 11 (`--orbit` mode) for the orbit camera math.
+
+**Key files:**
+- `game-snapshot/src/main.rs` — add `--turntable` flag (implies `--orbit --show-player`) and optional `--turntable-cols` (default 4) for grid layout
+- `game-snapshot/src/render.rs` — refactor `render_frame()` so it can be called multiple times with different camera parameters. Add `render_turntable()` that calls `render_frame()` N times (default 8: every 45°), composites the resulting pixel buffers into one grid image, returns the combined pixels.
+
+**Grid layout:** 8 frames in a 4×2 grid. Each frame at the same pitch/distance but yaw increments of π/4 (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°). Individual frame size: `width/cols × height/rows` so the output PNG stays at the requested resolution.
+
+**Success criteria:**
+- `game-snapshot --turntable` produces a single PNG with 8 views of the avatar from all angles
+- All body parts visible and opaque in all 8 views (this would have caught the +Z/-Z bug)
+- Clean composition with no gaps or overlap
+- Works with `--sun-angle`, `--orbit-pitch`, `--orbit-distance` flags
+
+- [ ] 13a: Refactor `render_frame()` in `render.rs` to separate GPU setup (device, textures, renderers) from per-frame rendering. Extract a `SnapshotContext` struct holding the device/queue/renderers, and a `render_view()` method that takes camera params and returns pixels. This avoids recreating GPU resources for each turntable frame.
+- [ ] 13b: Add `--turntable` and `--turntable-cols` flags. Implement `render_turntable()`: create `SnapshotContext` once, call `render_view()` 8 times with yaw at 0, π/4, π/2, ..., 7π/4. Composite into a grid: divide output resolution by cols/rows, render each frame at sub-size, blit into final pixel buffer.
+- [ ] 13c: Capture turntable snapshot of the avatar. Spawn 3 critics examining the grid: (1) mesh completeness — all 8 angles show fully opaque body parts; (2) visual consistency — lighting/color consistent across angles; (3) code quality — clean refactor, no GPU resource duplication.
