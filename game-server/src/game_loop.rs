@@ -85,6 +85,7 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                         y: p.y,
                         z: p.z,
                         yaw: p.yaw,
+                        anim_state: p.anim_state,
                     })
                     .collect();
 

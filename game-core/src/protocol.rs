@@ -19,6 +19,8 @@ pub struct PlayerState {
     pub y: f32,
     pub z: f32,
     pub yaw: f32,
+    #[serde(default)]
+    pub anim_state: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

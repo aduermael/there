@@ -57,6 +57,7 @@ struct RemotePlayer {
     prev: [f32; 4],   // [x, y, z, yaw] from previous snapshot
     target: [f32; 4], // [x, y, z, yaw] from latest snapshot
     recv_time: f64,    // ms timestamp when target was received
+    server_anim_state: u8, // animation state from server
     anim: AnimationPlayer,
 }
 
@@ -119,11 +120,13 @@ impl GameState {
                             rp.prev = rp.target;
                             rp.target = new_pos;
                             rp.recv_time = now;
+                            rp.server_anim_state = ps.anim_state;
                         } else {
                             self.remotes.insert(ps.id, RemotePlayer {
                                 prev: new_pos,
                                 target: new_pos,
                                 recv_time: now,
+                                server_anim_state: ps.anim_state,
                                 anim: AnimationPlayer::new(),
                             });
                         }
