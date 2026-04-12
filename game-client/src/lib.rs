@@ -82,6 +82,7 @@ struct GameState {
     local_anim: AnimationPlayer,
     prev_local_pos: glam::Vec3,
     local_move_yaw: f32,
+    local_visual_yaw: f32,
 }
 
 impl GameState {
@@ -206,7 +207,17 @@ impl GameState {
 
     fn build_player_instances(&mut self, now: f64, dt: f32) {
         self.players.clear();
-        let yaw = self.camera.yaw;
+
+        // Smoothly rotate local visual yaw toward move_yaw (shortest arc)
+        let target = self.local_move_yaw;
+        let mut diff = target - self.local_visual_yaw;
+        diff = (diff + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+        let turn_speed = 12.0;
+        let max_step = turn_speed * dt.max(1.0 / 60.0);
+        self.local_visual_yaw += diff.clamp(-max_step, max_step);
+        self.local_visual_yaw = (self.local_visual_yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+
+        let yaw = self.local_visual_yaw;
         let local_color = self
             .local_player_id
             .map(|id| player_color(id))
@@ -339,6 +350,7 @@ async fn run() {
         local_anim: AnimationPlayer::new(),
         prev_local_pos: local_pos,
         local_move_yaw: 0.0,
+        local_visual_yaw: 0.0,
     }));
 
     // Initialize daylight globals for JS menu access
