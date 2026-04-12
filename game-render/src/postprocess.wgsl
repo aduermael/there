@@ -76,7 +76,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
         }
     }
 
-    return 1.0 - saturate(occluded / 4.0) * 0.6;
+    return 1.0 - saturate(occluded / 4.0) * 0.4;
 }
 
 // Screen-space radial god rays using depth-based occlusion
@@ -180,7 +180,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let center_depth = textureLoad(depth_texture, depth_pixel, 0);
 
     // Bilateral weights: Gaussian spatial * depth similarity
-    let depth_threshold = 0.002;
+    let depth_threshold = 0.005;
     var ao_sum = textureSample(ao_texture, hdr_sampler, in.uv).r * 4.0;
     var weight_sum = 4.0;
 

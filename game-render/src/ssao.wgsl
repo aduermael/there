@@ -9,8 +9,8 @@
 const NEAR: f32 = 0.1;
 const FAR: f32 = 500.0;
 const SAMPLES: u32 = 12;
-const RADIUS: f32 = 3.0;
-const STRENGTH: f32 = 5.5;
+const RADIUS: f32 = 2.0;
+const STRENGTH: f32 = 3.5;
 
 fn linearize(d: f32) -> f32 {
     return NEAR * FAR / (FAR - d * (FAR - NEAR));

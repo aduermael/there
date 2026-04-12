@@ -61,7 +61,7 @@ Note: The player shader (`player.wgsl:78-79`) does NOT use `rim_light` — anoth
 - Terrain/rock AO still provides depth and definition
 - No visible AO halos around player limbs
 
-- [ ] 3a: Tune SSAO and contact shadow parameters. Reduce SSAO STRENGTH (try ~3.0–4.0), slightly reduce RADIUS (try ~2.0), widen bilateral blur `depth_threshold` (try ~0.005). Soften contact shadow final multiplier (line 79: try `0.4` instead of `0.6`). Take snapshots with player visible to verify blending improvement without losing environmental depth.
+- [x] 3a: Tune SSAO and contact shadow parameters. Reduce SSAO STRENGTH (try ~3.0–4.0), slightly reduce RADIUS (try ~2.0), widen bilateral blur `depth_threshold` (try ~0.005). Soften contact shadow final multiplier (line 79: try `0.4` instead of `0.6`). Take snapshots with player visible to verify blending improvement without losing environmental depth.
 
 ---
 
