@@ -107,9 +107,6 @@ pub fn encode_frame(
         scene.rocks.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
         scene.trees.draw(&mut pass, uniform_bg, shadow_bg, atlas_bg);
         if let Some(players) = scene.players {
-            if let Some(blob_shadow) = scene.blob_shadow {
-                blob_shadow.draw(&mut pass, uniform_bg, players.instance_buffer(), players.instance_count());
-            }
             players.draw(&mut pass, uniform_bg, shadow_bg, 0);
         }
     }
@@ -179,6 +176,29 @@ pub fn encode_frame(
         });
 
         scene.postprocess.draw(&mut pass, uniform_bg);
+    }
+
+    // Pass 4.5: Blob shadow → LDR intermediate (after tonemapping, before FXAA)
+    if let (Some(players), Some(blob_shadow)) = (scene.players, scene.blob_shadow) {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Blob Shadow Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: scene.fxaa.ldr_view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth_view,
+                depth_ops: None, // read-only depth test
+                stencil_ops: None,
+            }),
+            ..Default::default()
+        });
+
+        blob_shadow.draw(&mut pass, uniform_bg, players.instance_buffer(), players.instance_count());
     }
 
     // Pass 5: FXAA → final output

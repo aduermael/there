@@ -17,8 +17,8 @@ const CORNERS = array<vec2<f32>, 4>(
     vec2(-1.0,  1.0),
 );
 
-const SHADOW_RADIUS: f32 = 0.45;
-const SHADOW_Y_OFFSET: f32 = 0.02; // slight lift to avoid z-fighting with terrain
+const SHADOW_RADIUS: f32 = 1.2;
+const SHADOW_Y_OFFSET: f32 = 0.15; // lift above terrain to clear faceted geometry
 
 @vertex
 fn vs_main(
@@ -44,6 +44,7 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = length(in.uv);
-    let alpha = smoothstep(1.0, 0.0, dist) * 0.45;
-    return vec4(0.0, 0.0, 0.0, alpha);
+    // Shadow intensity: how much to darken (blend mode multiplies dst by 1-alpha)
+    let intensity = smoothstep(1.0, 0.0, dist) * 0.7;
+    return vec4(0.0, 0.0, 0.0, intensity);
 }

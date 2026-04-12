@@ -67,8 +67,10 @@ impl BlobShadowRenderer {
                 targets: &[Some(wgpu::ColorTargetState {
                     format: surface_format,
                     blend: Some(wgpu::BlendState {
+                        // Multiply-darken: final = dst * (1 - src_alpha)
+                        // Darkens existing pixels without introducing black that bloom fills.
                         color: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            src_factor: wgpu::BlendFactor::Zero,
                             dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
                             operation: wgpu::BlendOperation::Add,
                         },

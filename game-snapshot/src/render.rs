@@ -233,7 +233,7 @@ pub async fn render_frame(
 
     // --- Optional player + blob shadow renderers ---
     let blob_shadow_renderer = player.as_ref().map(|_| {
-        BlobShadowRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl)
+        BlobShadowRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl)
     });
 
     let player_renderer = player.map(|opts| {

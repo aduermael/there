@@ -306,7 +306,7 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - [x] 12a: Create `blob_shadow.wgsl` shader. Vertex: expand 4 unit-quad corners into world-space flat quad at player foot Y from `inst_pos_yaw`, sized ~0.45 radius, with slight sun-direction offset from uniforms. Fragment: radial falloff `smoothstep(1.0, 0.0, dist) * 0.45`, output `vec4(0, 0, 0, alpha)`.
 - [x] 12b: Create `BlobShadowRenderer` in `blob_shadow.rs`. Alpha-blend pipeline (depth read-only, no depth write). Quad index buffer (6 indices). `draw()` binds uniform BG + player instance buffer, draws 4 verts × instance_count. Add `instance_buffer()` and `instance_count()` accessors to `PlayerRenderer` and `InstancedMeshRenderer`.
 - [x] 12c: Wire into frame pipeline. Add `blob_shadow` field to `SceneRenderers` in `frame.rs`. Draw in scene pass before player. Instantiate in `renderer.rs` (client) and `render.rs` (snapshot tool when `--show-player`). Export from `lib.rs`.
-- [ ] 12d: Capture snapshots at noon + dusk with `--orbit --show-player`. Spawn 3 critics: (1) grounding — does shadow make avatar feel planted on terrain? (2) art direction — does it match impressionist style, not too harsh/not invisible? (3) code quality — DRY instance buffer sharing, no unnecessary complexity.
+- [x] 12d: Shadow tuned after critic feedback: moved to LDR pass (after bloom/tonemapping to avoid bloom washout), multiply-darken blend (src=Zero, dst=OneMinusSrcAlpha), radius=1.2, intensity=0.7, Y offset=0.15. Visible soft grounding on both light and dark terrain at noon and dusk.
 
 ---
 

@@ -180,7 +180,7 @@ impl Renderer {
         let terrain =
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data, &atlas.view, &atlas.sampler);
         let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &depth_view);
-        let blob_shadow = BlobShadowRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl);
+        let blob_shadow = BlobShadowRenderer::new(&device, format, &uniform_bgl);
         let players = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 
         let rocks = RockRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view, &atlas.bind_group_layout);
