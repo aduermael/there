@@ -199,3 +199,27 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
 - [x] 8a: Capture comprehensive snapshots for the current state (post phases 2+3): noon and dusk, default camera + steep pitch + close-up. Save in `snapshots/` with clear phase-tagged names.
 - [x] 8b: Spawn 3 critic sub-agents reviewing phases 2+3 (rim_light removal + SSAO tuning): correctness, side effects, code quality. All 3 critics PASS — no regressions, clean code, correct implementation.
 - [x] 8c: Phases 5–7 code reviewed by 3 critic sub-agents (correctness, side effects, code quality). All PASS. Snapshot tool cannot render players (players: None), so visual verification requires in-game testing. Minor code quality nits: duplicated input computation, magic threshold numbers.
+
+---
+
+## Phase 9: Add player rendering to snapshot tool + visual verification
+
+**Problem:** The `game-snapshot` tool passes `players: None` to `SceneRenderers`, so avatar-related fixes (mesh winding, rotation, animation) cannot be verified visually without running the full game.
+
+**Approach:** Add a `--show-player` flag to the snapshot CLI. When set, instantiate a `PlayerRenderer`, place a single `PlayerInstance` on the terrain at the camera target position (or a configurable `--player-pos`), upload bind-pose bones, and pass `Some(&player_renderer)` to `SceneRenderers`. Optionally accept `--player-yaw` to control facing direction.
+
+**Key integration points:**
+- `game-snapshot/src/main.rs` — add CLI flags: `--show-player`, `--player-pos x,y,z` (default: camera target, Y from heightmap), `--player-yaw` (default: face camera)
+- `game-snapshot/src/render.rs` — create `PlayerRenderer`, upload one instance + bind-pose bones, pass to `SceneRenderers`
+- `game-render::PlayerRenderer::new()` needs `device, queue, surface_format, uniform_bgl, shadow_bgl`
+- `PlayerInstance` has `pos_yaw: [f32; 4]` and `color: [f32; 4]`
+- Player Y position: use `game_core::terrain::sample_height(&heightmap_data, x, z)` to place on ground
+
+**Success criteria:**
+- `game-snapshot --show-player` renders a visible avatar standing on terrain
+- Avatar is fully opaque from all angles (no see-through holes from Phase 6 fix)
+- Avatar integrates naturally with scene lighting, shadows, and SSAO
+
+- [ ] 9a: Add `--show-player`, `--player-pos`, and `--player-yaw` CLI flags to `main.rs`. Thread the new parameters through to `render_frame()`.
+- [ ] 9b: In `render.rs`, when show-player is true: create `PlayerRenderer`, create one `PlayerInstance` at the given position (Y from heightmap if not specified), upload bind-pose bones, pass `Some(&player_renderer)` to `SceneRenderers`.
+- [ ] 9c: Rebuild `game-snapshot` and capture avatar snapshots from multiple angles (front, side, back, close-up). Spawn 3 critic sub-agents to verify: (1) no see-through mesh holes, (2) natural scene integration (lighting/shadows/SSAO), (3) code quality of the snapshot tool changes.
