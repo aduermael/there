@@ -331,3 +331,112 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - [x] 13a: Refactor `render_frame()` in `render.rs` to separate GPU setup (device, textures, renderers) from per-frame rendering. Extract a `SnapshotContext` struct holding the device/queue/renderers, and a `render_view()` method that takes camera params and returns pixels. This avoids recreating GPU resources for each turntable frame.
 - [x] 13b: Add `--turntable` and `--turntable-cols` flags. Implement `render_turntable()`: create `SnapshotContext` once, call `render_view()` 8 times with yaw at 0, π/4, π/2, ..., 7π/4. Composite into a grid: divide output resolution by cols/rows, render each frame at sub-size, blit into final pixel buffer.
 - [x] 13c: Turntable captured at (60,60), noon. 3 critics: (1) Mesh: avatar fully opaque from all 8 angles, no holes. (2) Consistency: backgrounds vary as expected from orbit; avatar size/position consistent. (3) Code quality: PASS — clean SnapshotContext refactor, no GPU duplication, correct compositing.
+
+---
+
+## Phase 14: Fix screen-space contact shadow distance dependence
+
+**Problem:** The contact shadow ray march (`postprocess.wgsl:24-80`) uses a fixed NDC-space depth threshold (`depth_diff < 0.01`, line 74) to detect occlusion. NDC depth is nonlinear — the same world-space gap maps to vastly different NDC values at different camera distances. At medium orbit distance, the depth gap between the player's silhouette edge and the terrain behind it falls within the 0.0002–0.01 window, causing the sun-direction march to register false occlusion. This produces a one-sided dark halo that changes with camera distance.
+
+**Root cause:** `march_depth - scene_depth` on line 73 is a comparison in NDC space, which is nonlinear. The same 0.5-meter world-space gap is ~0.001 in NDC at 5m distance but ~0.00001 at 50m. The fixed [0.0002, 0.01] window catches thin geometry at specific camera distances and misses it at others.
+
+**Fix:** Linearize the depth comparison so the thickness window represents a constant world-space distance regardless of camera range. Also add a max-distance guard that rejects samples where the starting pixel and marched point are separated by more than a world-space threshold (e.g., 2m) — this prevents the ray from "jumping" from the player surface onto distant terrain behind.
+
+**Key file:** `game-render/src/postprocess.wgsl:24-80`
+
+**Success criteria:**
+- No dark halo on player at any camera distance (near, mid, far orbit)
+- Contact shadows still visible on terrain edges, rock crevices (the intended use case)
+- No performance regression (linearize is a single `1/(a*d+b)` per sample)
+
+- [ ] 14a: In `contact_shadow()`, linearize the depth comparison. Replace `let depth_diff = march_depth - scene_depth;` with a linear-depth version: compute `linearize(march_depth) - linearize(scene_depth)` using the existing NEAR/FAR constants (add them to postprocess or reuse from uniforms). Change the threshold window from `[0.0002, 0.01]` to world-space-equivalent values like `[0.02, 0.5]` (in linear depth units). Add a `linearize()` helper if not already present in postprocess.wgsl.
+- [ ] 14b: Add a depth-discontinuity guard: before the march loop, compute the linear depth of the starting pixel. Inside the loop, reject any sample where `abs(linearize(scene_depth) - start_linear_depth)` exceeds a threshold (e.g., 3.0 world units). This prevents the ray from crossing silhouette edges onto distant background geometry.
+- [ ] 14c: Take before/after snapshots at 3 orbit distances (close=4, mid=8, far=15) with player visible. Spawn 3 critics: (1) halo — no one-sided darkening on player at any distance; (2) terrain — contact shadows still provide depth cues on terrain/rock edges; (3) code quality — clean linearization, no magic numbers.
+
+---
+
+## Phase 15: SSAO robustness for mixed-scale geometry
+
+**Problem:** SSAO (`ssao.wgsl`) uses `RADIUS=2.0` world units and `STRENGTH=3.5`. The player avatar has thin geometry (limbs ~0.1 unit radius). At these scales, hemisphere samples project through limbs or onto distant terrain behind the player, producing heavy false occlusion at silhouette edges. The half-res AO buffer further blurs these artifacts.
+
+**Contributing factors:**
+- `RADIUS=2.0` is 20× the limb radius — most samples land far from the surface on thin geometry (line 12)
+- `STRENGTH=3.5` means only 4 of 12 false-positive samples produce full occlusion (line 95: `1.0 - (4/12) * 3.5 = 0.0`)
+- `step(0.04, diff)` on line 91 is a hard threshold with no thickness test — any sample behind the surface counts as occluded, even if the occluder is very thin
+- Normals reconstructed from `cross(dpdx(pos), dpdy(pos))` on line 36 are unstable at silhouette edges where the derivative straddles the object boundary
+- Bilateral blur depth threshold `0.005` in `postprocess.wgsl:183` is in NDC space — same nonlinear issue as contact shadows
+
+**Fix approach:** Add a thickness heuristic to SSAO and linearize the bilateral blur threshold. The thickness heuristic: if the depth difference between the sample and the surface is large (thin geometry seen from the side), the occlusion is likely a false positive from sampling "through" a thin object. Reject it with a falloff. Also reduce RADIUS and STRENGTH to values more appropriate for the scene's mixed geometry scales.
+
+**Key files:**
+- `game-render/src/ssao.wgsl` — sample loop and parameters
+- `game-render/src/postprocess.wgsl:172-203` — bilateral blur
+
+**Success criteria:**
+- No dark halos around player limbs at any camera distance
+- Terrain/rock crevice AO still provides depth (corners, overhangs should still darken)
+- Smooth AO without banding or visible half-res artifacts
+
+- [ ] 15a: Add a thickness heuristic to `ssao.wgsl`. In the sample loop (~line 88-91), replace the hard `step(0.04, diff)` with a smooth falloff that also rejects large depth differences: `let thickness = smoothstep(0.0, 0.04, diff) * (1.0 - smoothstep(RADIUS * 0.5, RADIUS, diff));`. This accepts small positive differences (real occlusion) but rejects large ones (sampling through thin geometry to far background). Tune the inner/outer thresholds.
+- [ ] 15b: Reduce constants to `RADIUS = 1.0` and `STRENGTH = 2.5`. These are better suited for mixed geometry (the previous values were tuned for large terrain features only). The reduced radius means the hemisphere stays closer to the surface, reducing the chance of sampling across thin geometry.
+- [ ] 15c: Linearize the bilateral blur depth threshold in `postprocess.wgsl:183`. Replace the fixed `depth_threshold = 0.005` with a linear-depth comparison: `let depth_threshold = 0.5 / linearize(center_depth);` (scales the threshold by inverse depth so it represents a consistent world-space tolerance). Add `linearize()` helper if not already added in Phase 14.
+- [ ] 15d: Take before/after snapshots. Spawn 3 critics: (1) player — no dark halos on limbs or body edges; (2) terrain — AO still provides depth definition in rock crevices, tree bases, terrain overhangs; (3) parameters — strength feels natural, not over-darkened or washed out.
+
+---
+
+## Phase 16: Add player shadow casting
+
+**Problem:** The player does not cast shadows into the shadow map (`frame.rs:73-76` renders only terrain, rocks, trees in the shadow pass). But the player fragment shader samples the shadow map (`player.wgsl:77`). This means:
+1. No player-on-terrain shadow (the blob shadow from Phase 12 is the only grounding cue)
+2. Terrain depth in the shadow map can falsely shadow the player's body — parts of the player that are above terrain level but laterally offset from the sun's perspective can sample terrain shadow texels
+3. The fixed shadow bias `0.003` (`common.wgsl:47`) has no slope-scale component, making it unreliable for the player's varied surface orientations
+
+**Fix:** Add a `draw_shadow` method to `PlayerRenderer` using a depth-only vertex shader (skeletal skinning + sun VP transform). Render the player into the shadow cascades alongside terrain/rocks/trees. Also add slope-scaled shadow bias so all objects get correct self-shadow behavior.
+
+**Key files:**
+- `game-render/src/player.rs` — add `draw_shadow()` method
+- `game-render/src/player.wgsl` — add `vs_shadow` entry point (skinning + sun VP, no fragment)
+- `game-render/src/frame.rs:73-76` — add `players.draw_shadow()` in shadow pass
+- `game-render/src/common.wgsl:47` — slope-scaled bias
+- `game-render/src/instanced_mesh.rs` — may need a `draw_shadow()` variant or the player can use its own shadow pipeline
+
+**Contracts:**
+- `vs_shadow` in `player.wgsl`: applies bone skinning + yaw rotation + instance offset (same as `vs_main` lines 40-64), then transforms by `u.sun_view_proj` instead of `u.view_proj`. No fragment output (depth-only).
+- `draw_shadow` in `player.rs`: creates a shadow pipeline (using `create_shadow_pipeline`), binds vertex/instance/bone buffers, draws indexed.
+- Shadow bias in `common.wgsl`: change `let bias = 0.003;` to `let bias = max(0.005 * (1.0 - ndotl), 0.001);` where `ndotl = dot(normal, sun_dir)`. This requires passing the surface normal into `sample_shadow()` — update all call sites (terrain, rocks, trees, player, grass).
+
+**Success criteria:**
+- Player casts a correct directional shadow on the terrain (visible from orbit camera)
+- No shadow acne on the player (bias is sufficient)
+- No false terrain-on-player shadows (the player's own depth now occupies the shadow map)
+- All existing shadows (terrain self-shadow, tree shadows) unchanged
+
+- [ ] 16a: Add `vs_shadow` entry point to `player.wgsl`. Same vertex transform as `vs_main` (bone skinning + yaw rotation + instance offset) but output `u.sun_view_proj * vec4(world_pos, 1.0)` as clip position. No fragment shader needed.
+- [ ] 16b: Add `draw_shadow()` method to `PlayerRenderer` in `player.rs`. Create a shadow pipeline using `create_shadow_pipeline()` with the same vertex buffer layout as the scene pipeline. Store as a field. `draw_shadow()` binds vertex/instance/bone buffers and draws.
+- [ ] 16c: Wire into frame.rs shadow pass: after `scene.trees.draw_shadow()` (line 76), add `if let Some(players) = scene.players { players.draw_shadow(&mut pass, uniform_bg); }`.
+- [ ] 16d: Add slope-scaled bias to `sample_shadow()` in `common.wgsl`. Change signature to accept `normal: vec3<f32>`. Compute `let ndotl = max(dot(normal, u.sun_dir), 0.0); let bias = max(0.005 * (1.0 - ndotl), 0.001);`. Update all call sites: `terrain.wgsl`, `rocks.wgsl`, `trees.wgsl`, `grass.wgsl`, `player.wgsl` — pass the surface normal to `sample_shadow(world_pos, normal)`.
+- [ ] 16e: Evaluate whether the blob shadow (Phase 12) is still needed now that the player casts real directional shadows. If redundant, remove `BlobShadowRenderer` and related code. If the blob shadow provides complementary value (e.g., soft ambient grounding at dusk when directional shadow is faint), keep it but reduce its intensity.
+- [ ] 16f: Take snapshots at noon + dusk with player visible from multiple angles. Spawn 3 critics: (1) shadow correctness — player casts shadow on terrain, no acne; (2) bias — no false shadows on player from terrain; (3) consistency — all objects (terrain, rocks, trees, player) cast and receive shadows uniformly.
+
+---
+
+## Phase 17: DRY cleanup — shared shader functions
+
+**Problem:** `triplanar_sample()` is copy-pasted between `rocks.wgsl:56-66` and `trees.wgsl:95-105` — identical logic, different texture layer indices. Any change to the sampling math must be made in two places. This is the only remaining DRY violation identified across shaders.
+
+**Fix:** Move `triplanar_sample()` into `common.wgsl` where all shared lighting functions already live. The function takes `world_pos`, `normal`, and `layer` as parameters — fully generic. Both `rocks.wgsl` and `trees.wgsl` call the shared version.
+
+**Key files:**
+- `game-render/src/common.wgsl` — add `triplanar_sample()`
+- `game-render/src/rocks.wgsl:56-66` — remove local copy, call shared version
+- `game-render/src/trees.wgsl:95-105` — remove local copy, call shared version
+
+**Note:** Both shaders already include `common.wgsl` via their shader module construction (e.g., `rocks.rs` does `format!("{}\n{}\n{}\n{}", uniforms, noise, common, rocks)`), so the function will be available without any pipeline changes.
+
+**Success criteria:**
+- `triplanar_sample` exists once in `common.wgsl`
+- Both `rocks.wgsl` and `trees.wgsl` produce identical visual output
+- No compilation errors
+
+- [ ] 17a: Move `triplanar_sample()` from `rocks.wgsl` into `common.wgsl` (after the existing shared functions). Remove the local copy from both `rocks.wgsl` and `trees.wgsl`. Verify both shaders still compile and the atlas texture/sampler bindings are correct (both rocks and trees bind the atlas at the same group/binding, confirmed by their pipeline layouts).
+- [ ] 17b: Verify no visual regression by taking snapshots comparing before/after for a scene with rocks and trees visible.
