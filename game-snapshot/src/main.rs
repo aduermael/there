@@ -243,15 +243,18 @@ fn main() {
         let ground_y = game_core::terrain::sample_height(heightmap, player_ground.x, player_ground.z);
         let mut player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
         let mut player_yaw = cfg.player_yaw.unwrap_or(0.0);
-        let mut orbit_yaw = cfg.orbit_yaw;
+        let orbit_yaw = cfg.orbit_yaw;
 
         for step in &cfg.steps {
             match step {
                 Step::Input { input, duration_secs } => {
                     let ticks = (*duration_secs / game_core::TICK_INTERVAL_SECS) as u32;
                     let is_moving = input.forward != 0.0 || input.strafe != 0.0;
+                    // Player faces camera direction when moving (standard 3rd-person)
+                    if is_moving {
+                        player_yaw = orbit_yaw;
+                    }
                     for _ in 0..ticks {
-                        // Match client frame order: movement → move_yaw → camera follow
                         player_pos = game_core::movement::apply_movement(
                             player_pos,
                             input.forward,
@@ -260,14 +263,6 @@ fn main() {
                             game_core::TICK_INTERVAL_SECS,
                             heightmap,
                         );
-                        if is_moving {
-                            player_yaw = game_core::movement::move_yaw(
-                                input.forward, input.strafe, orbit_yaw,
-                            );
-                            orbit_yaw = game_core::movement::camera_follow_yaw(
-                                orbit_yaw, player_yaw, game_core::TICK_INTERVAL_SECS,
-                            );
-                        }
                     }
                     sim.update_player(player_pos, player_yaw);
                 }
