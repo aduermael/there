@@ -4,11 +4,11 @@ use glam::Vec3;
 use wasm_bindgen::prelude::*;
 
 const SENSITIVITY: f32 = 0.005;
-const ZOOM_SPEED: f32 = 0.1;
+const ZOOM_SPEED: f32 = 0.02;
 const MIN_PITCH: f32 = 0.05;
 const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
-const MIN_DISTANCE: f32 = 5.0;
-const MAX_DISTANCE: f32 = 200.0;
+const MIN_DISTANCE: f32 = 3.0;
+const MAX_DISTANCE: f32 = 20.0;
 // Accumulated touch drag deltas from the camera-control web component.
 thread_local! {
     static TOUCH_DRAG: Cell<(f32, f32)> = const { Cell::new((0.0, 0.0)) };

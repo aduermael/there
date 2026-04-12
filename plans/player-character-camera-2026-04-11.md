@@ -36,7 +36,7 @@ Fix the camera before touching the player model. Immediately improves gameplay a
 
 - [x] 1a: Raycast terrain collision — replace the `eye.y = max(eye.y, terrain_y + MIN_HEIGHT)` clamp with a ray-based approach: cast a ray from `target` (player) toward `raw_eye()`, sample terrain at intervals along the ray, pull camera closer if any sample is above the ray. This lets you look up freely because the ray stays above terrain rather than clamping the endpoint. Add a small clearance buffer (1.5–2m) above terrain along the entire ray path.
 - [x] 1b: Smooth camera distance — when terrain collision forces the camera closer, lerp the effective distance toward the collision distance (fast approach ~10/s, slow recovery ~3/s). Store `effective_distance` separately from `desired_distance` (what the player set via scroll). This prevents jarring pops when orbiting around hills.
-- [ ] 1c: Tighten zoom limits — reduce `MAX_DISTANCE` to ~20 (world is 256×256, 20m orbit is generous). Reduce `MIN_DISTANCE` to ~3 for close-up view. Adjust `ZOOM_SPEED` proportionally for the smaller range.
+- [x] 1c: Tighten zoom limits — reduce `MAX_DISTANCE` to ~20 (world is 256×256, 20m orbit is generous). Reduce `MIN_DISTANCE` to ~3 for close-up view. Adjust `ZOOM_SPEED` proportionally for the smaller range.
 - [ ] 1d: Target offset — add a small upward offset to the camera target point (e.g. +1.0 Y above player feet). Currently the camera orbits the player's foot position, which makes looking up feel cramped. The target should be roughly chest height of the humanoid (~1.2m above ground).
 
 ## Phase 2: Skeleton & Humanoid Mesh
