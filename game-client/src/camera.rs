@@ -95,13 +95,6 @@ impl OrbitCamera {
         self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
     }
 
-    /// Smoothly rotate camera yaw to position behind the player's movement direction.
-    /// `move_yaw` is the direction the player is moving. Camera targets `move_yaw + PI`
-    /// (behind the player). Only call when player is actively moving.
-    pub fn follow_behind(&mut self, move_yaw: f32, dt: f32) {
-        self.yaw = game_core::movement::camera_follow_yaw(self.yaw, move_yaw, dt);
-    }
-
     /// Camera position and look target at a given distance, via shared orbit math.
     fn orbit_at(&self, dist: f32) -> (Vec3, Vec3) {
         game_core::camera::orbit_eye(self.target, self.yaw, self.pitch, dist)

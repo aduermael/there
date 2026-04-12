@@ -17,13 +17,6 @@ pub fn move_direction(forward: f32, strafe: f32, yaw: f32) -> (f32, f32) {
     }
 }
 
-/// Compute facing yaw from movement input and camera yaw.
-/// Yaw=0 faces -Z. Only meaningful when forward or strafe is non-zero.
-pub fn move_yaw(forward: f32, strafe: f32, camera_yaw: f32) -> f32 {
-    let (move_x, move_z) = move_direction(forward, strafe, camera_yaw);
-    (-move_x).atan2(-move_z)
-}
-
 /// Shortest-arc angle interpolation. Moves `current` toward `target` by at most
 /// `max_step` radians, wrapping correctly across the ±PI boundary.
 /// Returns the updated angle in [-PI, PI].
@@ -32,15 +25,6 @@ pub fn lerp_angle(current: f32, target: f32, max_step: f32) -> f32 {
     diff = (diff + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
     let result = current + diff.clamp(-max_step, max_step);
     (result + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
-}
-
-/// Compute camera yaw that follows behind the player's movement direction.
-/// `current_yaw` is the current camera orbit yaw, `move_yaw` is the player's
-/// movement direction. Returns the updated camera yaw.
-pub fn camera_follow_yaw(current_yaw: f32, move_yaw: f32, dt: f32) -> f32 {
-    let behind = move_yaw + std::f32::consts::PI;
-    let max_step = crate::CAMERA_FOLLOW_SPEED * dt;
-    lerp_angle(current_yaw, behind, max_step)
 }
 
 /// Apply movement to a position given input and dt.

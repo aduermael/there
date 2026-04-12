@@ -240,5 +240,5 @@ Full scenario suite covering all movement + camera behaviors.
 
 - [x] 6a: Client fix — remove `follow_behind()` from frame loop, set `local_move_yaw = camera.yaw` when moving. Restore frame loop order: movement → set facing → touch drag → update_camera → build_instances.
 - [x] 6b: Snapshot sim fix — remove `camera_follow_yaw()` from tick loop, set `player_yaw = orbit_yaw` when moving. Camera orbit_yaw stays fixed.
-- [ ] 6c: Dead code cleanup — remove `follow_behind()` from OrbitCamera, `camera_follow_yaw()` from movement.rs, `CAMERA_FOLLOW_SPEED` from game-core. Keep `move_yaw()` (server still uses it for remote players).
+- [x] 6c: Dead code cleanup — remove `follow_behind()` from OrbitCamera, `camera_follow_yaw()` and `move_yaw()` from movement.rs, `CAMERA_FOLLOW_SPEED` from game-core. (move_yaw was also unused — server receives the value from client, doesn't compute it).
 - [ ] 6d: Update scenarios — repurpose follow_* scenarios to test "player faces camera direction". Update verification suite. Run all 3 critics to verify.

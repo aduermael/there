@@ -13,4 +13,3 @@ pub const DAYLIGHT_CYCLE_SECS: f32 = 120.0;
 pub const GRAVITY: f32 = -20.0;
 pub const JUMP_VELOCITY: f32 = 8.0;
 pub const WATER_LEVEL: f32 = 8.0;
-pub const CAMERA_FOLLOW_SPEED: f32 = 4.0;
