@@ -250,6 +250,14 @@ impl Renderer {
         game_render::update_cascade_vps(&self.queue, &self.shadow_cascades.vp_staging, vps);
     }
 
+    pub fn player_skeleton(&self) -> &game_render::skeleton::Skeleton {
+        self.players.skeleton()
+    }
+
+    pub fn upload_player_bones(&self, instance_index: usize, matrices: &[glam::Mat4; game_render::skeleton::NUM_BONES]) {
+        self.players.upload_bones(&self.queue, instance_index, matrices);
+    }
+
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.config.width = width;

@@ -11,6 +11,7 @@ mod renderer;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
+use game_render::animation::{AnimState, AnimationPlayer};
 use game_render::{compute_atmosphere, compute_cascade_view_projs, player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
@@ -56,6 +57,7 @@ struct RemotePlayer {
     prev: [f32; 4],   // [x, y, z, yaw] from previous snapshot
     target: [f32; 4], // [x, y, z, yaw] from latest snapshot
     recv_time: f64,    // ms timestamp when target was received
+    anim: AnimationPlayer,
 }
 
 struct GameState {
@@ -76,6 +78,8 @@ struct GameState {
     cycle_active: bool,
     vertical_velocity: f32,
     jump_sent: bool,
+    local_anim: AnimationPlayer,
+    prev_local_pos: glam::Vec3,
 }
 
 impl GameState {
@@ -120,6 +124,7 @@ impl GameState {
                                 prev: new_pos,
                                 target: new_pos,
                                 recv_time: now,
+                                anim: AnimationPlayer::new(),
                             });
                         }
                     }
@@ -195,7 +200,7 @@ impl GameState {
         self.camera.update(dt, &self.heightmap_data);
     }
 
-    fn build_player_instances(&mut self, now: f64) {
+    fn build_player_instances(&mut self, now: f64, dt: f32) {
         self.players.clear();
         let yaw = self.camera.yaw;
         let local_color = self
@@ -208,30 +213,58 @@ impl GameState {
             color: [local_color[0], local_color[1], local_color[2], 0.0],
         });
 
+        // Local player animation
+        let safe_dt = if dt > 0.0 { dt } else { 1.0 / 60.0 };
+        let local_vel = (self.local_pos - self.prev_local_pos) / safe_dt;
+        let horiz_speed = glam::Vec2::new(local_vel.x, local_vel.z).length();
+        let anim_state = AnimState::from_movement(
+            horiz_speed,
+            self.vertical_velocity,
+            self.local_pos.y,
+            game_core::WATER_LEVEL,
+        );
+        self.local_anim.set_state(anim_state);
+        let local_pose = self.local_anim.update(dt);
+        let skeleton = self.renderer.player_skeleton();
+        let local_matrices = skeleton.compute_skin_matrices(&local_pose);
+        self.renderer.upload_player_bones(0, &local_matrices);
+        self.prev_local_pos = self.local_pos;
+
         let tick_ms = (game_core::TICK_INTERVAL_SECS * 1000.0) as f64;
-        let remote_instances: Vec<PlayerInstance> = self
-            .remotes
-            .iter()
-            .map(|(&id, rp)| {
-                let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
-                let x = rp.prev[0] + (rp.target[0] - rp.prev[0]) * t;
-                let y = rp.prev[1] + (rp.target[1] - rp.prev[1]) * t;
-                let z = rp.prev[2] + (rp.target[2] - rp.prev[2]) * t;
-                let mut dyaw = rp.target[3] - rp.prev[3];
-                if dyaw > std::f32::consts::PI {
-                    dyaw -= std::f32::consts::TAU;
-                } else if dyaw < -std::f32::consts::PI {
-                    dyaw += std::f32::consts::TAU;
-                }
-                let interp_yaw = rp.prev[3] + dyaw * t;
-                let c = player_color(id);
-                PlayerInstance {
-                    pos_yaw: [x, y, z, interp_yaw],
-                    color: [c[0], c[1], c[2], 0.0],
-                }
-            })
-            .collect();
-        self.players.extend(remote_instances);
+        let mut instance_idx = 1usize;
+        for (&id, rp) in self.remotes.iter_mut() {
+            let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
+            let x = rp.prev[0] + (rp.target[0] - rp.prev[0]) * t;
+            let y = rp.prev[1] + (rp.target[1] - rp.prev[1]) * t;
+            let z = rp.prev[2] + (rp.target[2] - rp.prev[2]) * t;
+            let mut dyaw = rp.target[3] - rp.prev[3];
+            if dyaw > std::f32::consts::PI {
+                dyaw -= std::f32::consts::TAU;
+            } else if dyaw < -std::f32::consts::PI {
+                dyaw += std::f32::consts::TAU;
+            }
+            let interp_yaw = rp.prev[3] + dyaw * t;
+
+            // Derive remote animation state from velocity between snapshots
+            let dx = rp.target[0] - rp.prev[0];
+            let dz = rp.target[2] - rp.prev[2];
+            let dy = rp.target[1] - rp.prev[1];
+            let tick_secs = game_core::TICK_INTERVAL_SECS;
+            let remote_speed = (dx * dx + dz * dz).sqrt() / tick_secs;
+            let remote_vy = dy / tick_secs;
+            let remote_anim = AnimState::from_movement(remote_speed, remote_vy, y, game_core::WATER_LEVEL);
+            rp.anim.set_state(remote_anim);
+            let pose = rp.anim.update(dt);
+            let matrices = skeleton.compute_skin_matrices(&pose);
+            self.renderer.upload_player_bones(instance_idx, &matrices);
+
+            let c = player_color(id);
+            self.players.push(PlayerInstance {
+                pos_yaw: [x, y, z, interp_yaw],
+                color: [c[0], c[1], c[2], 0.0],
+            });
+            instance_idx += 1;
+        }
     }
 }
 
@@ -305,6 +338,8 @@ async fn run() {
         cycle_active: true,
         vertical_velocity: 0.0,
         jump_sent: false,
+        local_anim: AnimationPlayer::new(),
+        prev_local_pos: local_pos,
     }));
 
     // Initialize daylight globals for JS menu access
@@ -440,7 +475,7 @@ fn start_render_loop(
             state.process_server_messages(messages, now);
             state.update_movement(dt);
             state.update_camera(dt);
-            state.build_player_instances(now);
+            state.build_player_instances(now, dt);
 
             // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
