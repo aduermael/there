@@ -189,9 +189,9 @@ fn vs_shadow(in: ShadowVertexInput, @builtin(instance_index) instance_id: u32) -
     let c = cos(yaw);
     let s = sin(yaw);
     let rotated_pos = vec3(
-        skinned_pos.x * c - skinned_pos.z * s,
+        skinned_pos.x * c + skinned_pos.z * s,
         skinned_pos.y,
-        skinned_pos.x * s + skinned_pos.z * c,
+        -skinned_pos.x * s + skinned_pos.z * c,
     );
     let world_pos = rotated_pos + in.inst_pos_yaw.xyz;
     return u.sun_view_proj * vec4(world_pos, 1.0);

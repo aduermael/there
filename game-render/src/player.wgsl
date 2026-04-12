@@ -51,14 +51,14 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance_id: u32) -> Vertex
     let c = cos(yaw);
     let s = sin(yaw);
     let rotated_pos = vec3(
-        skinned_pos.x * c - skinned_pos.z * s,
+        skinned_pos.x * c + skinned_pos.z * s,
         skinned_pos.y,
-        skinned_pos.x * s + skinned_pos.z * c,
+        -skinned_pos.x * s + skinned_pos.z * c,
     );
     let rotated_normal = vec3(
-        skinned_normal.x * c - skinned_normal.z * s,
+        skinned_normal.x * c + skinned_normal.z * s,
         skinned_normal.y,
-        skinned_normal.x * s + skinned_normal.z * c,
+        -skinned_normal.x * s + skinned_normal.z * c,
     );
 
     let world_pos = rotated_pos + in.inst_pos_yaw.xyz;
