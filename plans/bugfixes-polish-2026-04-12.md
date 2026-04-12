@@ -349,9 +349,9 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - Contact shadows still visible on terrain edges, rock crevices (the intended use case)
 - No performance regression (linearize is a single `1/(a*d+b)` per sample)
 
-- [ ] 14a: In `contact_shadow()`, linearize the depth comparison. Replace `let depth_diff = march_depth - scene_depth;` with a linear-depth version: compute `linearize(march_depth) - linearize(scene_depth)` using the existing NEAR/FAR constants (add them to postprocess or reuse from uniforms). Change the threshold window from `[0.0002, 0.01]` to world-space-equivalent values like `[0.02, 0.5]` (in linear depth units). Add a `linearize()` helper if not already present in postprocess.wgsl.
-- [ ] 14b: Add a depth-discontinuity guard: before the march loop, compute the linear depth of the starting pixel. Inside the loop, reject any sample where `abs(linearize(scene_depth) - start_linear_depth)` exceeds a threshold (e.g., 3.0 world units). This prevents the ray from crossing silhouette edges onto distant background geometry.
-- [ ] 14c: Take before/after snapshots at 3 orbit distances (close=4, mid=8, far=15) with player visible. Spawn 3 critics: (1) halo — no one-sided darkening on player at any distance; (2) terrain — contact shadows still provide depth cues on terrain/rock edges; (3) code quality — clean linearization, no magic numbers.
+- [x] 14a: In `contact_shadow()`, linearize the depth comparison. Added `linearize_depth()` helper + CS_NEAR/CS_FAR constants to postprocess.wgsl. Changed threshold window from [0.0002, 0.01] NDC to [0.02, 0.5] world units.
+- [x] 14b: Added depth-discontinuity guard: inside the loop, reject samples where `abs(scene_linear - march_linear)` exceeds 1.5 world units (matches march distance). Prevents ray from crossing silhouette edges onto distant background.
+- [x] 14c: Before/after snapshots at 3 orbit distances (close=4, mid=8, far=15). 3 critics: (1) Halo: PASS — no silhouette darkening at any distance. (2) Terrain: PASS — contact shadows preserved at rock/tree bases. (3) Code quality: initial FAIL on guard comparing wrong reference depth (start vs march) — fixed to compare against march_linear, tightened threshold to 1.5.
 
 ---
 

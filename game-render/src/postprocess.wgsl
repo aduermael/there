@@ -20,6 +20,14 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
+// Near/far planes matching the projection matrix (game-client + game-snapshot)
+const CS_NEAR: f32 = 0.1;
+const CS_FAR: f32 = 500.0;
+
+fn linearize_depth(d: f32) -> f32 {
+    return CS_NEAR * CS_FAR / (CS_FAR - d * (CS_FAR - CS_NEAR));
+}
+
 // Screen-space contact shadows: short-range ray march along sun direction
 fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
     // Skip when sun is below horizon
@@ -64,14 +72,22 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
             continue;
         }
 
-        // Compare projected depth with scene depth
+        // Compare projected depth with scene depth in linear (world-unit) space
         let sample_pixel = vec2<i32>(proj_uv * depth_dims);
         let scene_depth = textureLoad(depth_texture, sample_pixel, 0);
-        let march_depth = proj_ndc.z;
+        let scene_linear = linearize_depth(scene_depth);
+        let march_linear = linearize_depth(proj_ndc.z);
 
-        // Occluded if scene is closer than our marched point (with small bias)
-        let depth_diff = march_depth - scene_depth;
-        if depth_diff > 0.0002 && depth_diff < 0.01 {
+        // Depth-discontinuity guard: reject when scene surface at this pixel is
+        // far from where the ray expects to be (silhouette edge → distant background)
+        if abs(scene_linear - march_linear) > 1.5 {
+            continue;
+        }
+
+        // Occluded if scene is closer than marched point, with world-space thickness window
+        // 2cm min (avoid self-shadow bias), 50cm max (one limb / ledge thickness)
+        let depth_diff = march_linear - scene_linear;
+        if depth_diff > 0.02 && depth_diff < 0.5 {
             occluded += 1.0;
         }
     }
