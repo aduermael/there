@@ -133,7 +133,10 @@ impl OrbitCamera {
                 let t = i as f32 / RAY_STEPS as f32;
                 let p = center + dir * t;
                 let terrain_y = game_core::terrain::sample_height(heightmap, p.x, p.z);
-                if p.y < terrain_y + CLEARANCE {
+                // Graduate clearance: 0 at orbit center, full CLEARANCE at eye.
+                // Orbit center is inherently close to terrain (TARGET_Y_OFFSET above),
+                // so requiring full clearance near it would collapse the distance to 0.
+                if p.y < terrain_y + CLEARANCE * t {
                     break;
                 }
                 safe_t = t;
@@ -149,6 +152,8 @@ impl OrbitCamera {
         };
         let alpha = 1.0 - (-rate * dt).exp();
         self.effective_distance += (collision_dist - self.effective_distance) * alpha;
+        // Prevent degenerate distance that would make eye ≈ look_target → NaN view matrix
+        self.effective_distance = self.effective_distance.max(1.0);
     }
 
     /// Current eye position (call after update).
