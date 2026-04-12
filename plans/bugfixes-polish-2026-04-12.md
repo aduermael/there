@@ -220,6 +220,6 @@ Phases 2, 3, 5, 6, and 7 modify visual output. The plan's verification approach 
 - Avatar is fully opaque from all angles (no see-through holes from Phase 6 fix)
 - Avatar integrates naturally with scene lighting, shadows, and SSAO
 
-- [ ] 9a: Add `--show-player`, `--player-pos`, and `--player-yaw` CLI flags to `main.rs`. Thread the new parameters through to `render_frame()`.
-- [ ] 9b: In `render.rs`, when show-player is true: create `PlayerRenderer`, create one `PlayerInstance` at the given position (Y from heightmap if not specified), upload bind-pose bones, pass `Some(&player_renderer)` to `SceneRenderers`.
+- [x] 9a: Add `--show-player`, `--player-pos`, and `--player-yaw` CLI flags to `main.rs`. Thread the new parameters through to `render_frame()`.
+- [x] 9b: In `render.rs`, when show-player is true: create `PlayerRenderer`, create one `PlayerInstance` at the given position (Y from heightmap if not specified), upload bind-pose bones, pass `Some(&player_renderer)` to `SceneRenderers`.
 - [ ] 9c: Rebuild `game-snapshot` and capture avatar snapshots from multiple angles (front, side, back, close-up). Spawn 3 critic sub-agents to verify: (1) no see-through mesh holes, (2) natural scene integration (lighting/shadows/SSAO), (3) code quality of the snapshot tool changes.

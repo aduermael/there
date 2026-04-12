@@ -1,14 +1,19 @@
 use game_render::{
     compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
-    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer,
-    RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas,
-    TreeRenderer, WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer, PlayerInstance,
+    player_color, PostProcessRenderer, RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer,
+    TerrainRenderer, TextureAtlas, TreeRenderer, WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
 
 const TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+
+pub struct PlayerOpts {
+    pub pos: Option<glam::Vec3>,
+    pub yaw: Option<f32>,
+}
 
 pub async fn render_frame(
     width: u32,
@@ -16,6 +21,7 @@ pub async fn render_frame(
     camera_pos: glam::Vec3,
     camera_target: glam::Vec3,
     sun_angle: f32,
+    player: Option<PlayerOpts>,
 ) -> Vec<u8> {
     // --- Create headless wgpu device ---
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -224,6 +230,48 @@ pub async fn render_frame(
     // --- FXAA renderer ---
     let fxaa = FxaaRenderer::new(&device, TEXTURE_FORMAT, width, height);
 
+    // --- Optional player renderer ---
+    let player_renderer = player.map(|opts| {
+        let pr = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
+
+        // Determine player position
+        let pos = match opts.pos {
+            Some(p) => {
+                if p.y < 0.0 {
+                    // Y < 0 means auto from heightmap
+                    let y = game_core::terrain::sample_height(&heightmap_data, p.x, p.z);
+                    glam::Vec3::new(p.x, y, p.z)
+                } else {
+                    p
+                }
+            }
+            None => {
+                // Default: place at camera target, Y from heightmap
+                let y = game_core::terrain::sample_height(&heightmap_data, camera_target.x, camera_target.z);
+                glam::Vec3::new(camera_target.x, y, camera_target.z)
+            }
+        };
+
+        // Determine yaw: default faces toward camera
+        let yaw = opts.yaw.unwrap_or_else(|| {
+            let dx = camera_pos.x - pos.x;
+            let dz = camera_pos.z - pos.z;
+            dx.atan2(dz)
+        });
+
+        let instance = PlayerInstance {
+            pos_yaw: [pos.x, pos.y, pos.z, yaw],
+            color: [player_color(0)[0], player_color(0)[1], player_color(0)[2], 0.0],
+        };
+        pr.update_instances(&queue, &[instance]);
+
+        // Upload bind-pose bones for slot 0
+        let bind_matrices = pr.skeleton().bind_pose_matrices();
+        pr.upload_bones(&queue, 0, &bind_matrices);
+
+        pr
+    });
+
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("Snapshot Render"),
     });
@@ -235,7 +283,7 @@ pub async fn render_frame(
         grass: &grass_renderer,
         rocks: &rock_renderer,
         trees: &tree_renderer,
-        players: None,
+        players: player_renderer.as_ref(),
         ssao: &ssao,
         bloom: &bloom,
         exposure: &exposure,

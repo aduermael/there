@@ -28,6 +28,18 @@ struct Args {
     /// Output PNG file path
     #[arg(long, default_value = "frame.png")]
     output: String,
+
+    /// Show a player avatar in the scene
+    #[arg(long, default_value_t = false)]
+    show_player: bool,
+
+    /// Player position (x,y,z). Y=-1 means auto from heightmap. Defaults to camera_target.
+    #[arg(long, value_parser = parse_vec3)]
+    player_pos: Option<glam::Vec3>,
+
+    /// Player facing yaw in radians (0 = -Z). Default: face toward camera.
+    #[arg(long)]
+    player_yaw: Option<f32>,
 }
 
 fn parse_vec3(s: &str) -> Result<glam::Vec3, String> {
@@ -53,12 +65,22 @@ fn main() {
         args.output,
     );
 
+    let player_opts = if args.show_player {
+        Some(render::PlayerOpts {
+            pos: args.player_pos,
+            yaw: args.player_yaw,
+        })
+    } else {
+        None
+    };
+
     let pixels = pollster::block_on(render::render_frame(
         args.width,
         args.height,
         args.camera_pos,
         args.camera_target,
         args.sun_angle,
+        player_opts,
     ));
 
     image::save_buffer(
