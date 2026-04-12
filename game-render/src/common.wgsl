@@ -117,12 +117,6 @@ fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32, world_p
     return base_color * (ambient + ndl * u.sun_color * sun_shadow);
 }
 
-fn rim_light(n: vec3<f32>, world_pos: vec3<f32>) -> vec3<f32> {
-    let view_dir = normalize(u.camera_pos - world_pos);
-    let fresnel = pow(1.0 - max(dot(n, view_dir), 0.0), 3.0);
-    return fresnel * u.sky_ambient * 0.8;
-}
-
 fn apply_fog(world_pos: vec3<f32>, lit_color: vec3<f32>) -> vec3<f32> {
     let dist = length(world_pos - u.camera_pos);
     let avg_height = (world_pos.y + u.camera_pos.y) * 0.5;

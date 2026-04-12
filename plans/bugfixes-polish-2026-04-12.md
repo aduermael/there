@@ -41,7 +41,7 @@ Note: The player shader (`player.wgsl:78-79`) does NOT use `rim_light` — anoth
 - Snapshots from same position but different pitch angles produce ground/rock/tree lighting that is visually identical (brightness should not shift with pitch)
 - No visual regression in overall scene mood at various sun angles
 
-- [ ] 2a: Remove the `rim_light` function from `common.wgsl` and remove all call sites: `terrain.wgsl:121-122` (the `+ rim` addition), `rocks.wgsl:78-79`, `trees.wgsl:120-121`. Simplify each fragment shader to pass `lit` directly to `apply_fog()`. Take before/after snapshots at noon sun angle from 2+ camera pitches to confirm lighting stability.
+- [x] 2a: Remove the `rim_light` function from `common.wgsl` and remove all call sites: `terrain.wgsl:121-122` (the `+ rim` addition), `rocks.wgsl:78-79`, `trees.wgsl:120-121`. Simplify each fragment shader to pass `lit` directly to `apply_fog()`. Take before/after snapshots at noon sun angle from 2+ camera pitches to confirm lighting stability.
 
 ---
 
