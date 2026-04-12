@@ -9,8 +9,6 @@ const MIN_PITCH: f32 = 0.05;
 const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
 const MIN_DISTANCE: f32 = 5.0;
 const MAX_DISTANCE: f32 = 200.0;
-const MIN_CAMERA_HEIGHT: f32 = 2.0;
-
 // Accumulated touch drag deltas from the camera-control web component.
 thread_local! {
     static TOUCH_DRAG: Cell<(f32, f32)> = const { Cell::new((0.0, 0.0)) };
@@ -98,15 +96,39 @@ impl OrbitCamera {
         self.target + Vec3::new(x, y, z)
     }
 
-    /// Eye position clamped above terrain.
+    /// Eye position with ray-based terrain collision.
+    /// Casts a ray from target toward raw_eye, sampling terrain along the way.
+    /// Pulls camera closer if any sample point is below terrain + clearance.
     pub fn eye(&self, heightmap: &[f32]) -> Vec3 {
-        let mut eye = self.raw_eye();
-        let terrain_y = game_core::terrain::sample_height(heightmap, eye.x, eye.z);
-        eye.y = eye.y.max(terrain_y + MIN_CAMERA_HEIGHT);
-        eye
+        let raw = self.raw_eye();
+        let dir = raw - self.target;
+        let full_dist = dir.length();
+        if full_dist < 0.001 {
+            return raw;
+        }
+
+        const CLEARANCE: f32 = 1.8;
+        const RAY_STEPS: u32 = 16;
+
+        let mut safe_t = 0.0_f32;
+        for i in 1..=RAY_STEPS {
+            let t = i as f32 / RAY_STEPS as f32;
+            let p = self.target + dir * t;
+            let terrain_y = game_core::terrain::sample_height(heightmap, p.x, p.z);
+            if p.y < terrain_y + CLEARANCE {
+                // This sample is underground — use the previous safe t
+                break;
+            }
+            safe_t = t;
+        }
+
+        if safe_t >= 1.0 - 1e-5 {
+            // Full distance is clear
+            raw
+        } else {
+            // Pull camera to last safe point along the ray
+            self.target + dir * safe_t
+        }
     }
 
-    pub fn view_matrix(&self, heightmap: &[f32]) -> Mat4 {
-        Mat4::look_at_rh(self.eye(heightmap), self.target, Vec3::Y)
-    }
 }
