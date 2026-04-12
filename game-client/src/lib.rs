@@ -486,6 +486,22 @@ fn start_render_loop(
             state.process_server_messages(messages, now);
             state.update_movement(dt);
             state.update_camera(dt);
+
+            // Compute local_move_yaw every frame so visual yaw tracks camera smoothly
+            {
+                let menu_open = js_is_menu_open();
+                let forward = if menu_open { 0.0 } else { state.input.forward() };
+                let strafe = if menu_open { 0.0 } else { state.input.strafe() };
+                if forward != 0.0 || strafe != 0.0 {
+                    let yaw = state.camera.yaw;
+                    let sin_yaw = yaw.sin();
+                    let cos_yaw = yaw.cos();
+                    let move_x = -sin_yaw * forward + cos_yaw * strafe;
+                    let move_z = -cos_yaw * forward - sin_yaw * strafe;
+                    state.local_move_yaw = (-move_x).atan2(-move_z);
+                }
+            }
+
             state.build_player_instances(now, dt);
 
             // Send input to server at ~20 Hz
@@ -496,19 +512,7 @@ fn start_render_loop(
                     let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
                     let jumping = state.jump_sent;
-
-                    // Compute move_yaw: direction character faces while moving
-                    let move_yaw = if forward != 0.0 || strafe != 0.0 {
-                        let sin_yaw = yaw.sin();
-                        let cos_yaw = yaw.cos();
-                        let move_x = -sin_yaw * forward + cos_yaw * strafe;
-                        let move_z = -cos_yaw * forward - sin_yaw * strafe;
-                        let computed = move_x.atan2(move_z);
-                        state.local_move_yaw = computed;
-                        computed
-                    } else {
-                        state.local_move_yaw
-                    };
+                    let move_yaw = state.local_move_yaw;
 
                     conn.send_input(forward, strafe, yaw, jumping, move_yaw);
                     state.jump_sent = false;

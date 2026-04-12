@@ -124,7 +124,7 @@ Phase 4 introduced two bugs that prevent correct character facing.
 - Rotating camera while holding forward: character smoothly tracks new forward direction every frame
 - Strafing left: character faces left relative to camera
 
-- [ ] 5a: Move `local_move_yaw` computation out of the send block into the main frame loop (before `build_player_instances`). Fix the atan2 sign to `(-move_x).atan2(-move_z)`. Send block reads `state.local_move_yaw` instead of recomputing.
+- [x] 5a: Move `local_move_yaw` computation out of the send block into the main frame loop (before `build_player_instances`). Fix the atan2 sign to `(-move_x).atan2(-move_z)`. Send block reads `state.local_move_yaw` instead of recomputing.
 
 ---
 
