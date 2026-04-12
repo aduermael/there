@@ -1,5 +1,6 @@
 mod terrain;
 mod player;
+pub mod skeleton;
 mod rocks;
 mod trees;
 mod grass;
