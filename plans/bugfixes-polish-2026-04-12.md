@@ -247,8 +247,8 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - `from_movement()` uses `WALK_ENTER_SPEED` (0.5) instead of 0.3, making its Walk classification consistent with the hysteresis guard (the guard becomes a no-op for Walk when the base classifier already uses the right threshold, but remains needed for the Idle exit case)
 - `cargo build --target wasm32-unknown-unknown` compiles clean; no behavioral change
 
-- [ ] 10a: In `game-client/src/lib.rs`, hoist `menu_open`/`forward`/`strafe` computation to before the move_yaw block (~line 497). Remove the duplicate computation from the send block (~lines 517-519). Both blocks reference the same local variables.
-- [ ] 10b: In `game-render/src/animation.rs`, add `pub const WALK_ENTER_SPEED: f32 = 0.5;` and `pub const WALK_EXIT_SPEED: f32 = 0.15;`. Change `from_movement()` threshold from `0.3` to `WALK_ENTER_SPEED`. In `game-client/src/lib.rs`, replace the magic `0.5` and `0.15` in the hysteresis block with `game_render::animation::WALK_ENTER_SPEED` and `game_render::animation::WALK_EXIT_SPEED`.
+- [x] 10a: In `game-client/src/lib.rs`, hoist `menu_open`/`forward`/`strafe` computation to before the move_yaw block (~line 497). Remove the duplicate computation from the send block (~lines 517-519). Both blocks reference the same local variables.
+- [x] 10b: In `game-render/src/animation.rs`, add `pub const WALK_ENTER_SPEED: f32 = 0.5;` and `pub const WALK_EXIT_SPEED: f32 = 0.15;`. Change `from_movement()` threshold from `0.3` to `WALK_ENTER_SPEED`. In `game-client/src/lib.rs`, replace the magic `0.5` and `0.15` in the hysteresis block with `game_render::animation::WALK_ENTER_SPEED` and `game_render::animation::WALK_EXIT_SPEED`.
 
 ---
 

@@ -11,7 +11,7 @@ mod renderer;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
-use game_render::animation::{AnimState, AnimationPlayer};
+use game_render::animation::{AnimState, AnimationPlayer, WALK_ENTER_SPEED, WALK_EXIT_SPEED};
 use game_render::{compute_atmosphere, compute_cascade_view_projs, player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
@@ -238,11 +238,11 @@ impl GameState {
             self.local_pos.y,
             game_core::WATER_LEVEL,
         );
-        // Hysteresis: require speed > 0.5 to enter Walk, < 0.15 to exit back to Idle
+        // Hysteresis: require speed > WALK_ENTER_SPEED to enter Walk, < WALK_EXIT_SPEED to exit
         let cur = self.local_anim.current_state();
-        if cur == AnimState::Idle && anim_state == AnimState::Walk && horiz_speed < 0.5 {
+        if cur == AnimState::Idle && anim_state == AnimState::Walk && horiz_speed < WALK_ENTER_SPEED {
             anim_state = AnimState::Idle;
-        } else if cur == AnimState::Walk && anim_state == AnimState::Idle && horiz_speed > 0.15 {
+        } else if cur == AnimState::Walk && anim_state == AnimState::Idle && horiz_speed > WALK_EXIT_SPEED {
             anim_state = AnimState::Walk;
         }
         self.local_anim.set_state(anim_state);
@@ -494,19 +494,19 @@ fn start_render_loop(
             state.update_movement(dt);
             state.update_camera(dt);
 
+            // Compute input once per frame (used by both move_yaw and 20Hz send)
+            let menu_open = js_is_menu_open();
+            let forward = if menu_open { 0.0 } else { state.input.forward() };
+            let strafe = if menu_open { 0.0 } else { state.input.strafe() };
+
             // Compute local_move_yaw every frame so visual yaw tracks camera smoothly
-            {
-                let menu_open = js_is_menu_open();
-                let forward = if menu_open { 0.0 } else { state.input.forward() };
-                let strafe = if menu_open { 0.0 } else { state.input.strafe() };
-                if forward != 0.0 || strafe != 0.0 {
-                    let yaw = state.camera.yaw;
-                    let sin_yaw = yaw.sin();
-                    let cos_yaw = yaw.cos();
-                    let move_x = -sin_yaw * forward + cos_yaw * strafe;
-                    let move_z = -cos_yaw * forward - sin_yaw * strafe;
-                    state.local_move_yaw = (-move_x).atan2(-move_z);
-                }
+            if forward != 0.0 || strafe != 0.0 {
+                let yaw = state.camera.yaw;
+                let sin_yaw = yaw.sin();
+                let cos_yaw = yaw.cos();
+                let move_x = -sin_yaw * forward + cos_yaw * strafe;
+                let move_z = -cos_yaw * forward - sin_yaw * strafe;
+                state.local_move_yaw = (-move_x).atan2(-move_z);
             }
 
             state.build_player_instances(now, dt);
@@ -514,9 +514,6 @@ fn start_render_loop(
             // Send input to server at ~20 Hz
             if now - state.last_send_time >= 50.0 {
                 if let Some(conn) = &connection {
-                    let menu_open = js_is_menu_open();
-                    let forward = if menu_open { 0.0 } else { state.input.forward() };
-                    let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
                     let jumping = state.jump_sent;
                     let move_yaw = state.local_move_yaw;

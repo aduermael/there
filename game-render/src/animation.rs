@@ -2,6 +2,11 @@ use glam::Quat;
 use crate::skeleton::NUM_BONES;
 use crate::clips;
 
+/// Speed threshold to enter Walk from Idle.
+pub const WALK_ENTER_SPEED: f32 = 0.5;
+/// Speed threshold to exit Walk back to Idle.
+pub const WALK_EXIT_SPEED: f32 = 0.15;
+
 /// A single keyframe for one bone: a rotation at a specific time.
 #[derive(Clone)]
 pub struct BoneKeyframe {
@@ -107,7 +112,7 @@ impl AnimState {
         if speed > 4.0 {
             return AnimState::Run;
         }
-        if speed > 0.3 {
+        if speed > WALK_ENTER_SPEED {
             return AnimState::Walk;
         }
         AnimState::Idle
