@@ -367,7 +367,7 @@ fn add_box(
                 _pad: 0,
             });
         }
-        indices.extend_from_slice(&[i, i + 1, i + 2, i, i + 2, i + 3]);
+        indices.extend_from_slice(&[i, i + 2, i + 1, i, i + 3, i + 2]);
     }
 }
 
@@ -407,7 +407,7 @@ fn add_cylinder(
         let t1 = base + (j + 1) % segments;
         let b0 = base + segments + j;
         let b1 = base + segments + (j + 1) % segments;
-        indices.extend_from_slice(&[t0, b0, t1, t1, b0, b1]);
+        indices.extend_from_slice(&[t0, t1, b0, t1, b1, b0]);
     }
 
     // Top cap
@@ -504,7 +504,7 @@ fn add_ellipsoid(
         for lon in 0..lon_segments {
             let a = base + lat * stride + lon;
             let b = a + stride;
-            indices.extend_from_slice(&[a, b, a + 1, a + 1, b, b + 1]);
+            indices.extend_from_slice(&[a, a + 1, b, a + 1, b + 1, b]);
         }
     }
 }

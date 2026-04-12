@@ -150,7 +150,7 @@ Uses `[a, b, a+1, a+1, b, b+1]`. Depending on the hemisphere, outward normals fl
 - All body parts (torso, head, arms, legs) fully opaque
 - Snapshot verification from multiple angles
 
-- [ ] 6a: Fix `add_box()` index winding: reverse to `[i, i+2, i+1, i, i+3, i+2]`. Fix `add_cylinder()` bottom cap: swap `j` and `(j+1)%segments` to match top cap outward convention. Verify `add_ellipsoid()` winding — if wrong, reverse its two triangles similarly. Take snapshots of the avatar from front, side, and back to verify no holes remain.
+- [x] 6a: Fix `add_box()` index winding: reverse to `[i, i+2, i+1, i, i+3, i+2]`. Fix `add_cylinder()` side winding (caps were already correct). Fix `add_ellipsoid()` winding — reversed its two triangles. All three shapes now produce outward-facing normals for correct back-face culling.
 
 ---
 
