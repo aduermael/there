@@ -81,6 +81,7 @@ struct GameState {
     jump_sent: bool,
     local_anim: AnimationPlayer,
     prev_local_pos: glam::Vec3,
+    local_move_yaw: f32,
 }
 
 impl GameState {
@@ -337,6 +338,7 @@ async fn run() {
         jump_sent: false,
         local_anim: AnimationPlayer::new(),
         prev_local_pos: local_pos,
+        local_move_yaw: 0.0,
     }));
 
     // Initialize daylight globals for JS menu access
@@ -482,7 +484,21 @@ fn start_render_loop(
                     let strafe = if menu_open { 0.0 } else { state.input.strafe() };
                     let yaw = state.camera.yaw;
                     let jumping = state.jump_sent;
-                    conn.send_input(forward, strafe, yaw, jumping);
+
+                    // Compute move_yaw: direction character faces while moving
+                    let move_yaw = if forward != 0.0 || strafe != 0.0 {
+                        let sin_yaw = yaw.sin();
+                        let cos_yaw = yaw.cos();
+                        let move_x = -sin_yaw * forward + cos_yaw * strafe;
+                        let move_z = -cos_yaw * forward - sin_yaw * strafe;
+                        let computed = move_x.atan2(move_z);
+                        state.local_move_yaw = computed;
+                        computed
+                    } else {
+                        state.local_move_yaw
+                    };
+
+                    conn.send_input(forward, strafe, yaw, jumping, move_yaw);
                     state.jump_sent = false;
                 }
                 state.last_send_time = now;

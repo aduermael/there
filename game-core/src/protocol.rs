@@ -9,6 +9,8 @@ pub enum ClientMsg {
         strafe: f32,
         yaw: f32,
         jumping: bool,
+        #[serde(default)]
+        move_yaw: f32,
     },
 }
 

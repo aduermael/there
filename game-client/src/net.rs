@@ -145,7 +145,7 @@ impl Connection {
         *ws_cell.borrow_mut() = Some(ws);
     }
 
-    pub fn send_input(&self, forward: f32, strafe: f32, yaw: f32, jumping: bool) {
+    pub fn send_input(&self, forward: f32, strafe: f32, yaw: f32, jumping: bool, move_yaw: f32) {
         let ws_borrow = self.ws.borrow();
         let ws = match ws_borrow.as_ref() {
             Some(ws) if ws.ready_state() == 1 => ws,
@@ -156,6 +156,7 @@ impl Connection {
             strafe,
             yaw,
             jumping,
+            move_yaw,
         };
         if let Ok(bytes) = bincode::serialize(&msg) {
             let arr = js_sys::Uint8Array::from(bytes.as_slice());

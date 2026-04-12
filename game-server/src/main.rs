@@ -109,6 +109,7 @@ async fn handle_socket(socket: WebSocket, room_code: String, rooms: SharedRoomMa
                                 strafe,
                                 yaw,
                                 jumping,
+                                move_yaw,
                             } => {
                                 let _ = event_tx_clone.send(RoomEvent::Input {
                                     id: player_id,
@@ -116,6 +117,7 @@ async fn handle_socket(socket: WebSocket, room_code: String, rooms: SharedRoomMa
                                     strafe,
                                     yaw,
                                     jump: jumping,
+                                    move_yaw,
                                 });
                             }
                         }

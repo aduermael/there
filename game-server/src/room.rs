@@ -13,6 +13,7 @@ pub struct Player {
     pub input_forward: f32,
     pub input_strafe: f32,
     pub input_yaw: f32,
+    pub input_move_yaw: f32,
     pub input_jump: bool,
     pub vertical_velocity: f32,
     pub anim_state: u8,
@@ -30,6 +31,7 @@ pub enum RoomEvent {
         strafe: f32,
         yaw: f32,
         jump: bool,
+        move_yaw: f32,
     },
     Leave {
         id: PlayerId,
