@@ -21,7 +21,7 @@ Unblocks development by eliminating warnings and the server panic.
 - No unused fields, methods, or dead resize chains remain
 
 - [x] 1a: Remove `index_count` and `instance_buffer` from `GrassRenderer` struct and constructor. Also remove unused sub-component `.resize()` methods that only existed to support `Renderer::resize()` — trace and remove the entire dead chain (check `water.resize()`, `ssao.resize()`, `bloom.resize()`, `exposure.resize()`, `postprocess.resize()`, `fxaa.resize()` for any callers besides `Renderer::resize()`). Remove `Renderer::resize()` itself.
-- [ ] 1b: Replace `.unwrap()` on `TcpListener::bind()` with `.unwrap_or_else()` that logs the error clearly and calls `std::process::exit(1)`.
+- [x] 1b: Replace `.unwrap()` on `TcpListener::bind()` with `.unwrap_or_else()` that logs the error clearly and calls `std::process::exit(1)`.
 
 ---
 

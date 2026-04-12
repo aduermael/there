@@ -42,7 +42,10 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], 21617));
     log::info!("Server listening on http://localhost:{}", addr.port());
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
+        log::error!("Failed to bind to {}: {} (port already in use?)", addr, e);
+        std::process::exit(1);
+    });
     axum::serve(listener, app).await.unwrap();
 }
 
