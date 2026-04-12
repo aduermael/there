@@ -6,6 +6,7 @@
 @group(0) @binding(2) var ao_texture: texture_2d<f32>;
 @group(0) @binding(3) var depth_texture: texture_depth_2d;
 @group(0) @binding(4) var bloom_texture: texture_2d<f32>;
+@group(0) @binding(5) var<storage, read> exposure_buf: array<f32, 1>;
 
 @group(1) @binding(0) var<uniform> u: Uniforms;
 
@@ -213,6 +214,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // --- Bloom (additive, half-res upsampled via bilinear) ---
     let bloom = textureSample(bloom_texture, hdr_sampler, in.uv).rgb;
     color += bloom * 0.6;
+
+    // --- Auto-exposure (compute histogram → trimmed average → EMA adaptation) ---
+    let exposure = exposure_buf[0];
+    color *= exposure;
 
     // ACES tone mapping (HDR -> LDR with filmic curve)
     color = aces_tonemap(color);

@@ -1,9 +1,9 @@
 use game_render::{
     compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
-    BloomRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer, RockRenderer,
-    SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
-    WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
+    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PostProcessRenderer,
+    RockRenderer, SceneRenderers, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas,
+    TreeRenderer, WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 use wgpu::util::DeviceExt;
@@ -211,11 +211,15 @@ pub async fn render_frame(
     // --- Bloom renderer ---
     let mut bloom = BloomRenderer::new(&device, width, height);
 
-    // --- Post-process renderer ---
-    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), width, height);
+    // --- Exposure renderer ---
+    let mut exposure = ExposureRenderer::new(&device, width, height);
 
-    // Link bloom to HDR intermediate
+    // --- Post-process renderer ---
+    let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), exposure.exposure_buffer(), width, height);
+
+    // Link bloom + exposure to HDR intermediate
     bloom.build_bind_groups(&device, postprocess.intermediate_view());
+    exposure.build_bind_groups(&device, postprocess.intermediate_view());
 
     // --- FXAA renderer ---
     let fxaa = FxaaRenderer::new(&device, TEXTURE_FORMAT, width, height);
@@ -234,6 +238,7 @@ pub async fn render_frame(
         players: None,
         ssao: &ssao,
         bloom: &bloom,
+        exposure: &exposure,
         postprocess: &postprocess,
         fxaa: &fxaa,
     };

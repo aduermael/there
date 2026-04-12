@@ -1,6 +1,7 @@
 use crate::{
-    BloomRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer,
-    SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer, WaterRenderer,
+    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerRenderer,
+    PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer, TerrainRenderer, TreeRenderer,
+    WaterRenderer,
 };
 
 /// All the renderers needed to draw a complete frame.
@@ -14,6 +15,7 @@ pub struct SceneRenderers<'a> {
     pub players: Option<&'a PlayerRenderer>,
     pub ssao: &'a SsaoRenderer,
     pub bloom: &'a BloomRenderer,
+    pub exposure: &'a ExposureRenderer,
     pub postprocess: &'a PostProcessRenderer,
     pub fxaa: &'a FxaaRenderer,
 }
@@ -27,6 +29,7 @@ pub struct SceneRenderers<'a> {
 /// 2.5. Water pass (HDR intermediate, depth read-only)
 /// 3. SSAO pass (AO texture)
 /// 3.5. Bloom compute (downscale + upscale mip chain)
+/// 3.6. Exposure compute (histogram + reduce → exposure multiplier)
 /// 4. Post-process pass (tonemapping → LDR intermediate)
 /// 5. FXAA pass (anti-aliasing → final output)
 pub fn encode_frame(
@@ -151,6 +154,9 @@ pub fn encode_frame(
 
     // Pass 3.5: Bloom compute (downscale + upscale mip chain)
     scene.bloom.compute(encoder);
+
+    // Pass 3.6: Exposure compute (histogram + reduce → exposure multiplier)
+    scene.exposure.compute(encoder);
 
     // Pass 4: Post-process → LDR intermediate (FXAA input)
     {

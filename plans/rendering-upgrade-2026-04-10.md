@@ -100,7 +100,7 @@ Major new visual elements. Water is essential for the Valheim-like world.
 
 - [x] 6a: Water rendering — new water.rs + water.wgsl. Flat grid at water level, depth-based color (shallow turquoise → deep blue from depth buffer), animated FBM surface normals (reuse existing value_noise), Fresnel sky reflection, sun specular highlight, shoreline foam where depth ≈ 0. Renders after opaque geometry, before postprocess.
 - [x] 6b: Multi-layer clouds with self-shadowing — 2-3 cloud planes in sky.wgsl at different altitudes. Sun-direction density offset creates fake volumetric self-shadowing (dark cloud bases, bright tops). Composited front-to-back. Stepping stone toward full volumetric clouds in Phase 9.
-- [ ] 6c: Compute auto-exposure — luminance histogram via compute shader (256 bins, atomic shared memory). Second compute pass reads histogram, computes weighted average (trimming top/bottom 5%), smooths toward target exposure with exponential moving average. Apply as multiplier before tonemapping. Makes dawn/dusk transitions dramatic.
+- [x] 6c: Compute auto-exposure — luminance histogram via compute shader (256 bins, atomic shared memory). Second compute pass reads histogram, computes weighted average (trimming top/bottom 5%), smooths toward target exposure with exponential moving average. Apply as multiplier before tonemapping. Makes dawn/dusk transitions dramatic.
 
 ## Phase 7: Temporal Quality
 

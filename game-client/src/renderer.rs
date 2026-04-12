@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    BloomRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
+    BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer, PlayerInstance, PlayerRenderer,
     PostProcessRenderer, RockRenderer, SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer,
     TerrainRenderer, TextureAtlas, TreeRenderer, WaterRenderer, Uniforms, create_depth_texture,
     create_shadow_bgl, create_shadow_bind_group, create_shadow_texture, encode_frame,
@@ -31,6 +31,7 @@ pub struct Renderer {
     grass: GrassRenderer,
     ssao: SsaoRenderer,
     bloom: BloomRenderer,
+    exposure: ExposureRenderer,
     postprocess: PostProcessRenderer,
     fxaa: FxaaRenderer,
 }
@@ -190,11 +191,15 @@ impl Renderer {
         // Bloom renderer (compute, needs HDR view from postprocess)
         let mut bloom = BloomRenderer::new(&device, width, height);
 
-        // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), width, height);
+        // Exposure renderer (compute histogram + reduce)
+        let mut exposure = ExposureRenderer::new(&device, width, height);
 
-        // Link bloom to HDR intermediate (created by postprocess)
+        // Post-process renderer (HDR intermediate → surface)
+        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), exposure.exposure_buffer(), width, height);
+
+        // Link bloom + exposure to HDR intermediate (created by postprocess)
         bloom.build_bind_groups(&device, postprocess.intermediate_view());
+        exposure.build_bind_groups(&device, postprocess.intermediate_view());
 
         // FXAA renderer (postprocess → LDR intermediate → FXAA → surface)
         let fxaa = FxaaRenderer::new(&device, format, width, height);
@@ -226,6 +231,7 @@ impl Renderer {
             grass,
             ssao,
             bloom,
+            exposure,
             postprocess,
             fxaa,
         }
@@ -253,8 +259,10 @@ impl Renderer {
             self.water.resize(&self.device, &self.depth_view);
             self.ssao.resize(&self.device, &self.depth_view, width, height);
             self.bloom.resize(&self.device, width, height);
-            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), width, height);
+            self.exposure.resize(&self.device, width, height);
+            self.postprocess.resize(&self.device, self.ssao.ao_view(), &self.depth_view, self.bloom.result_view(), self.exposure.exposure_buffer(), width, height);
             self.bloom.build_bind_groups(&self.device, self.postprocess.intermediate_view());
+            self.exposure.build_bind_groups(&self.device, self.postprocess.intermediate_view());
             self.fxaa.resize(&self.device, width, height);
         }
     }
@@ -299,6 +307,7 @@ impl Renderer {
             players: Some(&self.players),
             ssao: &self.ssao,
             bloom: &self.bloom,
+            exposure: &self.exposure,
             postprocess: &self.postprocess,
             fxaa: &self.fxaa,
         };
