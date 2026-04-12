@@ -341,19 +341,19 @@ fn add_box(
             [center.x - hx, center.y + hy, center.z - hz],
             [center.x - hx, center.y + hy, center.z + hz],
         ]),
-        // +Z (front)
+        // +Z (front) — v1/v3 swapped for consistent CCW winding
         ([0.0, 0.0, 1.0], [
             [center.x - hx, center.y - hy, center.z + hz],
-            [center.x + hx, center.y - hy, center.z + hz],
-            [center.x + hx, center.y + hy, center.z + hz],
             [center.x - hx, center.y + hy, center.z + hz],
+            [center.x + hx, center.y + hy, center.z + hz],
+            [center.x + hx, center.y - hy, center.z + hz],
         ]),
-        // -Z (back)
+        // -Z (back) — v1/v3 swapped for consistent CCW winding
         ([0.0, 0.0, -1.0], [
             [center.x + hx, center.y - hy, center.z - hz],
-            [center.x - hx, center.y - hy, center.z - hz],
-            [center.x - hx, center.y + hy, center.z - hz],
             [center.x + hx, center.y + hy, center.z - hz],
+            [center.x - hx, center.y + hy, center.z - hz],
+            [center.x - hx, center.y - hy, center.z - hz],
         ]),
     ];
 

@@ -150,7 +150,7 @@ Uses `[a, b, a+1, a+1, b, b+1]`. Depending on the hemisphere, outward normals fl
 - All body parts (torso, head, arms, legs) fully opaque
 - Snapshot verification from multiple angles
 
-- [x] 6a: Fix `add_box()` index winding: reverse to `[i, i+2, i+1, i, i+3, i+2]`. Fix `add_cylinder()` side winding (caps were already correct). Fix `add_ellipsoid()` winding — reversed its two triangles. All three shapes now produce outward-facing normals for correct back-face culling.
+- [x] 6a: Fix `add_box()` index winding: reverse to `[i, i+2, i+1, i, i+3, i+2]`. Fix `add_cylinder()` side winding (caps were already correct). Fix `add_ellipsoid()` winding — reversed its two triangles. Also fix +Z/-Z box face vertex ordering (v1/v3 swap) — the initial index reversal only fixed 4 of 6 faces because vertex orderings were inconsistent across faces.
 
 ---
 
