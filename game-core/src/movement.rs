@@ -2,6 +2,28 @@ use crate::{GRAVITY, JUMP_VELOCITY, MOVE_SPEED, WORLD_SIZE};
 use crate::terrain::sample_height;
 use glam::Vec3;
 
+/// Compute world-space movement direction from input and camera yaw.
+/// Returns (move_x, move_z), normalized if magnitude > 1 (diagonal clamping).
+pub fn move_direction(forward: f32, strafe: f32, yaw: f32) -> (f32, f32) {
+    let sin_yaw = yaw.sin();
+    let cos_yaw = yaw.cos();
+    let move_x = -sin_yaw * forward + cos_yaw * strafe;
+    let move_z = -cos_yaw * forward - sin_yaw * strafe;
+    let mag = (move_x * move_x + move_z * move_z).sqrt();
+    if mag > 1.0 {
+        (move_x / mag, move_z / mag)
+    } else {
+        (move_x, move_z)
+    }
+}
+
+/// Compute facing yaw from movement input and camera yaw.
+/// Yaw=0 faces -Z. Only meaningful when forward or strafe is non-zero.
+pub fn move_yaw(forward: f32, strafe: f32, camera_yaw: f32) -> f32 {
+    let (move_x, move_z) = move_direction(forward, strafe, camera_yaw);
+    (-move_x).atan2(-move_z)
+}
+
 /// Apply movement to a position given input and dt.
 /// Returns the new position, snapped to terrain height.
 pub fn apply_movement(
@@ -12,29 +34,13 @@ pub fn apply_movement(
     dt: f32,
     heightmap: &[f32],
 ) -> Vec3 {
-    // Clamp input to [-1, 1]
     let forward = forward.clamp(-1.0, 1.0);
     let strafe = strafe.clamp(-1.0, 1.0);
-
-    // Direction from yaw (yaw=0 faces -Z)
-    let sin_yaw = yaw.sin();
-    let cos_yaw = yaw.cos();
-
-    let move_x = -sin_yaw * forward + cos_yaw * strafe;
-    let move_z = -cos_yaw * forward - sin_yaw * strafe;
-
-    // Normalize if magnitude > 1 (diagonal movement)
-    let mag = (move_x * move_x + move_z * move_z).sqrt();
-    let (move_x, move_z) = if mag > 1.0 {
-        (move_x / mag, move_z / mag)
-    } else {
-        (move_x, move_z)
-    };
+    let (move_x, move_z) = move_direction(forward, strafe, yaw);
 
     let mut new_x = pos.x + move_x * MOVE_SPEED * dt;
     let mut new_z = pos.z + move_z * MOVE_SPEED * dt;
 
-    // Clamp to world bounds
     new_x = new_x.clamp(0.0, WORLD_SIZE - 0.01);
     new_z = new_z.clamp(0.0, WORLD_SIZE - 0.01);
 

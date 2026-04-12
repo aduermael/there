@@ -501,12 +501,7 @@ fn start_render_loop(
 
             // Compute local_move_yaw every frame so visual yaw tracks camera smoothly
             if forward != 0.0 || strafe != 0.0 {
-                let yaw = state.camera.yaw;
-                let sin_yaw = yaw.sin();
-                let cos_yaw = yaw.cos();
-                let move_x = -sin_yaw * forward + cos_yaw * strafe;
-                let move_z = -cos_yaw * forward - sin_yaw * strafe;
-                state.local_move_yaw = (-move_x).atan2(-move_z);
+                state.local_move_yaw = game_core::movement::move_yaw(forward, strafe, state.camera.yaw);
             }
 
             state.build_player_instances(now, dt);

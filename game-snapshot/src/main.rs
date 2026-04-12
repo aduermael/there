@@ -249,6 +249,11 @@ fn main() {
             match step {
                 Step::Input { input, duration_secs } => {
                     let ticks = (*duration_secs / game_core::TICK_INTERVAL_SECS) as u32;
+                    if input.forward != 0.0 || input.strafe != 0.0 {
+                        player_yaw = game_core::movement::move_yaw(
+                            input.forward, input.strafe, orbit_yaw,
+                        );
+                    }
                     for _ in 0..ticks {
                         player_pos = game_core::movement::apply_movement(
                             player_pos,
@@ -258,14 +263,6 @@ fn main() {
                             game_core::TICK_INTERVAL_SECS,
                             heightmap,
                         );
-                        // Compute player yaw from movement direction
-                        let sin_yaw = orbit_yaw.sin();
-                        let cos_yaw = orbit_yaw.cos();
-                        let move_x = -sin_yaw * input.forward + cos_yaw * input.strafe;
-                        let move_z = -cos_yaw * input.forward - sin_yaw * input.strafe;
-                        if move_x.abs() > 0.001 || move_z.abs() > 0.001 {
-                            player_yaw = (-move_x).atan2(-move_z);
-                        }
                     }
                     sim.update_player(player_pos, player_yaw);
                 }
