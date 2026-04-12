@@ -189,10 +189,11 @@ impl TreeRenderer {
             label: Some("Tree Render Shader"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{}\n{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}\n{}",
                     include_str!("uniforms.wgsl"),
                     include_str!("noise.wgsl"),
                     include_str!("common.wgsl"),
+                    include_str!("triplanar.wgsl"),
                     include_str!("trees.wgsl")
                 )
                 .into(),

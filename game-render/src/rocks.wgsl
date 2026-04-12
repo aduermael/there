@@ -52,23 +52,14 @@ fn vs_shadow(
     return u.sun_view_proj * vec4(world_pos, 1.0);
 }
 
-/// Triplanar sample: blend 3 axis-aligned projections weighted by normal.
-fn triplanar_sample(world_pos: vec3<f32>, n: vec3<f32>, layer: i32) -> vec3<f32> {
-    let scale = 0.25; // coarse: ~1 tile per 4 world units, visible pixel art on rocks
-    let blend = abs(n);
-    let w = blend / (blend.x + blend.y + blend.z + 0.001);
+// triplanar_sample from triplanar.wgsl
 
-    let tx = textureSample(atlas, atlas_sampler, fract(world_pos.yz * scale), layer).rgb;
-    let ty = textureSample(atlas, atlas_sampler, fract(world_pos.xz * scale), layer).rgb;
-    let tz = textureSample(atlas, atlas_sampler, fract(world_pos.xy * scale), layer).rgb;
-
-    return tx * w.x + ty * w.y + tz * w.z;
-}
+const ROCK_TEXTURE_SCALE: f32 = 0.25; // ~1 tile per 4 world units
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let n = compute_flat_normal(in.world_pos);
-    let tex = triplanar_sample(in.world_pos, n, MAT_ROCK);
+    let tex = triplanar_sample(in.world_pos, n, MAT_ROCK, ROCK_TEXTURE_SCALE);
 
     // Texture is primary color source, instance color provides hue variation
     let color = mix(in.color, tex, 0.5) * 1.8;

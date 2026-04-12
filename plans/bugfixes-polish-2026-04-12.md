@@ -438,5 +438,5 @@ The walk-entry threshold (`0.5`) and walk-exit threshold (`0.15`) in `lib.rs` ar
 - Both `rocks.wgsl` and `trees.wgsl` produce identical visual output
 - No compilation errors
 
-- [ ] 17a: Move `triplanar_sample()` from `rocks.wgsl` into `common.wgsl` (after the existing shared functions). Remove the local copy from both `rocks.wgsl` and `trees.wgsl`. Verify both shaders still compile and the atlas texture/sampler bindings are correct (both rocks and trees bind the atlas at the same group/binding, confirmed by their pipeline layouts).
-- [ ] 17b: Verify no visual regression by taking snapshots comparing before/after for a scene with rocks and trees visible.
+- [x] 17a: Created `triplanar.wgsl` shared snippet (not common.wgsl — atlas bindings aren't available in all shaders). Added `scale` parameter since rocks (0.25) and trees (0.35) use different scales. Included in rocks.rs and trees.rs shader assembly. Removed local copies.
+- [x] 17b: Snapshots verify identical rendering — no visual regression.

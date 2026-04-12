@@ -91,18 +91,9 @@ fn vs_shadow(
     return u.sun_view_proj * vec4(world_pos, 1.0);
 }
 
-/// Triplanar sample: blend 3 axis-aligned projections weighted by normal.
-fn triplanar_sample(world_pos: vec3<f32>, n: vec3<f32>, layer: i32) -> vec3<f32> {
-    let scale = 0.35; // coarse: ~1 tile per 2.9 world units, visible pixel art
-    let blend = abs(n);
-    let w = blend / (blend.x + blend.y + blend.z + 0.001);
+// triplanar_sample from triplanar.wgsl
 
-    let tx = textureSample(atlas, atlas_sampler, fract(world_pos.yz * scale), layer).rgb;
-    let ty = textureSample(atlas, atlas_sampler, fract(world_pos.xz * scale), layer).rgb;
-    let tz = textureSample(atlas, atlas_sampler, fract(world_pos.xy * scale), layer).rgb;
-
-    return tx * w.x + ty * w.y + tz * w.z;
-}
+const TREE_TEXTURE_SCALE: f32 = 0.35; // ~1 tile per 2.9 world units
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -110,7 +101,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Select material: bark for trunk, foliage for canopy
     let layer = select(MAT_BARK, MAT_FOLIAGE, in.is_foliage > 0.5);
-    let tex = triplanar_sample(in.world_pos, n, layer);
+    let tex = triplanar_sample(in.world_pos, n, layer, TREE_TEXTURE_SCALE);
 
     // Texture is primary color source, instance color provides hue variation
     let color = mix(in.color, tex, 0.55) * 1.7;
