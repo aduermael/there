@@ -114,7 +114,7 @@ Add step-based input simulation so scenarios can describe "move forward 1 sec, t
 - Player yaw in snapshot matches movement direction
 
 - [x] 2a: Add `steps` parsing to `ScenarioConfig`. Define step variants: `Input { forward, strafe, duration_secs }` and `Snapshot { output }`. All input fields default to 0.0.
-- [ ] 2b: Implement simulation loop in snapshot tool: generate heightmap once, then iterate steps. For `Input`: run `apply_movement()` N ticks, track `player_pos` and compute `player_yaw` from movement direction. For `Snapshot`: compute orbit camera from current player state, call `render_frame()`, save PNG.
+- [x] 2b: Implement simulation loop in snapshot tool: generate heightmap once, then iterate steps. For `Input`: run `apply_movement()` N ticks, track `player_pos` and compute `player_yaw` from movement direction. For `Snapshot`: compute orbit camera from current player state, call `render_frame()`, save PNG.
 - [ ] 2c: Create 5 movement scenarios in `snapshots/scenarios/`: `walk_forward.json`, `walk_backward.json`, `strafe_left.json`, `strafe_right.json`, `diagonal.json`. Each moves 1 second then captures. Run all and verify with 3 sub-agent critics.
 
 ---

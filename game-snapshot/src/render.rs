@@ -360,6 +360,59 @@ impl SnapshotContext {
     }
 }
 
+/// Simulation renderer — wraps SnapshotContext for step-based simulation.
+/// Supports updating the player position/yaw and rendering snapshots at each step.
+pub struct SimRenderer {
+    ctx: SnapshotContext,
+    orbit_pitch: f32,
+    orbit_distance: f32,
+    sun_angle: f32,
+}
+
+impl SimRenderer {
+    pub async fn new(
+        width: u32,
+        height: u32,
+        sun_angle: f32,
+        player_pos: glam::Vec3,
+        orbit_yaw: f32,
+        orbit_pitch: f32,
+        orbit_distance: f32,
+    ) -> Self {
+        let (eye, target) = game_core::camera::orbit_eye(player_pos, orbit_yaw, orbit_pitch, orbit_distance);
+        let player_opts = Some(PlayerOpts {
+            pos: Some(player_pos),
+            yaw: Some(0.0),
+        });
+        let ctx = SnapshotContext::new(width, height, sun_angle, eye, target, player_opts).await;
+        Self { ctx, orbit_pitch, orbit_distance, sun_angle }
+    }
+
+    pub fn heightmap(&self) -> &[f32] {
+        &self.ctx.heightmap_data
+    }
+
+    pub fn update_player(&self, pos: glam::Vec3, yaw: f32) {
+        if let Some(pr) = &self.ctx.player_renderer {
+            let instance = PlayerInstance {
+                pos_yaw: [pos.x, pos.y, pos.z, yaw],
+                color: [player_color(0)[0], player_color(0)[1], player_color(0)[2], 0.0],
+            };
+            pr.update_instances(&self.ctx.queue, &[instance]);
+        }
+    }
+
+    pub fn snapshot(&self, player_pos: glam::Vec3, orbit_yaw: f32, output: &str) {
+        let (eye, target) = game_core::camera::orbit_eye(
+            player_pos, orbit_yaw, self.orbit_pitch, self.orbit_distance,
+        );
+        let pixels = self.ctx.render_view(eye, target, self.sun_angle);
+        image::save_buffer(output, &pixels, self.ctx.width, self.ctx.height, image::ColorType::Rgba8)
+            .expect("Failed to save snapshot PNG");
+        log::info!("Saved snapshot: {}", output);
+    }
+}
+
 /// Render a single frame (backward-compatible entry point).
 pub async fn render_frame(
     width: u32,

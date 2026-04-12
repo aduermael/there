@@ -226,6 +226,59 @@ fn main() {
         cfg.output,
     );
 
+    // Simulation mode: step-based movement + snapshot sequence
+    if !cfg.steps.is_empty() {
+        let player_ground = cfg.player_pos.unwrap_or(cfg.camera_target);
+        let sim = pollster::block_on(render::SimRenderer::new(
+            cfg.width,
+            cfg.height,
+            cfg.sun_angle,
+            player_ground,
+            cfg.orbit_yaw,
+            cfg.orbit_pitch,
+            cfg.orbit_distance,
+        ));
+
+        let heightmap = sim.heightmap();
+        let ground_y = game_core::terrain::sample_height(heightmap, player_ground.x, player_ground.z);
+        let mut player_pos = glam::Vec3::new(player_ground.x, ground_y, player_ground.z);
+        let mut player_yaw = cfg.player_yaw.unwrap_or(0.0);
+        let orbit_yaw = cfg.orbit_yaw;
+
+        for step in &cfg.steps {
+            match step {
+                Step::Input { input, duration_secs } => {
+                    let ticks = (*duration_secs / game_core::TICK_INTERVAL_SECS) as u32;
+                    for _ in 0..ticks {
+                        player_pos = game_core::movement::apply_movement(
+                            player_pos,
+                            input.forward,
+                            input.strafe,
+                            orbit_yaw,
+                            game_core::TICK_INTERVAL_SECS,
+                            heightmap,
+                        );
+                        // Compute player yaw from movement direction
+                        let sin_yaw = orbit_yaw.sin();
+                        let cos_yaw = orbit_yaw.cos();
+                        let move_x = -sin_yaw * input.forward + cos_yaw * input.strafe;
+                        let move_z = -cos_yaw * input.forward - sin_yaw * input.strafe;
+                        if move_x.abs() > 0.001 || move_z.abs() > 0.001 {
+                            player_yaw = (-move_x).atan2(-move_z);
+                        }
+                    }
+                    sim.update_player(player_pos, player_yaw);
+                }
+                Step::Snapshot { snapshot } => {
+                    sim.update_player(player_pos, player_yaw);
+                    sim.snapshot(player_pos, orbit_yaw, snapshot);
+                    println!("{}", snapshot);
+                }
+            }
+        }
+        return;
+    }
+
     let pixels = if cfg.turntable {
         let player_ground = cfg.player_pos.unwrap_or(cfg.camera_target);
         let heightmap_data = game_core::terrain::generate_heightmap();
