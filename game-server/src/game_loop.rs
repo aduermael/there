@@ -1,7 +1,7 @@
 use game_core::movement::{apply_movement, apply_vertical};
 use game_core::protocol::{PlayerId, PlayerState, ServerMsg};
 use game_core::terrain::{generate_heightmap, sample_height};
-use game_core::{TICK_INTERVAL_SECS, TICK_RATE_HZ, WORLD_SIZE};
+use game_core::{TICK_INTERVAL_SECS, TICK_RATE_HZ, WATER_LEVEL, WORLD_SIZE};
 use glam::Vec3;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -56,6 +56,24 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                         player.y = new_pos.y;
                     }
                     player.input_jump = false;
+
+                    // Derive animation state from movement
+                    let dx = player.x - pos.x;
+                    let dz = player.z - pos.z;
+                    let horiz_speed = (dx * dx + dz * dz).sqrt() / TICK_INTERVAL_SECS;
+                    player.anim_state = if player.y < WATER_LEVEL - 0.3 {
+                        5 // Swim
+                    } else if player.vertical_velocity > 1.0 {
+                        3 // Jump
+                    } else if player.vertical_velocity < -1.0 {
+                        4 // Fall
+                    } else if horiz_speed > 4.0 {
+                        2 // Run
+                    } else if horiz_speed > 0.3 {
+                        1 // Walk
+                    } else {
+                        0 // Idle
+                    };
                 }
 
                 // Build and broadcast snapshot
@@ -105,6 +123,7 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                             input_yaw: 0.0,
                             input_jump: false,
                             vertical_velocity: 0.0,
+                            anim_state: 0,
                             tx,
                         });
 
