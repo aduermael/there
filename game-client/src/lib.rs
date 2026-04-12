@@ -209,13 +209,9 @@ impl GameState {
         self.players.clear();
 
         // Smoothly rotate local visual yaw toward move_yaw (shortest arc)
-        let target = self.local_move_yaw;
-        let mut diff = target - self.local_visual_yaw;
-        diff = (diff + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
         let turn_speed = 12.0;
         let max_step = turn_speed * dt.max(1.0 / 60.0);
-        self.local_visual_yaw += diff.clamp(-max_step, max_step);
-        self.local_visual_yaw = (self.local_visual_yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+        self.local_visual_yaw = game_core::movement::lerp_angle(self.local_visual_yaw, self.local_move_yaw, max_step);
 
         let yaw = self.local_visual_yaw;
         let local_color = self

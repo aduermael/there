@@ -40,15 +40,9 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
 
                     // Smoothly rotate toward move_yaw when moving; retain facing when idle
                     if player.input_forward != 0.0 || player.input_strafe != 0.0 {
-                        let target = player.input_move_yaw;
-                        let mut diff = target - player.yaw;
-                        // Shortest-arc wrap to [-PI, PI]
-                        diff = (diff + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
                         let turn_speed = 12.0; // radians/sec
                         let max_step = turn_speed * TICK_INTERVAL_SECS;
-                        player.yaw += diff.clamp(-max_step, max_step);
-                        // Normalize to [-PI, PI]
-                        player.yaw = (player.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+                        player.yaw = game_core::movement::lerp_angle(player.yaw, player.input_move_yaw, max_step);
                     }
 
                     // Vertical physics — only when jumping or airborne

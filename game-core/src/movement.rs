@@ -24,6 +24,16 @@ pub fn move_yaw(forward: f32, strafe: f32, camera_yaw: f32) -> f32 {
     (-move_x).atan2(-move_z)
 }
 
+/// Shortest-arc angle interpolation. Moves `current` toward `target` by at most
+/// `max_step` radians, wrapping correctly across the ±PI boundary.
+/// Returns the updated angle in [-PI, PI].
+pub fn lerp_angle(current: f32, target: f32, max_step: f32) -> f32 {
+    let mut diff = target - current;
+    diff = (diff + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+    let result = current + diff.clamp(-max_step, max_step);
+    (result + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
+}
+
 /// Apply movement to a position given input and dt.
 /// Returns the new position, snapped to terrain height.
 pub fn apply_movement(

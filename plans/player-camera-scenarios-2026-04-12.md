@@ -144,7 +144,7 @@ Two patterns are duplicated across client and server. Extract before adding came
 - Movement direction computed in exactly one place; yaw interpolation logic not duplicated
 
 - [x] 3a: Add `move_direction(forward, strafe, yaw) -> (f32, f32)` and `move_yaw(forward, strafe, camera_yaw) -> f32` to `game-core/src/movement.rs`. Refactor `apply_movement()` to call `move_direction()` internally. Update `lib.rs:504-508` to call `move_yaw()`.
-- [ ] 3b: Add `lerp_angle(current, target, max_step) -> f32` to `game-core/src/movement.rs` (or a new `math` module if preferred). Update `lib.rs:213-218` and `game_loop.rs:43-50` to call it. Verify both client and server compile.
+- [x] 3b: Add `lerp_angle(current, target, max_step) -> f32` to `game-core/src/movement.rs` (or a new `math` module if preferred). Update `lib.rs:213-218` and `game_loop.rs:43-50` to call it. Verify both client and server compile.
 
 ---
 
