@@ -80,9 +80,7 @@ impl OrbitCamera {
         let dy = y - self.last_y;
         self.last_x = x;
         self.last_y = y;
-
-        self.yaw -= dx * SENSITIVITY;
-        self.pitch = (self.pitch + dy * SENSITIVITY).clamp(MIN_PITCH, MAX_PITCH);
+        self.apply_drag(dx, dy);
     }
 
     pub fn on_pointer_up(&mut self) {
