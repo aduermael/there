@@ -72,7 +72,7 @@ Targeted reductions to per-pixel work that have minimal or no visual impact. The
 
 - [x] 4b: **Postprocess god rays** -- Reduce from 20 to 12 steps. The per-pixel IGN jitter already breaks banding, so fewer steps produce visually identical results. Also add an early-out when the sun elevation is high (`angle_intensity < 0.01` check after line 118) to skip the loop entirely during midday -- saves the full 40 texture ops for roughly half the day cycle.
 
-- [ ] 4c: **Postprocess contact shadows** -- Reduce from 12 to 8 steps. The march distance is only 1.5 world units, so 8 steps at ~0.19 unit spacing still captures fine contact detail. Adjust the occlusion divisor accordingly.
+- [x] 4c: **Postprocess contact shadows** -- Reduce from 12 to 8 steps. The march distance is only 1.5 world units, so 8 steps at ~0.19 unit spacing still captures fine contact detail. Adjust the occlusion divisor accordingly.
 
 - [ ] 4d: **SSAO samples** -- Reduce from 12 to 8. The golden-angle spiral with IGN rotation is specifically designed for low sample counts, and the bilateral blur in postprocess smooths the result. 8 samples at half-resolution is well within quality thresholds.
 

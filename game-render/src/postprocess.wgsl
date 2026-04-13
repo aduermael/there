@@ -41,7 +41,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
 
     // March a short distance along sun direction in world space, project each step to screen
     let march_distance = 1.5; // world units — short range for fine contact detail
-    let step_world = u.sun_dir * march_distance / 12.0;
+    let step_world = u.sun_dir * march_distance / 8.0;
 
     // Per-pixel jitter to break banding
     let jitter = ign(pixel) * 0.5 + 0.5;
@@ -49,7 +49,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
     var occluded = 0.0;
     var pos = world_pos + step_world * jitter;
 
-    for (var i = 0; i < 12; i++) {
+    for (var i = 0; i < 8; i++) {
         pos += step_world;
 
         // Project to screen
@@ -82,7 +82,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
         }
     }
 
-    return 1.0 - saturate(occluded / 4.0) * 0.4;
+    return 1.0 - saturate(occluded / 3.0) * 0.4;
 }
 
 // Screen-space radial god rays using depth-based occlusion
