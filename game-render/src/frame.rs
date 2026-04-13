@@ -1,6 +1,6 @@
 use crate::{
-    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
-    PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer,
+    BlobShadowRenderer, BloomRenderer, CloudShadowRenderer, ExposureRenderer, FxaaRenderer,
+    GrassRenderer, PlayerRenderer, PostProcessRenderer, RockRenderer, SkyRenderer, SsaoRenderer,
     TerrainRenderer, TreeRenderer, WaterRenderer,
 };
 
@@ -12,6 +12,7 @@ pub struct SceneRenderers<'a> {
     pub grass: &'a GrassRenderer,
     pub rocks: &'a RockRenderer,
     pub trees: &'a TreeRenderer,
+    pub cloud_shadow: &'a CloudShadowRenderer,
     pub blob_shadow: Option<&'a BlobShadowRenderer>,
     pub players: Option<&'a PlayerRenderer>,
     pub ssao: &'a SsaoRenderer,
@@ -47,10 +48,11 @@ pub fn encode_frame(
     view_proj: &glam::Mat4,
     atlas_bg: &wgpu::BindGroup,
 ) {
-    // Pass 0: Compute passes (instance generation)
+    // Pass 0: Compute passes (instance generation + cloud shadow bake)
     scene.grass.compute(encoder);
     scene.trees.compute(encoder);
     scene.rocks.compute(encoder);
+    scene.cloud_shadow.compute(encoder);
 
     // Pass 1: Shadow — 3 cascades
     for (i, cascade_view) in shadow_cascade_views.iter().enumerate() {

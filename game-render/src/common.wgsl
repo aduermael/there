@@ -5,6 +5,8 @@
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(1) @binding(0) var shadow_map: texture_depth_2d_array;
 @group(1) @binding(1) var shadow_sampler: sampler_comparison;
+@group(1) @binding(2) var cloud_shadow_tex: texture_2d<f32>;
+@group(1) @binding(3) var cloud_shadow_samp: sampler;
 
 // Shared cloud layer parameters — used by sky rendering and cloud shadow computation.
 // Each layer: altitude (world Y), scale (domain size), coverage (noise threshold),
@@ -111,25 +113,9 @@ fn sample_shadow(world_pos: vec3<f32>, normal: vec3<f32>) -> f32 {
     return select(shadow * 0.125, 1.0, !in_range);
 }
 
-fn cloud_shadow_layer(world_pos: vec3<f32>, altitude: f32, scale: f32, coverage: f32, drift_mult: f32) -> f32 {
-    let t = (altitude - world_pos.y) / max(u.sun_dir.y, 0.001);
-    let cloud_xz = world_pos.xz + u.sun_dir.xz * t;
-    let drift = cloud_drift(drift_mult);
-    let sample_pos = (cloud_xz + drift) / scale;
-    var density = fbm3(sample_pos);
-    return smoothstep(coverage, coverage + 0.25, density);
-}
-
-fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
-    let d_high = cloud_shadow_layer(world_pos, CLOUD_HIGH_ALTITUDE, CLOUD_HIGH_SCALE, CLOUD_HIGH_COVERAGE, CLOUD_HIGH_DRIFT) * CLOUD_HIGH_OPACITY;
-    let d_mid  = cloud_shadow_layer(world_pos, CLOUD_MID_ALTITUDE, CLOUD_MID_SCALE, CLOUD_MID_COVERAGE, CLOUD_MID_DRIFT);
-    let d_low  = cloud_shadow_layer(world_pos, CLOUD_LOW_ALTITUDE, CLOUD_LOW_SCALE, CLOUD_LOW_COVERAGE, CLOUD_LOW_DRIFT) * CLOUD_LOW_OPACITY;
-
-    // Combined density (capped at 1)
-    let total = min(d_high + d_mid + d_low, 1.0);
-
-    // Soften cloud shadows — they shouldn't be as harsh as geometry shadows
-    return 1.0 - total * 0.45;
+fn sample_cloud_shadow(world_pos: vec3<f32>) -> f32 {
+    let uv = world_pos.xz / u.world_size;
+    return textureSampleLevel(cloud_shadow_tex, cloud_shadow_samp, uv, 0.0).r;
 }
 
 fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32, world_pos: vec3<f32>) -> vec3<f32> {
@@ -137,8 +123,8 @@ fn hemisphere_lighting(n: vec3<f32>, base_color: vec3<f32>, shadow: f32, world_p
     let hemi_t = dot(n, vec3(0.0, 1.0, 0.0)) * 0.35 + 0.5;
     let ambient = mix(u.ground_ambient, u.sky_ambient, hemi_t);
     let ndl = max(dot(n, u.sun_dir), 0.0);
-    // Shadow map + cloud shadow combined on direct sun
-    let cloud_s = cloud_shadow(world_pos);
+    // Shadow map + baked cloud shadow combined on direct sun
+    let cloud_s = sample_cloud_shadow(world_pos);
     let sun_shadow = mix(0.05, 1.0, shadow * cloud_s);
     return base_color * (ambient + ndl * u.sun_color * sun_shadow);
 }

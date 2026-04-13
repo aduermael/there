@@ -67,7 +67,7 @@ pub fn create_shadow_texture(device: &wgpu::Device) -> ShadowCascades {
     ShadowCascades { _texture: texture, array_view, cascade_views, vp_staging }
 }
 
-/// Create the bind group layout for cascaded shadow map sampling (2D array + comparison sampler).
+/// Create the bind group layout for shadow sampling (cascade depth array + cloud shadow texture).
 pub fn create_shadow_bgl(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("Shadow BGL"),
@@ -88,19 +88,43 @@ pub fn create_shadow_bgl(device: &wgpu::Device) -> wgpu::BindGroupLayout {
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                 count: None,
             },
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
         ],
     })
 }
 
-/// Create the shadow bind group (array texture view + comparison sampler).
+/// Create the shadow bind group (cascade depth array + cloud shadow texture).
 pub fn create_shadow_bind_group(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
     array_view: &wgpu::TextureView,
+    cloud_shadow_view: &wgpu::TextureView,
 ) -> wgpu::BindGroup {
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("Shadow Sampler"),
         compare: Some(wgpu::CompareFunction::LessEqual),
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    });
+
+    let cloud_shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("Cloud Shadow Sampler"),
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
         ..Default::default()
@@ -117,6 +141,14 @@ pub fn create_shadow_bind_group(
             wgpu::BindGroupEntry {
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::TextureView(cloud_shadow_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::Sampler(&cloud_shadow_sampler),
             },
         ],
     })

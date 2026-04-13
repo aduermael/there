@@ -2,11 +2,11 @@ use wgpu::util::DeviceExt;
 use web_sys::HtmlCanvasElement;
 
 use game_render::{
-    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
-    PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer, SceneRenderers,
-    ShadowCascades, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas, TreeRenderer,
-    WaterRenderer, Uniforms, create_depth_texture, create_shadow_bgl, create_shadow_bind_group,
-    create_shadow_texture, encode_frame, INTERMEDIATE_FORMAT,
+    BlobShadowRenderer, BloomRenderer, CloudShadowRenderer, ExposureRenderer, FxaaRenderer,
+    GrassRenderer, PlayerInstance, PlayerRenderer, PostProcessRenderer, RockRenderer,
+    SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas,
+    TreeRenderer, WaterRenderer, Uniforms, create_depth_texture, create_shadow_bgl,
+    create_shadow_bind_group, create_shadow_texture, encode_frame, INTERMEDIATE_FORMAT,
 };
 
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
@@ -21,6 +21,7 @@ pub struct Renderer {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     shadow_bind_group: wgpu::BindGroup,
+    cloud_shadow: CloudShadowRenderer,
     atlas: TextureAtlas,
     sky: SkyRenderer,
     water: WaterRenderer,
@@ -137,10 +138,9 @@ impl Renderer {
         // Depth texture
         let depth_view = create_depth_texture(&device, width, height);
 
-        // Shadow cascade texture + bind group
+        // Shadow cascade texture + cloud shadow + bind group
         let shadow_cascades = create_shadow_texture(&device);
         let shadow_bgl = create_shadow_bgl(&device);
-        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
 
         // Uniform buffer + bind group (shared across pipelines)
         let uniform_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -171,6 +171,10 @@ impl Renderer {
                 resource: uniform_buffer.as_entire_binding(),
             }],
         });
+
+        // Cloud shadow compute (bakes cloud shadows into a texture each frame)
+        let cloud_shadow = CloudShadowRenderer::new(&device, &uniform_bgl, &uniform_buffer);
+        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view, cloud_shadow.shadow_view());
 
         // Material texture atlas
         let atlas = TextureAtlas::new(&device, &queue);
@@ -223,6 +227,7 @@ impl Renderer {
             uniform_buffer,
             uniform_bind_group,
             shadow_bind_group,
+            cloud_shadow,
             atlas,
             sky,
             water,
@@ -298,6 +303,7 @@ impl Renderer {
             grass: &self.grass,
             rocks: &self.rocks,
             trees: &self.trees,
+            cloud_shadow: &self.cloud_shadow,
             blob_shadow: Some(&self.blob_shadow),
             players: Some(&self.players),
             ssao: &self.ssao,

@@ -82,7 +82,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let half_vec = normalize(view_dir + u.sun_dir);
     let spec = pow(max(dot(n, half_vec), 0.0), 256.0);
     let shadow = sample_shadow(in.world_pos, n);
-    let cloud_s = cloud_shadow(in.world_pos);
+    let cloud_s = sample_cloud_shadow(in.world_pos);
     let sun_vis = shadow * cloud_s;
     let sun_spec = u.sun_color * spec * 3.0 * sun_vis;
 

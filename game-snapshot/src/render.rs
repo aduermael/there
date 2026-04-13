@@ -1,8 +1,8 @@
 use game_render::{
     compute_atmosphere, compute_cascade_view_projs, create_depth_texture, create_shadow_bgl,
     create_shadow_bind_group, create_shadow_texture, encode_frame, update_cascade_vps,
-    BlobShadowRenderer, BloomRenderer, ExposureRenderer, FxaaRenderer, GrassRenderer,
-    PlayerRenderer, PlayerInstance, player_color, PostProcessRenderer, RockRenderer,
+    BlobShadowRenderer, BloomRenderer, CloudShadowRenderer, ExposureRenderer, FxaaRenderer,
+    GrassRenderer, PlayerRenderer, PlayerInstance, player_color, PostProcessRenderer, RockRenderer,
     SceneRenderers, ShadowCascades, SkyRenderer, SsaoRenderer, TerrainRenderer, TextureAtlas,
     TreeRenderer, WaterRenderer, Uniforms, INTERMEDIATE_FORMAT,
 };
@@ -35,6 +35,7 @@ struct SnapshotContext {
     #[allow(dead_code)]
     shadow_bgl: wgpu::BindGroupLayout,
     shadow_bind_group: wgpu::BindGroup,
+    cloud_shadow: CloudShadowRenderer,
     atlas: TextureAtlas,
     terrain: TerrainRenderer,
     sky: SkyRenderer,
@@ -160,7 +161,8 @@ impl SnapshotContext {
 
         let shadow_cascades = create_shadow_texture(&device);
         let shadow_bgl = create_shadow_bgl(&device);
-        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view);
+        let cloud_shadow = CloudShadowRenderer::new(&device, &uniform_bgl, &uniform_buffer);
+        let shadow_bind_group = create_shadow_bind_group(&device, &shadow_bgl, &shadow_cascades.array_view, cloud_shadow.shadow_view());
 
         let atlas = TextureAtlas::new(&device, &queue);
 
@@ -221,7 +223,7 @@ impl SnapshotContext {
             device, queue, width, height,
             render_texture, render_view, depth_view,
             heightmap_data, uniform_bgl, uniform_buffer, uniform_bind_group,
-            shadow_cascades, shadow_bgl, shadow_bind_group,
+            shadow_cascades, shadow_bgl, shadow_bind_group, cloud_shadow,
             atlas, terrain, sky, water, rock_renderer, tree_renderer, grass_renderer,
             ssao, bloom, exposure, postprocess, fxaa,
             blob_shadow_renderer, player_renderer,
@@ -289,6 +291,7 @@ impl SnapshotContext {
             grass: &self.grass_renderer,
             rocks: &self.rock_renderer,
             trees: &self.tree_renderer,
+            cloud_shadow: &self.cloud_shadow,
             blob_shadow: self.blob_shadow_renderer.as_ref(),
             players: self.player_renderer.as_ref(),
             ssao: &self.ssao,
