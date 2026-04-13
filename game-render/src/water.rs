@@ -8,7 +8,7 @@ pub struct WaterRenderer {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
-    depth_bind_group: wgpu::BindGroup,
+    heightmap_bind_group: wgpu::BindGroup,
 }
 
 impl WaterRenderer {
@@ -17,16 +17,15 @@ impl WaterRenderer {
         surface_format: wgpu::TextureFormat,
         uniform_bgl: &wgpu::BindGroupLayout,
         shadow_bgl: &wgpu::BindGroupLayout,
-        depth_view: &wgpu::TextureView,
+        heightmap_view: &wgpu::TextureView,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Water Shader"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{}\n{}\n{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}",
                     include_str!("uniforms.wgsl"),
                     include_str!("noise.wgsl"),
-                    include_str!("depth_utils.wgsl"),
                     include_str!("common.wgsl"),
                     include_str!("water.wgsl"),
                 )
@@ -34,14 +33,14 @@ impl WaterRenderer {
             ),
         });
 
-        // Depth texture bind group (group 2)
-        let depth_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Water Depth BGL"),
+        // Heightmap bind group (group 2)
+        let hm_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Water Heightmap BGL"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Depth,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
                     view_dimension: wgpu::TextureViewDimension::D2,
                     multisampled: false,
                 },
@@ -49,11 +48,18 @@ impl WaterRenderer {
             }],
         });
 
-        let depth_bind_group = Self::create_depth_bg(device, &depth_bgl, depth_view);
+        let heightmap_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Water Heightmap BG"),
+            layout: &hm_bgl,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(heightmap_view),
+            }],
+        });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Water Pipeline Layout"),
-            bind_group_layouts: &[uniform_bgl, shadow_bgl, &depth_bgl],
+            bind_group_layouts: &[uniform_bgl, shadow_bgl, &hm_bgl],
             push_constant_ranges: &[],
         });
 
@@ -99,7 +105,7 @@ impl WaterRenderer {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: crate::DEPTH_FORMAT,
-                depth_write_enabled: false, // read-only depth for simultaneous texture binding
+                depth_write_enabled: false, // read-only depth for correct occlusion
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: Default::default(),
                 bias: Default::default(),
@@ -161,23 +167,8 @@ impl WaterRenderer {
             vertex_buffer,
             index_buffer,
             index_count,
-            depth_bind_group,
+            heightmap_bind_group,
         }
-    }
-
-    fn create_depth_bg(
-        device: &wgpu::Device,
-        layout: &wgpu::BindGroupLayout,
-        depth_view: &wgpu::TextureView,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Water Depth BG"),
-            layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(depth_view),
-            }],
-        })
     }
 
     pub fn draw<'a>(
@@ -189,7 +180,7 @@ impl WaterRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, uniform_bg, &[]);
         pass.set_bind_group(1, shadow_bg, &[]);
-        pass.set_bind_group(2, &self.depth_bind_group, &[]);
+        pass.set_bind_group(2, &self.heightmap_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         pass.draw_indexed(0..self.index_count, 0, 0..1);

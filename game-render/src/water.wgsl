@@ -1,7 +1,7 @@
 // Water surface rendering.
 // Uniforms, noise, lighting, fog, and shadow bindings provided by common.wgsl prefix.
 
-@group(2) @binding(0) var depth_texture: texture_depth_2d;
+@group(2) @binding(0) var heightmap: texture_2d<f32>;
 
 const WATER_LEVEL: f32 = 8.0;
 const SHALLOW_COLOR: vec3<f32> = vec3(0.08, 0.45, 0.42);
@@ -12,7 +12,6 @@ const DEPTH_MAX: f32 = 8.0;
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
-    @location(1) screen_uv: vec2<f32>,
 };
 
 @vertex
@@ -23,26 +22,19 @@ fn vs_main(@location(0) local_xz: vec2<f32>) -> VertexOutput {
 
     let world_pos = vec3(local_xz.x, WATER_LEVEL + wave, local_xz.y);
 
-    let clip = u.view_proj * vec4(world_pos, 1.0);
     var out: VertexOutput;
-    out.clip_pos = clip;
+    out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
-    out.screen_uv = vec2(clip.x / clip.w * 0.5 + 0.5, 1.0 - (clip.y / clip.w * 0.5 + 0.5));
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let tex_size = vec2<f32>(textureDimensions(depth_texture));
-    let pixel = vec2<i32>(in.screen_uv * tex_size);
-    let screen_uv = in.screen_uv;
-
-    // Scene depth -> world position reconstruction
-    let scene_depth = textureLoad(depth_texture, pixel, 0);
-    let scene_world = reconstruct_pos(screen_uv, scene_depth);
-
-    // Water column depth
-    let water_depth = max(in.world_pos.y - scene_world.y, 0.0);
+    // Water column depth from heightmap (avoids depth texture read-back issues on Safari)
+    let tc = vec2<i32>(in.world_pos.xz / u.world_size * u.hm_res);
+    let res = i32(u.hm_res);
+    let terrain_h = textureLoad(heightmap, clamp(tc, vec2(0), vec2(res - 1)), 0).r;
+    let water_depth = max(in.world_pos.y - terrain_h, 0.0);
     let depth_factor = clamp(water_depth / DEPTH_MAX, 0.0, 1.0);
 
     // Animated surface normal from FBM derivatives (single layer, varied offset)

@@ -198,7 +198,7 @@ impl Renderer {
         let sky = SkyRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
         let terrain =
             TerrainRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view, heightmap_data, &atlas.view, &atlas.sampler);
-        let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &depth_view);
+        let water = WaterRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &heightmap_view);
         let blob_shadow = BlobShadowRenderer::new(&device, format, &uniform_bgl);
         let players = PlayerRenderer::new(&device, &queue, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl);
 

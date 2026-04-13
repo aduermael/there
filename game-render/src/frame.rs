@@ -116,7 +116,7 @@ pub fn encode_frame(
         }
     }
 
-    // Pass 2.5: Water → HDR intermediate (depth read-only for shore depth)
+    // Pass 2.5: Water → HDR intermediate (depth test only, no shader depth reads)
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Water Pass"),
@@ -130,7 +130,10 @@ pub fn encode_frame(
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
-                depth_ops: None, // read-only: allows simultaneous texture binding
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
                 stencil_ops: None,
             }),
             ..Default::default()
