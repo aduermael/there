@@ -18,7 +18,7 @@ impl SsaoRenderer {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("SSAO Shader"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("fullscreen.wgsl"), include_str!("ssao.wgsl")).into(),
+                format!("{}\n{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("depth_utils.wgsl"), include_str!("fullscreen.wgsl"), include_str!("ssao.wgsl")).into(),
             ),
         });
 

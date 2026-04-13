@@ -39,9 +39,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Scene depth -> world position reconstruction
     let scene_depth = textureLoad(depth_texture, pixel, 0);
-    let ndc = vec4(screen_uv.x * 2.0 - 1.0, 1.0 - screen_uv.y * 2.0, scene_depth, 1.0);
-    let world_raw = u.inv_view_proj * ndc;
-    let scene_world = world_raw.xyz / world_raw.w;
+    let scene_world = reconstruct_pos(screen_uv, scene_depth);
 
     // Water column depth
     let water_depth = max(in.world_pos.y - scene_world.y, 0.0);

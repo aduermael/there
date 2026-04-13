@@ -6,22 +6,9 @@
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(1) @binding(0) var depth_tex: texture_depth_2d;
 
-const NEAR: f32 = 0.1;
-const FAR: f32 = 500.0;
 const SAMPLES: u32 = 12;
 const RADIUS: f32 = 1.0;
 const STRENGTH: f32 = 2.5;
-
-fn linearize(d: f32) -> f32 {
-    return NEAR * FAR / (FAR - d * (FAR - NEAR));
-}
-
-fn reconstruct_pos(uv: vec2<f32>, depth: f32) -> vec3<f32> {
-    let ndc = vec2(uv.x * 2.0 - 1.0, (1.0 - uv.y) * 2.0 - 1.0);
-    let clip = vec4(ndc, depth, 1.0);
-    let wh = u.inv_view_proj * clip;
-    return wh.xyz / wh.w;
-}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -73,7 +60,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let proj = u.view_proj * vec4(sample_pos, 1.0);
         let proj_w = max(proj.w, 0.001);
         let proj_ndc = proj.xyz / proj_w;
-        let proj_uv = vec2(proj_ndc.x * 0.5 + 0.5, 1.0 - (proj_ndc.y * 0.5 + 0.5));
+        let proj_uv = ndc_to_uv(proj_ndc.xy);
         let proj_pixel = vec2<i32>(proj_uv * depth_dims);
 
         let in_bounds = proj.w > 0.0
@@ -82,8 +69,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         if in_bounds {
             let actual_depth = textureLoad(depth_tex, proj_pixel, 0);
-            let actual_linear = linearize(actual_depth);
-            let expected_linear = linearize(clamp(proj_ndc.z, 0.0, 1.0));
+            let actual_linear = linearize_depth(actual_depth);
+            let expected_linear = linearize_depth(clamp(proj_ndc.z, 0.0, 1.0));
 
             // Occluded when scene surface is closer than sample, with thickness heuristic:
             // accept small positive diffs (real occlusion), reject large ones

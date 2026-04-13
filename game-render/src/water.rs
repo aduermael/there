@@ -23,9 +23,10 @@ impl WaterRenderer {
             label: Some("Water Shader"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{}\n{}\n{}\n{}",
+                    "{}\n{}\n{}\n{}\n{}",
                     include_str!("uniforms.wgsl"),
                     include_str!("noise.wgsl"),
+                    include_str!("depth_utils.wgsl"),
                     include_str!("common.wgsl"),
                     include_str!("water.wgsl"),
                 )

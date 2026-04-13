@@ -20,14 +20,6 @@ fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
     return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
 }
 
-// Near/far planes matching the projection matrix (game-client + game-snapshot)
-const CS_NEAR: f32 = 0.1;
-const CS_FAR: f32 = 500.0;
-
-fn linearize_depth(d: f32) -> f32 {
-    return CS_NEAR * CS_FAR / (CS_FAR - d * (CS_FAR - CS_NEAR));
-}
-
 // Screen-space contact shadows: short-range ray march along sun direction
 fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
     // Skip when sun is below horizon
@@ -45,9 +37,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
     }
 
     // Reconstruct world position from depth
-    let ndc = vec4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, raw_depth, 1.0);
-    let world_h = u.inv_view_proj * ndc;
-    let world_pos = world_h.xyz / world_h.w;
+    let world_pos = reconstruct_pos(uv, raw_depth);
 
     // March a short distance along sun direction in world space, project each step to screen
     let march_distance = 1.5; // world units — short range for fine contact detail
@@ -66,7 +56,7 @@ fn contact_shadow(uv: vec2<f32>, pixel: vec2<f32>) -> f32 {
         let clip = u.view_proj * vec4(pos, 1.0);
         if clip.w <= 0.0 { continue; }
         let proj_ndc = clip.xyz / clip.w;
-        let proj_uv = vec2(proj_ndc.x * 0.5 + 0.5, 1.0 - (proj_ndc.y * 0.5 + 0.5));
+        let proj_uv = ndc_to_uv(proj_ndc.xy);
 
         if proj_uv.x < 0.0 || proj_uv.x > 1.0 || proj_uv.y < 0.0 || proj_uv.y > 1.0 {
             continue;
@@ -107,7 +97,7 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
     }
 
     let sun_ndc = sun_clip.xy / sun_clip.w;
-    let sun_uv = vec2(sun_ndc.x * 0.5 + 0.5, 1.0 - (sun_ndc.y * 0.5 + 0.5));
+    let sun_uv = ndc_to_uv(sun_ndc);
 
     // Ray intensity: strongest at low sun angles (dawn/dusk), fades toward noon, off at night
     let elevation = u.sun_dir.y;
