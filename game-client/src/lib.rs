@@ -209,7 +209,7 @@ impl GameState {
         self.players.clear();
 
         // Smoothly rotate local visual yaw toward move_yaw (shortest arc)
-        let turn_speed = 12.0;
+        let turn_speed = game_core::PLAYER_TURN_SPEED;
         let max_step = turn_speed * dt.max(1.0 / 60.0);
         self.local_visual_yaw = game_core::movement::lerp_angle(self.local_visual_yaw, self.local_move_yaw, max_step);
 
@@ -309,9 +309,9 @@ async fn run() {
 
     let camera = OrbitCamera::new(
         local_pos,
-        0.5,  // yaw
-        0.35, // pitch
-        15.0, // distance
+        0.5, // yaw
+        game_core::camera::DEFAULT_PITCH,
+        game_core::camera::DEFAULT_DISTANCE,
     );
 
     let local_player = PlayerInstance {
@@ -536,10 +536,10 @@ fn start_render_loop(
             let eye = state.camera.eye();
             let view = glam::Mat4::look_at_rh(eye, state.camera.look_target(), glam::Vec3::Y);
             let proj = glam::Mat4::perspective_rh(
-                std::f32::consts::FRAC_PI_4,
+                game_core::camera::FOV,
                 aspect,
-                0.1,
-                500.0,
+                game_core::camera::NEAR_PLANE,
+                game_core::camera::FAR_PLANE,
             );
             let view_proj = proj * view;
             let atmo = compute_atmosphere(state.sun_angle);

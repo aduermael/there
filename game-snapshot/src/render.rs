@@ -141,7 +141,7 @@ impl SnapshotContext {
         let atmo = compute_atmosphere(sun_angle);
         let view_mat = glam::Mat4::look_at_rh(camera_pos, camera_target, glam::Vec3::Y);
         let aspect = width as f32 / height as f32;
-        let proj = glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_4, aspect, 0.1, 500.0);
+        let proj = glam::Mat4::perspective_rh(game_core::camera::FOV, aspect, game_core::camera::NEAR_PLANE, game_core::camera::FAR_PLANE);
         let view_proj = proj * view_mat;
         let (cascade_vps, cascade_splits) = compute_cascade_view_projs(atmo.sun_dir, camera_pos);
 
@@ -271,7 +271,7 @@ impl SnapshotContext {
         let atmo = compute_atmosphere(sun_angle);
         let view_mat = glam::Mat4::look_at_rh(camera_pos, camera_target, glam::Vec3::Y);
         let aspect = self.width as f32 / self.height as f32;
-        let proj = glam::Mat4::perspective_rh(std::f32::consts::FRAC_PI_4, aspect, 0.1, 500.0);
+        let proj = glam::Mat4::perspective_rh(game_core::camera::FOV, aspect, game_core::camera::NEAR_PLANE, game_core::camera::FAR_PLANE);
         let view_proj = proj * view_mat;
         let (cascade_vps, cascade_splits) = compute_cascade_view_projs(atmo.sun_dir, camera_pos);
 

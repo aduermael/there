@@ -6,6 +6,11 @@ pub const MIN_PITCH: f32 = 0.05;
 pub const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.05;
 pub const MIN_DISTANCE: f32 = 3.0;
 pub const MAX_DISTANCE: f32 = 20.0;
+pub const DEFAULT_PITCH: f32 = 0.35;
+pub const DEFAULT_DISTANCE: f32 = 15.0;
+pub const FOV: f32 = std::f32::consts::FRAC_PI_4;
+pub const NEAR_PLANE: f32 = 0.1;
+pub const FAR_PLANE: f32 = 500.0;
 
 /// Compute orbit camera eye position and look target from spherical parameters.
 ///
