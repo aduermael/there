@@ -88,7 +88,7 @@ impl TreeRenderer {
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Tree Compute Shader"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("trees_compute.wgsl")).into(),
+                format!("{}\n{}\n{}\n{}", include_str!("uniforms.wgsl"), include_str!("noise.wgsl"), include_str!("heightmap_utils.wgsl"), include_str!("trees_compute.wgsl")).into(),
             ),
         });
 

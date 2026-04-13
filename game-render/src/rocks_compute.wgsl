@@ -17,24 +17,6 @@ const MAX_INSTANCES: u32 = 4096u;
 const GRID_EXTENT: u32 = 96u;
 const CELL_STEP: u32 = 8u;
 
-// --- Heightmap access ---
-
-fn get_height(tc: vec2<i32>) -> f32 {
-    let res = i32(u.hm_res);
-    return textureLoad(heightmap, clamp(tc, vec2(0), vec2(res - 1)), 0).r;
-}
-
-fn compute_slope(tc: vec2<i32>) -> f32 {
-    let hL = get_height(tc + vec2(-1, 0));
-    let hR = get_height(tc + vec2(1, 0));
-    let hD = get_height(tc + vec2(0, -1));
-    let hU = get_height(tc + vec2(0, 1));
-    let texel_size = u.world_size / u.hm_res;
-    let dx = (hR - hL) / (2.0 * texel_size);
-    let dz = (hU - hD) / (2.0 * texel_size);
-    return sqrt(dx * dx + dz * dz);
-}
-
 // --- Main compute kernel ---
 
 @compute @workgroup_size(16, 16, 1)
