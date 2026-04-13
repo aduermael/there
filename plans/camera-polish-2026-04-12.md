@@ -3,7 +3,7 @@
 ## Context
 
 Two issues reported:
-1. **Camera stutters on join** — initial distance 15.0 is far too large for the forested spawn area (128,128). The terrain collision system aggressively snaps the camera closer across several frames, causing visible jumps. At distance 15 the player is invisible among trees.
+1. **Camera stutters on jump** — `camera.target` tracks `local_pos` directly. During a jump, the orbit center bobs up/down with the player (JUMP_VELOCITY=8, GRAVITY=-20), causing the view to bounce and terrain collision to oscillate. Standard 3rd-person games smooth vertical camera tracking. Also, initial distance 15.0 is too large for the forested spawn area.
 2. **Camera target feels low** — `TARGET_Y_OFFSET = 1.2` targets upper chest; user wants shoulder/head height.
 
 Industry research (Valheim, GTA V, RDR2) confirms:
@@ -44,27 +44,38 @@ Code quality audit found several DRY violations and scattered constants worth co
 
 ---
 
-## Phase 2: Fix Camera Stutter on Join
+## Phase 2: Fix Camera Stutter on Jump + Improve Initial Distance
 
-**Root cause:** Initial orbit distance (15.0) is far too large for the forested spawn terrain. The collision system (`update()`) detects the camera clipping terrain/trees on the first frames and rapidly shrinks `effective_distance`, causing visible stutter. Additionally, there is no mechanism to skip smoothing on the initial frame.
+**Root cause — jump stutter:** `camera.target` is set to `self.local_pos` every frame (`lib.rs:201`). During a jump, `local_pos.y` changes rapidly (JUMP_VELOCITY=8.0, GRAVITY=-20.0), so the camera orbit center bobs up and down with the player. This causes:
+- The camera view to bounce vertically every jump
+- Terrain collision conditions to change rapidly as the orbit center moves, causing `effective_distance` to oscillate
+- A jarring, stuttery feel — standard 3rd-person games (Valheim, RDR2) smooth or decouple the camera's vertical tracking from the player's Y position during jumps
 
-**Design:**
-- Reduce default distance to a value that works well at spawn (6.0, matching Valheim-like framing)
-- Add a `snap()` method to `OrbitCamera` that sets `effective_distance = desired_distance` (bypasses smoothing). Call it once at camera creation time so the first frame renders at the collision-adjusted distance with no transition.
-- In `snap()`, also run one collision pass so the very first render uses a valid collision distance — no multi-frame settling.
+**Root cause — initial distance:** Default distance 15.0 is far too large for the forested spawn terrain. Camera clips into trees on the first frames.
+
+**Design — smooth vertical tracking:**
+- Add a `smoothed_target` field to `OrbitCamera` that tracks the player position with asymmetric vertical smoothing: fast follow when the player is on the ground or landing, slow/dampened follow when airborne (jumping)
+- Horizontal (XZ) tracking stays instant — no lag when running
+- Vertical (Y) tracking uses exponential smoothing: fast rate when grounded (~15-20/s), slower rate when airborne (~4-6/s) to absorb jump bobbing
+- The smoothed target is used for `orbit_eye` instead of raw `target`
+- On spawn/teleport: snap `smoothed_target` = `target` immediately (no interpolation)
 
 **Contracts:**
-- `OrbitCamera::snap(heightmap)` — run terrain collision once, set effective_distance = collision result. No smoothing.
-- Called once after `OrbitCamera::new()` in client init
-- Subsequent frames use normal smoothed collision as before
+- `OrbitCamera::update(dt, heightmap)` gains vertical smoothing of `self.target.y` into an internal `smoothed_target`
+- `orbit_at()` uses `smoothed_target` instead of `target`
+- New constant: `VERTICAL_FOLLOW_RATE` in `game-client/src/camera.rs` (tunable, ~6.0)
+- `OrbitCamera::new()` initializes `smoothed_target = target` (no stutter on first frame)
 
 **Success criteria:**
-- First frame renders with camera at a stable position (no visible snap/stutter)
-- Camera at spawn shows the player clearly with good framing
-- Subsequent distance smoothing behavior unchanged
+- Jump causes smooth, gentle camera rise/fall instead of 1:1 bobbing
+- Running on flat ground: no visible vertical lag
+- Walking up/down slopes: camera follows smoothly
+- Teleport/spawn: no stutter (snap bypasses smoothing)
+- Default distance at spawn shows the player clearly
 
-- [ ] 2a: Reduce `DEFAULT_DISTANCE` from 15.0 to 6.0. Add `OrbitCamera::snap(&mut self, heightmap: &[f32])` that runs one collision pass and sets `effective_distance` to the result (reuse the same raycast logic from `update`). Call `snap()` immediately after camera creation in client init.
-- [ ] 2b: Snapshot verification at spawn — render at player_pos=[128,-1,128] with orbit_distance=6.0. Verify player is visible and well-framed. 3 sub-agent critics validate.
+- [ ] 2a: Add `smoothed_target: Vec3` field to `OrbitCamera`. Initialize it to `target` in `new()`. In `update()`, smooth `smoothed_target.y` toward `target.y` using exponential decay (`VERTICAL_FOLLOW_RATE`). XZ components track instantly: `smoothed_target.x = target.x`, `smoothed_target.z = target.z`. Change `orbit_at()` to use `smoothed_target` instead of `target`.
+- [ ] 2b: Reduce `DEFAULT_DISTANCE` from 15.0 to 6.0 in `game-core/src/camera.rs`. Update client init to use the constant.
+- [ ] 2c: Snapshot verification — run idle_back, turntable, walk_forward scenarios. Build all 3 targets with zero warnings. 3 sub-agent critics validate.
 
 ---
 
