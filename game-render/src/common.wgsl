@@ -6,6 +6,31 @@
 @group(1) @binding(0) var shadow_map: texture_depth_2d_array;
 @group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
+// Shared cloud layer parameters — used by sky rendering and cloud shadow computation.
+// Each layer: altitude (world Y), scale (domain size), coverage (noise threshold),
+//             opacity (visual density), drift_mult (wind speed multiplier).
+const CLOUD_HIGH_ALTITUDE: f32 = 220.0;
+const CLOUD_HIGH_SCALE: f32 = 700.0;
+const CLOUD_HIGH_COVERAGE: f32 = 0.38;
+const CLOUD_HIGH_OPACITY: f32 = 0.5;
+const CLOUD_HIGH_DRIFT: f32 = 1.3;
+
+const CLOUD_MID_ALTITUDE: f32 = 120.0;
+const CLOUD_MID_SCALE: f32 = 500.0;
+const CLOUD_MID_COVERAGE: f32 = 0.35;
+const CLOUD_MID_OPACITY: f32 = 1.0;
+const CLOUD_MID_DRIFT: f32 = 1.0;
+
+const CLOUD_LOW_ALTITUDE: f32 = 80.0;
+const CLOUD_LOW_SCALE: f32 = 350.0;
+const CLOUD_LOW_COVERAGE: f32 = 0.42;
+const CLOUD_LOW_OPACITY: f32 = 0.85;
+const CLOUD_LOW_DRIFT: f32 = 0.7;
+
+fn cloud_drift(drift_mult: f32) -> vec2<f32> {
+    return vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
+}
+
 fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
     let dx = dpdx(world_pos);
     let dy = dpdy(world_pos);
@@ -89,17 +114,16 @@ fn sample_shadow(world_pos: vec3<f32>, normal: vec3<f32>) -> f32 {
 fn cloud_shadow_layer(world_pos: vec3<f32>, altitude: f32, scale: f32, coverage: f32, drift_mult: f32) -> f32 {
     let t = (altitude - world_pos.y) / max(u.sun_dir.y, 0.001);
     let cloud_xz = world_pos.xz + u.sun_dir.xz * t;
-    let drift = vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
+    let drift = cloud_drift(drift_mult);
     let sample_pos = (cloud_xz + drift) / scale;
     var density = fbm3(sample_pos);
     return smoothstep(coverage, coverage + 0.25, density);
 }
 
 fn cloud_shadow(world_pos: vec3<f32>) -> f32 {
-    // Sample all cloud layers matching sky.wgsl parameters
-    let d_high = cloud_shadow_layer(world_pos, 220.0, 700.0, 0.38, 1.3) * 0.5;
-    let d_mid  = cloud_shadow_layer(world_pos, 120.0, 500.0, 0.35, 1.0);
-    let d_low  = cloud_shadow_layer(world_pos, 80.0, 350.0, 0.42, 0.7) * 0.85;
+    let d_high = cloud_shadow_layer(world_pos, CLOUD_HIGH_ALTITUDE, CLOUD_HIGH_SCALE, CLOUD_HIGH_COVERAGE, CLOUD_HIGH_DRIFT) * CLOUD_HIGH_OPACITY;
+    let d_mid  = cloud_shadow_layer(world_pos, CLOUD_MID_ALTITUDE, CLOUD_MID_SCALE, CLOUD_MID_COVERAGE, CLOUD_MID_DRIFT);
+    let d_low  = cloud_shadow_layer(world_pos, CLOUD_LOW_ALTITUDE, CLOUD_LOW_SCALE, CLOUD_LOW_COVERAGE, CLOUD_LOW_DRIFT) * CLOUD_LOW_OPACITY;
 
     // Combined density (capped at 1)
     let total = min(d_high + d_mid + d_low, 1.0);

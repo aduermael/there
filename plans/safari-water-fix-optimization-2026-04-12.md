@@ -44,7 +44,7 @@ Significant code duplication exists across shaders. This phase extracts shared u
 
 - [x] 2c: **New `heightmap_utils.wgsl`** -- Extract `get_height(tc)`, `get_height_world(wx, wz)`, and `compute_slope(tc)` from the compute shaders. Refactor grass_compute.wgsl, rocks_compute.wgsl, and trees_compute.wgsl to use the shared file. Update Rust-side `format!()` assembly. (Note: rocks_compute doesn't have `get_height_world` -- that's fine, the shared file exposes all three and each consumer uses what it needs.)
 
-- [ ] 2d: **Shared cloud layer constants** -- Define the cloud layer parameters (altitude, scale, coverage, opacity, drift_mult for each of the 3 layers) and the drift vector computation as shared constants in common.wgsl (or a new `cloud_params.wgsl`). Refactor sky.wgsl's `fs_main` and common.wgsl's `cloud_shadow()` to reference these shared constants instead of duplicating magic numbers. This eliminates the sync risk where cloud shadows could drift out of alignment with visible clouds.
+- [x] 2d: **Shared cloud layer constants** -- Define the cloud layer parameters (altitude, scale, coverage, opacity, drift_mult for each of the 3 layers) and the drift vector computation as shared constants in common.wgsl (or a new `cloud_params.wgsl`). Refactor sky.wgsl's `fs_main` and common.wgsl's `cloud_shadow()` to reference these shared constants instead of duplicating magic numbers. This eliminates the sync risk where cloud shadows could drift out of alignment with visible clouds.
 
 ---
 

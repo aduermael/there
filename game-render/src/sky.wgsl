@@ -36,7 +36,7 @@ fn sample_cloud_layer(
     let dist = (altitude - u.camera_pos.y) / ray_dir.y;
     let cloud_xz = u.camera_pos.xz + ray_dir.xz * dist;
 
-    let drift = vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
+    let drift = cloud_drift(drift_mult);
     let sample_pos = (cloud_xz + drift) / scale;
 
     var density = fbm3(sample_pos);
@@ -111,15 +111,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let sun_intensity = mix(vec3(1.0, 0.95, 0.85), u.sun_color, 0.3) * 5.0;
 
     // --- Multi-layer procedural clouds ---
-    // Layer 1: High cirrus (wispy, thin, fast)
-    //   altitude, scale, coverage, opacity, drift_mult
-    let c_high = sample_cloud_layer(ray_dir, sun_dot, 220.0, 700.0, 0.38, 0.5, 1.3);
-
-    // Layer 2: Mid-altitude cumulus (main cloud layer)
-    let c_mid = sample_cloud_layer(ray_dir, sun_dot, 120.0, 500.0, 0.35, 1.0, 1.0);
-
-    // Layer 3: Low scattered clouds (dense, slow)
-    let c_low = sample_cloud_layer(ray_dir, sun_dot, 80.0, 350.0, 0.42, 0.85, 0.7);
+    let c_high = sample_cloud_layer(ray_dir, sun_dot, CLOUD_HIGH_ALTITUDE, CLOUD_HIGH_SCALE, CLOUD_HIGH_COVERAGE, CLOUD_HIGH_OPACITY, CLOUD_HIGH_DRIFT);
+    let c_mid = sample_cloud_layer(ray_dir, sun_dot, CLOUD_MID_ALTITUDE, CLOUD_MID_SCALE, CLOUD_MID_COVERAGE, CLOUD_MID_OPACITY, CLOUD_MID_DRIFT);
+    let c_low = sample_cloud_layer(ray_dir, sun_dot, CLOUD_LOW_ALTITUDE, CLOUD_LOW_SCALE, CLOUD_LOW_COVERAGE, CLOUD_LOW_OPACITY, CLOUD_LOW_DRIFT);
 
     // Composite back-to-front (highest layer first, then overlay closer layers)
     var total_cloud_density = 0.0;
