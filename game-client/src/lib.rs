@@ -533,8 +533,8 @@ fn start_render_loop(
             let (w, h) = state.renderer.surface_size();
             let aspect = w as f32 / h as f32;
 
-            let eye = state.camera.eye();
-            let view = glam::Mat4::look_at_rh(eye, state.camera.look_target(), glam::Vec3::Y);
+            let (eye, look_target) = state.camera.eye_and_target();
+            let view = glam::Mat4::look_at_rh(eye, look_target, glam::Vec3::Y);
             let proj = glam::Mat4::perspective_rh(
                 game_core::camera::FOV,
                 aspect,

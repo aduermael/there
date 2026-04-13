@@ -142,14 +142,9 @@ impl OrbitCamera {
         self.effective_distance = self.effective_distance.max(1.0);
     }
 
-    /// Current eye position (call after update).
-    pub fn eye(&self) -> Vec3 {
-        self.orbit_at(self.effective_distance).0
-    }
-
-    /// Camera look-at target (orbit center with vertical offset).
-    pub fn look_target(&self) -> Vec3 {
-        self.orbit_at(self.effective_distance).1
+    /// Current eye position and look-at target (single orbit computation).
+    pub fn eye_and_target(&self) -> (Vec3, Vec3) {
+        self.orbit_at(self.effective_distance)
     }
 
 }
