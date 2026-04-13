@@ -68,7 +68,7 @@ Targeted reductions to per-pixel work that have minimal or no visual impact. The
 
 **Files:** `game-render/src/water.wgsl`, `game-render/src/postprocess.wgsl`, `game-render/src/ssao.wgsl`, `game-render/src/sky.wgsl`
 
-- [ ] 4a: **Water shader** -- Reduce fragment noise cost. Currently 6 fbm3 for normals (2 layers x 3 finite-difference samples) + 2 fbm3 for foam = 8 fbm3 per pixel. Changes: (1) Drop the second ripple layer (ws2/wo2, lines 57-62) -- it contributes only 0.3 amplitude and is barely visible; fold a slight frequency variation into the primary layer instead. (2) Reduce foam from 2 fbm3 to 1 (single noise sample is sufficient for foam edge detection). Target: ~4 fbm3 per fragment (3 for normals + 1 for foam), down from 8.
+- [x] 4a: **Water shader** -- Reduce fragment noise cost. Currently 6 fbm3 for normals (2 layers x 3 finite-difference samples) + 2 fbm3 for foam = 8 fbm3 per pixel. Changes: (1) Drop the second ripple layer (ws2/wo2, lines 57-62) -- it contributes only 0.3 amplitude and is barely visible; fold a slight frequency variation into the primary layer instead. (2) Reduce foam from 2 fbm3 to 1 (single noise sample is sufficient for foam edge detection). Target: ~4 fbm3 per fragment (3 for normals + 1 for foam), down from 8.
 
 - [ ] 4b: **Postprocess god rays** -- Reduce from 20 to 12 steps. The per-pixel IGN jitter already breaks banding, so fewer steps produce visually identical results. Also add an early-out when the sun elevation is high (`angle_intensity < 0.01` check after line 118) to skip the loop entirely during midday -- saves the full 40 texture ops for roughly half the day cycle.
 

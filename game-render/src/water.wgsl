@@ -45,25 +45,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let water_depth = max(in.world_pos.y - scene_world.y, 0.0);
     let depth_factor = clamp(water_depth / DEPTH_MAX, 0.0, 1.0);
 
-    // Animated surface normal from FBM derivatives
+    // Animated surface normal from FBM derivatives (single layer, varied offset)
     let eps = 0.3;
     let base = in.world_pos.xz;
-    let ws = 0.18;
+    let ws = 0.20;
     let wo = vec2(u.time * 0.7, u.time * 0.4);
 
     let h_c = fbm3(base * ws + wo);
     let h_r = fbm3((base + vec2(eps, 0.0)) * ws + wo);
     let h_u = fbm3((base + vec2(0.0, eps)) * ws + wo);
 
-    // Add a second higher-frequency ripple layer
-    let ws2 = 0.45;
-    let wo2 = vec2(u.time * -0.3, u.time * 0.6);
-    let h_c2 = fbm3(base * ws2 + wo2) * 0.3;
-    let h_r2 = fbm3((base + vec2(eps, 0.0)) * ws2 + wo2) * 0.3;
-    let h_u2 = fbm3((base + vec2(0.0, eps)) * ws2 + wo2) * 0.3;
-
-    let dx = (h_c + h_c2) - (h_r + h_r2);
-    let dz = (h_c + h_c2) - (h_u + h_u2);
+    let dx = h_c - h_r;
+    let dz = h_c - h_u;
     let n = normalize(vec3(dx, eps * 1.5, dz));
 
     // View direction
@@ -98,10 +91,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Combine reflection and refraction via Fresnel
     let surface_color = mix(lit_water, sky_reflect, fresnel) + sun_spec;
 
-    // Shoreline foam
-    let foam_uv1 = in.world_pos.xz * 0.4 + vec2(u.time * 1.2, u.time * 0.5);
-    let foam_uv2 = in.world_pos.xz * 0.7 + vec2(u.time * -0.4, u.time * 0.8);
-    let foam_noise = fbm3(foam_uv1) * 0.6 + fbm3(foam_uv2) * 0.4;
+    // Shoreline foam (single noise sample)
+    let foam_uv = in.world_pos.xz * 0.5 + vec2(u.time * 0.8, u.time * 0.5);
+    let foam_noise = fbm3(foam_uv);
     let foam_edge = smoothstep(0.0, 0.6, water_depth);
     let foam_mask = (1.0 - foam_edge) * smoothstep(0.25, 0.5, foam_noise);
     let foamy_surface = mix(surface_color, FOAM_COLOR * (ambient + u.sun_color * sun_vis * 0.5), foam_mask * 0.8);
