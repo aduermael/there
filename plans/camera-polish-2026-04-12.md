@@ -93,7 +93,7 @@ Code quality audit found several DRY violations and scattered constants worth co
 - Camera doesn't float visibly above gentle terrain
 
 - [x] 3a: Update `TARGET_Y_OFFSET` to 1.4, `MIN_DISTANCE` to 2.0, `MAX_DISTANCE` to 12.0, `CLEARANCE` to 1.0. These are all single-line constant changes in `game-core/src/camera.rs` and `game-client/src/camera.rs`.
-- [ ] 3b: Snapshot verification — render idle_back, idle_side, turntable with new params. Compare framing before/after. 3 sub-agent critics validate that player framing is improved (higher target, tighter zoom range, camera closer to terrain on hills).
+- [x] 3b: Snapshot verification — render idle_back, idle_side, turntable with new params. Compare framing before/after. 3 sub-agent critics validate that player framing is improved (higher target, tighter zoom range, camera closer to terrain on hills).
 
 ---
 
