@@ -74,7 +74,7 @@ Targeted reductions to per-pixel work that have minimal or no visual impact. The
 
 - [x] 4c: **Postprocess contact shadows** -- Reduce from 12 to 8 steps. The march distance is only 1.5 world units, so 8 steps at ~0.19 unit spacing still captures fine contact detail. Adjust the occlusion divisor accordingly.
 
-- [ ] 4d: **SSAO samples** -- Reduce from 12 to 8. The golden-angle spiral with IGN rotation is specifically designed for low sample counts, and the bilateral blur in postprocess smooths the result. 8 samples at half-resolution is well within quality thresholds.
+- [x] 4d: **SSAO samples** -- Reduce from 12 to 8. The golden-angle spiral with IGN rotation is specifically designed for low sample counts, and the bilateral blur in postprocess smooths the result. 8 samples at half-resolution is well within quality thresholds.
 
 - [ ] 4e: **Sky cloud self-shadow** -- Use `fbm2` (from Phase 2a) instead of `fbm3` for the self-shadow density sample in `sample_cloud_layer()`. The third octave contributes 0.125 amplitude at cloud scale (350-700 unit domains) -- sub-pixel detail that's invisible. This saves 1 value_noise (4 hashes) per cloud layer = 12 hashes per sky pixel.
 

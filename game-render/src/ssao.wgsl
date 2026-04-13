@@ -6,7 +6,7 @@
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(1) @binding(0) var depth_tex: texture_depth_2d;
 
-const SAMPLES: u32 = 12;
+const SAMPLES: u32 = 8;
 const RADIUS: f32 = 1.0;
 const STRENGTH: f32 = 2.5;
 
