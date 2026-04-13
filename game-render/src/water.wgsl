@@ -12,6 +12,7 @@ const DEPTH_MAX: f32 = 8.0;
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
+    @location(1) screen_uv: vec2<f32>,
 };
 
 @vertex
@@ -22,17 +23,19 @@ fn vs_main(@location(0) local_xz: vec2<f32>) -> VertexOutput {
 
     let world_pos = vec3(local_xz.x, WATER_LEVEL + wave, local_xz.y);
 
+    let clip = u.view_proj * vec4(world_pos, 1.0);
     var out: VertexOutput;
-    out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
+    out.clip_pos = clip;
     out.world_pos = world_pos;
+    out.screen_uv = vec2(clip.x / clip.w * 0.5 + 0.5, 1.0 - (clip.y / clip.w * 0.5 + 0.5));
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let pixel = vec2<i32>(in.clip_pos.xy);
     let tex_size = vec2<f32>(textureDimensions(depth_texture));
-    let screen_uv = in.clip_pos.xy / tex_size;
+    let pixel = vec2<i32>(in.screen_uv * tex_size);
+    let screen_uv = in.screen_uv;
 
     // Scene depth -> world position reconstruction
     let scene_depth = textureLoad(depth_texture, pixel, 0);

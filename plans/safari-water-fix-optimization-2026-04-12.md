@@ -21,7 +21,7 @@ The water fragment shader uses `in.clip_pos.xy / tex_size` to derive screen UVs.
 
 **Files:** `game-render/src/water.wgsl`
 
-- [ ] 1a: Add `screen_uv` output to water vertex shader, compute it from clip-space position (`clip.xy / clip.w * 0.5 + vec2(0.5, -0.5) + 0.5` or equivalent NDC-to-UV transform). In the fragment shader, replace `in.clip_pos.xy / tex_size` with the interpolated `in.screen_uv`. Derive `pixel` from `screen_uv * tex_size`. Verify: depth reconstruction should now be camera-independent and work identically on all browsers.
+- [x] 1a: Add `screen_uv` output to water vertex shader, compute it from clip-space position (`clip.xy / clip.w * 0.5 + vec2(0.5, -0.5) + 0.5` or equivalent NDC-to-UV transform). In the fragment shader, replace `in.clip_pos.xy / tex_size` with the interpolated `in.screen_uv`. Derive `pixel` from `screen_uv * tex_size`. Verify: depth reconstruction should now be camera-independent and work identically on all browsers.
 
 ---
 
