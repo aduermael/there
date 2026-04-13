@@ -11,6 +11,15 @@ use game_render::{
 
 // All instance renderers (grass, trees, rocks) use GPU compute; no CPU scatter needed.
 
+fn detect_render_scale() -> f32 {
+    let window = web_sys::window().unwrap();
+    let ua = window.navigator().user_agent().unwrap_or_default();
+    // Safari: "Safari" present but "Chrome"/"Chromium" absent (Chrome UA includes "Safari")
+    let is_safari = ua.contains("Safari") && !ua.contains("Chrome") && !ua.contains("Chromium");
+    let is_ios = ua.contains("iPhone") || ua.contains("iPad") || ua.contains("iPod");
+    if is_safari || is_ios { 0.75 } else { 1.0 }
+}
+
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -95,6 +104,12 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
+        // Render scale: reduced internal resolution for Safari/iOS (saves ~44% pixel work at 0.75x)
+        let render_scale = detect_render_scale();
+        let iw = ((width as f32 * render_scale) as u32).max(1);
+        let ih = ((height as f32 * render_scale) as u32).max(1);
+        log::info!("Render scale: {:.2} (internal {}x{}, canvas {}x{})", render_scale, iw, ih, width, height);
+
         // Heightmap texture (R32Float)
         let hm_res = game_core::HEIGHTMAP_RES;
         let heightmap_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -135,8 +150,8 @@ impl Renderer {
         let heightmap_view =
             heightmap_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Depth texture
-        let depth_view = create_depth_texture(&device, width, height);
+        // Depth texture (internal resolution)
+        let depth_view = create_depth_texture(&device, iw, ih);
 
         // Shadow cascade texture + cloud shadow + bind group
         let shadow_cascades = create_shadow_texture(&device);
@@ -191,24 +206,24 @@ impl Renderer {
         let trees = TreeRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view, &atlas.bind_group_layout);
         let grass = GrassRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
 
-        // SSAO renderer
-        let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
+        // SSAO renderer (internal resolution, half-res AO)
+        let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, iw, ih);
 
-        // Bloom renderer (compute, needs HDR view from postprocess)
-        let mut bloom = BloomRenderer::new(&device, width, height);
+        // Bloom renderer (compute, internal resolution)
+        let mut bloom = BloomRenderer::new(&device, iw, ih);
 
-        // Exposure renderer (compute histogram + reduce)
-        let mut exposure = ExposureRenderer::new(&device, width, height);
+        // Exposure renderer (compute histogram + reduce, internal resolution)
+        let mut exposure = ExposureRenderer::new(&device, iw, ih);
 
-        // Post-process renderer (HDR intermediate → surface)
-        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), exposure.exposure_buffer(), width, height);
+        // Post-process renderer (HDR intermediate at internal resolution)
+        let postprocess = PostProcessRenderer::new(&device, format, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), exposure.exposure_buffer(), iw, ih);
 
         // Link bloom + exposure to HDR intermediate (created by postprocess)
         bloom.build_bind_groups(&device, postprocess.intermediate_view());
         exposure.build_bind_groups(&device, postprocess.intermediate_view());
 
-        // FXAA renderer (postprocess → LDR intermediate → FXAA → surface)
-        let fxaa = FxaaRenderer::new(&device, format, width, height);
+        // FXAA renderer (LDR at internal resolution, output to full-res surface performs upscale)
+        let fxaa = FxaaRenderer::new(&device, format, iw, ih);
 
         log::info!(
             "Renderer initialized: {}x{}, format={:?}",
