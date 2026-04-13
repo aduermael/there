@@ -56,7 +56,7 @@ The single highest-impact optimization. Currently, `cloud_shadow()` runs 3 `fbm3
 
 **Files:** New `game-render/src/cloud_shadow_compute.wgsl`, new `game-render/src/cloud_shadow.rs`, modifications to `game-render/src/common.wgsl`, `game-render/src/water.wgsl`, `game-render/src/frame.rs`, and each renderer's Rust file for bind group changes
 
-- [ ] 3a: **Create cloud shadow compute shader + Rust renderer** -- New compute shader that writes cloud shadow values to a 2D texture. Each texel maps to a world-space XZ position (camera-centered, covering the visible area). Compute the same `cloud_shadow_layer()` calls using the shared cloud constants from Phase 2d. Output: R8Unorm texture where 1.0 = fully lit, lower = shadowed.
+- [x] 3a: **Create cloud shadow compute shader + Rust renderer** -- New compute shader that writes cloud shadow values to a 2D texture. Each texel maps to a world-space XZ position (camera-centered, covering the visible area). Compute the same `cloud_shadow_layer()` calls using the shared cloud constants from Phase 2d. Output: R8Unorm texture where 1.0 = fully lit, lower = shadowed.
 
 - [ ] 3b: **Integrate into render pipeline** -- Add the cloud shadow compute pass to `frame.rs` before the scene pass. Add the cloud shadow texture as a new binding accessible to geometry shaders (via an existing or new bind group). Refactor `hemisphere_lighting()` in common.wgsl to sample the cloud shadow texture instead of calling `cloud_shadow()`. Refactor water.wgsl's inline cloud shadow call similarly. Remove the now-unused `cloud_shadow()` and `cloud_shadow_layer()` functions from common.wgsl (the logic lives in the compute shader now).
 
