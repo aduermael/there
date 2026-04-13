@@ -15,8 +15,6 @@ struct GrassInstance {
 
 const MAX_INSTANCES: u32 = 64000u;
 const GRID_EXTENT: u32 = 384u; // 192 units at 0.5 spacing
-const TAU: f32 = 6.28318530;
-
 // --- Heightmap access ---
 
 fn get_height(tc: vec2<i32>) -> f32 {

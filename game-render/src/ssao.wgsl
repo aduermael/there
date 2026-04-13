@@ -42,7 +42,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // Per-pixel rotation from IGN — removes banding without visible noise
-    let rotation = ign(in.position.xy) * 6.28318;
+    let rotation = ign(in.position.xy) * TAU;
 
     // Build orthonormal tangent frame around surface normal
     let ref_up = select(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), abs(n.y) > 0.99);

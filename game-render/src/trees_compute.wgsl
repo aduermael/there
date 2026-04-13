@@ -17,8 +17,6 @@ struct TreeInstance {
 const MAX_INSTANCES: u32 = 8192u;
 const GRID_EXTENT: u32 = 128u;
 const CELL_STEP: u32 = 6u;
-const TAU: f32 = 6.28318530;
-
 // --- Heightmap access ---
 
 fn get_height(tc: vec2<i32>) -> f32 {

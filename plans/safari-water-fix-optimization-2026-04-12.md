@@ -38,7 +38,7 @@ Significant code duplication exists across shaders. This phase extracts shared u
 
 **Files:** `game-render/src/noise.wgsl`, `game-render/src/ssao.wgsl`, `game-render/src/postprocess.wgsl`, `game-render/src/water.wgsl`, `game-render/src/sky.wgsl`, `game-render/src/common.wgsl`, `game-render/src/grass_compute.wgsl`, `game-render/src/rocks_compute.wgsl`, `game-render/src/trees_compute.wgsl`, plus new shared include files and Rust `format!()` assembly in each renderer's `.rs` file
 
-- [ ] 2a: **noise.wgsl** -- Add `const TAU: f32 = 6.2831853;` and `fn fbm2()` (2-octave variant). Remove standalone `TAU` definitions from grass_compute.wgsl and trees_compute.wgsl. Replace all bare `6.28318*` literals in ssao.wgsl and common.wgsl with `TAU`.
+- [x] 2a: **noise.wgsl** -- Add `const TAU: f32 = 6.2831853;` and `fn fbm2()` (2-octave variant). Remove standalone `TAU` definitions from grass_compute.wgsl and trees_compute.wgsl. Replace all bare `6.28318*` literals in ssao.wgsl and common.wgsl with `TAU`.
 
 - [ ] 2b: **New `depth_utils.wgsl`** -- Extract `linearize_depth(d) -> f32` (with shared `NEAR`/`FAR` constants), `reconstruct_pos(uv, depth) -> vec3<f32>`, and `ndc_to_uv(ndc_xy) -> vec2<f32>` (the `x*0.5+0.5, 1-(y*0.5+0.5)` pattern). Refactor ssao.wgsl, postprocess.wgsl, and water.wgsl to use these shared functions. Update the Rust-side `format!()` assembly to include `depth_utils.wgsl` for these shaders. Remove the duplicate `linearize`/`linearize_depth`/`CS_NEAR`/`CS_FAR`/`NEAR`/`FAR` definitions.
 

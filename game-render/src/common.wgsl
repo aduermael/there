@@ -65,7 +65,7 @@ fn sample_shadow(world_pos: vec3<f32>, normal: vec3<f32>) -> f32 {
     // Per-pixel rotation angle via IGN (breaks up regular pattern for smoother edges)
     let clip = u.view_proj * vec4(world_pos, 1.0);
     let screen_pos = clip.xy / clip.w * 512.0;
-    let angle = ign(screen_pos) * 6.283185;
+    let angle = ign(screen_pos) * TAU;
     let cs = cos(angle);
     let sn = sin(angle);
 
