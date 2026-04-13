@@ -209,8 +209,9 @@ impl Renderer {
         // SSAO renderer (internal resolution, half-res AO)
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, iw, ih);
 
-        // Bloom renderer (compute, internal resolution)
-        let mut bloom = BloomRenderer::new(&device, iw, ih);
+        // Bloom renderer (compute, internal resolution; fewer mips at reduced scale)
+        let bloom_mips = if render_scale < 1.0 { 4 } else { 5 };
+        let mut bloom = BloomRenderer::new(&device, iw, ih, bloom_mips);
 
         // Exposure renderer (compute histogram + reduce, internal resolution)
         let mut exposure = ExposureRenderer::new(&device, iw, ih);

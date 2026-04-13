@@ -174,7 +174,7 @@ impl SnapshotContext {
         let grass_renderer = GrassRenderer::new(&device, INTERMEDIATE_FORMAT, &uniform_bgl, &shadow_bgl, &uniform_buffer, &heightmap_view);
 
         let ssao = SsaoRenderer::new(&device, &uniform_bgl, &depth_view, width, height);
-        let mut bloom = BloomRenderer::new(&device, width, height);
+        let mut bloom = BloomRenderer::new(&device, width, height, 5);
         let mut exposure = ExposureRenderer::new(&device, width, height);
         let postprocess = PostProcessRenderer::new(&device, TEXTURE_FORMAT, &uniform_bgl, ssao.ao_view(), &depth_view, bloom.result_view(), exposure.exposure_buffer(), width, height);
         bloom.build_bind_groups(&device, postprocess.intermediate_view());

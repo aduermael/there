@@ -1,4 +1,3 @@
-const BLOOM_MIP_COUNT: u32 = 5;
 const BLOOM_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 const WG_SIZE: u32 = 8;
 
@@ -22,12 +21,13 @@ pub struct BloomRenderer {
     upsample_bgs: Vec<wgpu::BindGroup>,
     upsample_blend_bgs: Vec<wgpu::BindGroup>,
 
+    mip_count: u32,
     mip_sizes: Vec<(u32, u32)>,
 }
 
 impl BloomRenderer {
-    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
-        let mip_sizes = compute_mip_sizes(width, height);
+    pub fn new(device: &wgpu::Device, width: u32, height: u32, mip_count: u32) -> Self {
+        let mip_sizes = compute_mip_sizes(width, height, mip_count);
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Bloom Compute Shader"),
@@ -141,7 +141,7 @@ impl BloomRenderer {
 
         log::info!(
             "Bloom renderer: {} mip levels, base {}x{}",
-            BLOOM_MIP_COUNT,
+            mip_count,
             mip_sizes[0].0,
             mip_sizes[0].1,
         );
@@ -160,13 +160,14 @@ impl BloomRenderer {
             downsample_bgs: Vec::new(),
             upsample_bgs: Vec::new(),
             upsample_blend_bgs: Vec::new(),
+            mip_count,
             mip_sizes,
         }
     }
 
     /// Build all bind groups. Must be called after the HDR intermediate view is available.
     pub fn build_bind_groups(&mut self, device: &wgpu::Device, hdr_view: &wgpu::TextureView) {
-        let mc = BLOOM_MIP_COUNT as usize;
+        let mc = self.mip_count as usize;
 
         // Downsample bind groups (group 0): input → output for each mip level
         let mut downsample_bgs = Vec::with_capacity(mc);
@@ -246,7 +247,7 @@ impl BloomRenderer {
     /// Dispatch all bloom compute passes (5 downscale + 4 upscale).
     /// Each pass is a separate compute pass for proper memory barriers.
     pub fn compute(&self, encoder: &mut wgpu::CommandEncoder) {
-        let mc = BLOOM_MIP_COUNT as usize;
+        let mc = self.mip_count as usize;
 
         // Downscale: HDR → mip 0 → mip 1 → ... → mip 4
         for i in 0..mc {
@@ -290,11 +291,11 @@ fn div_ceil(a: u32, b: u32) -> u32 {
     (a + b - 1) / b
 }
 
-fn compute_mip_sizes(width: u32, height: u32) -> Vec<(u32, u32)> {
-    let mut sizes = Vec::with_capacity(BLOOM_MIP_COUNT as usize);
+fn compute_mip_sizes(width: u32, height: u32, mip_count: u32) -> Vec<(u32, u32)> {
+    let mut sizes = Vec::with_capacity(mip_count as usize);
     let mut w = (width / 2).max(1);
     let mut h = (height / 2).max(1);
-    for _ in 0..BLOOM_MIP_COUNT {
+    for _ in 0..mip_count {
         sizes.push((w, h));
         w = (w / 2).max(1);
         h = (h / 2).max(1);

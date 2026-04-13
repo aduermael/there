@@ -88,7 +88,7 @@ Add the ability to render at a reduced internal resolution. This is the most imp
 
 - [x] 5a: **Add render_scale factor** -- Add a `render_scale: f32` (0.5-1.0) to the renderer. Internal textures (HDR intermediate, depth, AO, bloom) are created at `width * render_scale x height * render_scale`. The final FXAA output targets the full canvas size, performing the upscale. Default to 1.0 on desktop browsers, detect Safari/iOS via user agent (already in WASM land) and default to 0.75 or similar. This reduces total pixel work by ~44% at 0.75x scale.
 
-- [ ] 5b: **Reduce bloom mip levels on low scale** -- When render_scale < 1.0, reduce `BLOOM_MIP_COUNT` from 5 to 4 (saves 2 compute pass transitions). The reduced resolution already shrinks the bloom source, so fewer mips are needed for the same visual radius.
+- [x] 5b: **Reduce bloom mip levels on low scale** -- When render_scale < 1.0, reduce `BLOOM_MIP_COUNT` from 5 to 4 (saves 2 compute pass transitions). The reduced resolution already shrinks the bloom source, so fewer mips are needed for the same visual radius.
 
 ---
 
