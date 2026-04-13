@@ -101,5 +101,5 @@ Code quality audit found several DRY violations and scattered constants worth co
 
 Full scenario suite to confirm no regressions and overall quality.
 
-- [ ] 4a: Run all 8 verification scenarios from `snapshots/scenarios/verification/`. Run all 3 follow scenarios. Verify with 3 sub-agent critics.
-- [ ] 4b: Build all 3 targets (`game-client` wasm, `game-server`, `game-snapshot`) — zero warnings. Run CLI-only snapshot test.
+- [x] 4a: Run all 8 verification scenarios from `snapshots/scenarios/verification/`. Run all 3 follow scenarios. Verify with 3 sub-agent critics.
+- [x] 4b: Build all 3 targets (`game-client` wasm, `game-server`, `game-snapshot`) — zero warnings. Run CLI-only snapshot test.
