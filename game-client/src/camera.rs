@@ -34,7 +34,7 @@ const APPROACH_RATE: f32 = 10.0;
 /// Smoothing rate when camera recovers to desired distance (slow ease-out).
 const RECOVER_RATE: f32 = 3.0;
 /// Minimum clearance above terrain for collision raycasting.
-const CLEARANCE: f32 = 1.8;
+const CLEARANCE: f32 = 1.0;
 /// Number of steps along the orbit ray for terrain collision.
 const RAY_STEPS: u32 = 16;
 /// Exponential smoothing rate for vertical camera tracking (units/s).
