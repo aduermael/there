@@ -74,7 +74,7 @@ Code quality audit found several DRY violations and scattered constants worth co
 - Default distance at spawn shows the player clearly
 
 - [x] 2a: Add `smoothed_target: Vec3` field to `OrbitCamera`. Initialize it to `target` in `new()`. In `update()`, smooth `smoothed_target.y` toward `target.y` using exponential decay (`VERTICAL_FOLLOW_RATE`). XZ components track instantly: `smoothed_target.x = target.x`, `smoothed_target.z = target.z`. Change `orbit_at()` to use `smoothed_target` instead of `target`.
-- [ ] 2b: Reduce `DEFAULT_DISTANCE` from 15.0 to 6.0 in `game-core/src/camera.rs`. Update client init to use the constant.
+- [x] 2b: Reduce `DEFAULT_DISTANCE` from 15.0 to 6.0 in `game-core/src/camera.rs`. Update client init to use the constant.
 - [ ] 2c: Snapshot verification — run idle_back, turntable, walk_forward scenarios. Build all 3 targets with zero warnings. 3 sub-agent critics validate.
 
 ---
