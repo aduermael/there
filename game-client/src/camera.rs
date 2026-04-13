@@ -33,6 +33,10 @@ pub fn consume_touch_drag() -> (f32, f32) {
 const APPROACH_RATE: f32 = 10.0;
 /// Smoothing rate when camera recovers to desired distance (slow ease-out).
 const RECOVER_RATE: f32 = 3.0;
+/// Minimum clearance above terrain for collision raycasting.
+const CLEARANCE: f32 = 1.8;
+/// Number of steps along the orbit ray for terrain collision.
+const RAY_STEPS: u32 = 16;
 
 pub struct OrbitCamera {
     pub target: Vec3,
@@ -110,9 +114,6 @@ impl OrbitCamera {
         let collision_dist = if full_dist < 0.001 {
             self.desired_distance
         } else {
-            const CLEARANCE: f32 = 1.8;
-            const RAY_STEPS: u32 = 16;
-
             let mut safe_t = 0.0_f32;
             for i in 1..=RAY_STEPS {
                 let t = i as f32 / RAY_STEPS as f32;
