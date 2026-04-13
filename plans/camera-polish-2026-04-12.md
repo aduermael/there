@@ -40,7 +40,7 @@ Code quality audit found several DRY violations and scattered constants worth co
 - [x] 1b: Hoist `CLEARANCE` and `RAY_STEPS` from inside `update()` body to module-level constants in `game-client/src/camera.rs`.
 - [x] 1c: Add `eye_and_target(&self) -> (Vec3, Vec3)` method to `OrbitCamera`. Replace separate `camera.eye()` + `camera.look_target()` calls in `lib.rs` render loop with a single call.
 - [x] 1d: Refactor `on_pointer_move` to compute deltas then delegate to `apply_drag`, eliminating the duplicated sensitivity+clamp lines.
-- [ ] 1e: Snapshot verification — run `idle_back.json` and `turntable.json`, verify output is unchanged. Build all 3 targets with zero warnings. 3 sub-agent critics validate.
+- [x] 1e: Snapshot verification — run `idle_back.json` and `turntable.json`, verify output is unchanged. Build all 3 targets with zero warnings. 3 sub-agent critics validate.
 
 ---
 
