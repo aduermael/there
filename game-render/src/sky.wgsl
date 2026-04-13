@@ -56,7 +56,7 @@ fn sample_cloud_layer(
     let shadow_reach = 40.0;
     let shadow_xz = cloud_xz + u.sun_dir.xz * shadow_reach / max(u.sun_dir.y, 0.05);
     let shadow_pos = (shadow_xz + drift) / scale;
-    let shadow_density = smoothstep(coverage, coverage + 0.25, fbm3(shadow_pos));
+    let shadow_density = smoothstep(coverage, coverage + 0.25, fbm2(shadow_pos));
 
     // Cloud lighting
     let sun_up = max(u.sun_dir.y, 0.0);
