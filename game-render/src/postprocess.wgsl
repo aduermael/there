@@ -106,6 +106,9 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
     }
     // Full intensity at horizon, fading as sun rises toward noon
     let angle_intensity = 1.0 - smoothstep(0.20, 0.70, elevation);
+    if angle_intensity < 0.01 {
+        return vec3(0.0);
+    }
 
     // Radial march toward sun position in screen space
     let delta = sun_uv - uv;
@@ -116,7 +119,7 @@ fn god_rays(uv: vec2<f32>, pixel: vec2<f32>) -> vec3<f32> {
 
     let depth_dims = vec2<f32>(textureDimensions(depth_texture));
 
-    const NUM_STEPS: i32 = 20;
+    const NUM_STEPS: i32 = 12;
     let step_size = 1.0 / f32(NUM_STEPS);
     // March toward sun — cover enough to resolve tree silhouettes
     let step_delta = delta * step_size * 0.6;
