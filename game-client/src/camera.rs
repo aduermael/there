@@ -37,6 +37,9 @@ const RECOVER_RATE: f32 = 3.0;
 const CLEARANCE: f32 = 1.8;
 /// Number of steps along the orbit ray for terrain collision.
 const RAY_STEPS: u32 = 16;
+/// Exponential smoothing rate for vertical camera tracking (units/s).
+/// Lower = more dampening during jumps. Higher = snappier ground tracking.
+const VERTICAL_FOLLOW_RATE: f32 = 6.0;
 
 pub struct OrbitCamera {
     pub target: Vec3,
@@ -46,6 +49,8 @@ pub struct OrbitCamera {
     desired_distance: f32,
     /// Smoothed effective distance (tracks collision-limited distance).
     effective_distance: f32,
+    /// Smoothed orbit center — XZ tracks instantly, Y is dampened to absorb jump bobbing.
+    smoothed_target: Vec3,
     dragging: bool,
     last_x: f32,
     last_y: f32,
@@ -60,6 +65,7 @@ impl OrbitCamera {
             pitch: pitch.clamp(MIN_PITCH, MAX_PITCH),
             desired_distance: d,
             effective_distance: d,
+            smoothed_target: target,
             dragging: false,
             last_x: 0.0,
             last_y: 0.0,
@@ -98,12 +104,19 @@ impl OrbitCamera {
     }
 
     /// Camera position and look target at a given distance, via shared orbit math.
+    /// Uses `smoothed_target` so vertical tracking is dampened during jumps.
     fn orbit_at(&self, dist: f32) -> (Vec3, Vec3) {
-        game_core::camera::orbit_eye(self.target, self.yaw, self.pitch, dist)
+        game_core::camera::orbit_eye(self.smoothed_target, self.yaw, self.pitch, dist)
     }
 
-    /// Update camera each frame: raycast terrain collision + smooth distance.
+    /// Update camera each frame: smooth target tracking + raycast terrain collision + smooth distance.
     pub fn update(&mut self, dt: f32, heightmap: &[f32]) {
+        // Smooth vertical tracking: XZ snaps instantly, Y uses exponential decay
+        self.smoothed_target.x = self.target.x;
+        self.smoothed_target.z = self.target.z;
+        let y_alpha = 1.0 - (-VERTICAL_FOLLOW_RATE * dt).exp();
+        self.smoothed_target.y += (self.target.y - self.smoothed_target.y) * y_alpha;
+
         // Raycast from orbit center toward desired eye to find max safe distance
         let (raw, center) = self.orbit_at(self.desired_distance);
         let dir = raw - center;
