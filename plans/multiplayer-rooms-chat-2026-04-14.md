@@ -156,6 +156,46 @@ Goal: when a player sends a message, it appears as a floating text bubble above 
 
 ---
 
+## Phase 6: Chat fixes & UX polish
+
+Goal: fix the Enter-to-send bug, make chat work in solo mode, and improve chat console styling.
+
+- [x] 6a: Fix Enter key not submitting chat — the input element's `stopPropagation()` in `chat-console.js` (line 124) prevents Enter from reaching the `window`-level handler that contains the send logic. Fix: handle Enter and Escape directly inside the input's own `keydown` handler (the one that calls `stopPropagation`), so send/close works when the input is focused. Keep the `window` handler only for the "open input on first Enter press" case.
+- [x] 6b: Enable chat in solo mode — remove the `window.__roomCode` visibility gate in `chat-console.js` so the console is always visible. When sending a message with no server connection (`!window.__roomCode`), dispatch a local `chat-received` CustomEvent directly from JS (using `id: 0` for the solo player) instead of relying on server echo. This gives the same chat experience in both modes.
+- [x] 6c: Chat console styling — add margin around the chat area so it doesn't touch screen edges (the `padding` in `:host` needs increasing). Widen the input field and increase `max-width` from `min(400px, 80vw)` to something like `min(500px, 85vw)`. Give the input row more vertical breathing room.
+
+### Contracts
+- Enter works to send messages when the input is focused (bug fix)
+- Chat console visible in both solo and multiplayer
+- Solo messages echo locally with player id 0
+- Chat area has visible margin from screen edges on all sides
+
+### Success criteria
+- Press Enter, type, press Enter again — message appears in chat
+- In solo mode: chat is visible, messages echo locally
+- Chat bar has clear spacing from screen edges
+
+---
+
+## Phase 7: Room info in settings menu
+
+Goal: make it clear which room the player is in, and add a way to share the room URL.
+
+- [ ] 7a: Show current room in settings — when in a room, display the room code prominently in the Multiplayer section of `game-menu.js` (e.g., "Room: ABCD" with styled code). When in solo mode, show "Solo Mode" instead.
+- [ ] 7b: Copy room URL button — when in a room, add a "Copy Room URL" button next to the room code in the settings panel. Clicking it copies the full URL (`window.location.href`) to the clipboard via `navigator.clipboard.writeText()`. Show brief "Copied!" feedback on success.
+
+### Contracts
+- Room code display reads from `window.__roomCode`
+- Copy uses the Clipboard API with a visual feedback flash
+- Button only shown when in a room
+
+### Success criteria
+- Open settings in a room: see "Room: ABCD" clearly
+- Click copy: URL is in clipboard, button briefly shows "Copied!"
+- Open settings in solo: see "Solo Mode", no copy button
+
+---
+
 ## DRY & refactoring notes
 
 - **Player color palette**: defined in `player.rs` (Rust) and will be needed in `<chat-console>` (JS). Extract as a shared constant in `game-core` and expose via a WASM function `get_player_color(id) -> [r,g,b]` rather than duplicating the array. If the overhead is unacceptable, a single JS constant is fine — just keep it in one place.

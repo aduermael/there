@@ -30,11 +30,11 @@ class ChatConsole extends HTMLElement {
                     bottom: 0;
                     left: 0;
                     z-index: 20;
-                    padding: max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+                    padding: max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
                     pointer-events: none;
                     font-family: system-ui, sans-serif;
                     font-size: 0.85rem;
-                    max-width: min(400px, 80vw);
+                    max-width: min(500px, 85vw);
                     display: none;
                 }
                 :host(.active) { display: block; }
@@ -65,7 +65,7 @@ class ChatConsole extends HTMLElement {
                     vertical-align: middle;
                 }
                 .input-row {
-                    margin-top: 4px;
+                    margin-top: 8px;
                     display: none;
                     pointer-events: auto;
                 }
@@ -97,31 +97,35 @@ class ChatConsole extends HTMLElement {
             this._addMessage(e.detail.id, e.detail.text);
         });
 
-        // Enter key to open/send/close
+        // Enter key to open chat input (send/close handled by input's own handler)
         window.addEventListener('keydown', (e) => {
             if (!this._visible) return;
-            if (e.code === 'Enter') {
-                if (this._inputRow.classList.contains('open')) {
-                    // Input is open
-                    const text = this._input.value.trim();
-                    if (text) {
-                        if (window.sendChat) window.sendChat(text);
-                        this._input.value = '';
-                    }
-                    this._closeInput();
-                } else {
-                    e.preventDefault();
-                    this._openInput();
-                }
-            }
-            if (e.code === 'Escape' && this._inputRow.classList.contains('open')) {
-                this._closeInput();
+            if (e.code === 'Enter' && !this._inputRow.classList.contains('open')) {
+                e.preventDefault();
+                this._openInput();
             }
         });
 
-        // Prevent game keys while typing
+        // Handle Enter/Escape in the input, and prevent game keys while typing
         this._input.addEventListener('keydown', (e) => {
             e.stopPropagation();
+            if (e.code === 'Enter') {
+                const text = this._input.value.trim();
+                if (text) {
+                    if (window.__roomCode && window.sendChat) {
+                        window.sendChat(text);
+                    } else {
+                        // Solo mode: echo locally
+                        window.dispatchEvent(new CustomEvent('chat-received', {
+                            detail: { id: 0, text }
+                        }));
+                    }
+                    this._input.value = '';
+                }
+                this._closeInput();
+            } else if (e.code === 'Escape') {
+                this._closeInput();
+            }
         });
         this._input.addEventListener('keyup', (e) => {
             e.stopPropagation();
@@ -138,13 +142,9 @@ class ChatConsole extends HTMLElement {
     }
 
     _checkVisibility() {
-        const inRoom = !!(window.__roomCode);
-        if (inRoom && !this._visible) {
+        if (!this._visible) {
             this._visible = true;
             this.classList.add('active');
-        } else if (!inRoom && this._visible) {
-            this._visible = false;
-            this.classList.remove('active');
         }
     }
 
