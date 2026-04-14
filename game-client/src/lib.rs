@@ -11,7 +11,8 @@ mod renderer;
 
 use camera::OrbitCamera;
 use game_core::protocol::{PlayerId, ServerMsg};
-use game_render::animation::{AnimState, AnimationPlayer, WALK_ENTER_SPEED, WALK_EXIT_SPEED};
+use game_core::{AnimState, WALK_ENTER_SPEED, WALK_EXIT_SPEED};
+use game_render::animation::AnimationPlayer;
 use game_render::{compute_atmosphere, compute_cascade_view_projs, player_color, PlayerInstance, Uniforms};
 use input::InputState;
 use net::Connection;
@@ -328,12 +329,7 @@ impl GameState {
         let safe_dt = if dt > 0.0 { dt } else { 1.0 / 60.0 };
         let local_vel = (self.local_pos - self.prev_local_pos) / safe_dt;
         let horiz_speed = glam::Vec2::new(local_vel.x, local_vel.z).length();
-        let mut anim_state = AnimState::from_movement(
-            horiz_speed,
-            self.vertical_velocity,
-            self.local_pos.y,
-            game_core::WATER_LEVEL,
-        );
+        let mut anim_state = AnimState::from_movement(horiz_speed, self.vertical_velocity);
         // Hysteresis: require speed > WALK_ENTER_SPEED to enter Walk, < WALK_EXIT_SPEED to exit
         let cur = self.local_anim.current_state();
         if cur == AnimState::Idle && anim_state == AnimState::Walk && horiz_speed < WALK_ENTER_SPEED {
