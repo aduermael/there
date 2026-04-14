@@ -321,7 +321,7 @@ impl GameState {
             .unwrap_or([0.90, 0.30, 0.25]);
         let pos = self.local_pos;
         self.players.push(PlayerInstance {
-            pos_yaw: [pos.x, pos.y, pos.z, yaw],
+            pos_yaw: [pos.x, pos.y, pos.z, yaw + std::f32::consts::PI],
             color: [local_color[0], local_color[1], local_color[2], 0.0],
         });
 
@@ -368,7 +368,7 @@ impl GameState {
 
             let c = player_color(id);
             self.players.push(PlayerInstance {
-                pos_yaw: [x, y, z, interp_yaw],
+                pos_yaw: [x, y, z, interp_yaw + std::f32::consts::PI],
                 color: [c[0], c[1], c[2], 0.0],
             });
             instance_idx += 1;

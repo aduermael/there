@@ -61,7 +61,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Approach:** Add `PI` to the yaw when building `PlayerInstance` data. This is a single-point fix that propagates to both main and shadow shader passes without touching shader code. Apply to both local player (line 323) and remote players (line 375).
 
-- [ ] 2b: Add `std::f32::consts::PI` to yaw in `PlayerInstance.pos_yaw[3]` for both local and remote players in `game-client/src/lib.rs`. If visual inspection shows the model was already correct, revert and investigate further.
+- [x] 2b: Add `std::f32::consts::PI` to yaw in `PlayerInstance.pos_yaw[3]` for both local and remote players in `game-client/src/lib.rs`. If visual inspection shows the model was already correct, revert and investigate further.
 
 ### Success criteria
 
