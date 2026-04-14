@@ -136,6 +136,15 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                             tx,
                         });
 
+                        // Broadcast name update with all player names (includes new player)
+                        let names: Vec<(PlayerId, String)> = players.values()
+                            .map(|p| (p.id, p.name.clone()))
+                            .collect();
+                        let name_msg = ServerMsg::NameUpdate { names };
+                        for player in players.values() {
+                            let _ = player.tx.send(name_msg.clone());
+                        }
+
                         log::info!("Room {}: player {} joined ({} total)", code, id, players.len());
                     }
                     Some(RoomEvent::Input { id, forward, strafe, yaw, jump, move_yaw }) => {
@@ -151,6 +160,18 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                     }
                     Some(RoomEvent::Chat { id, text }) => {
                         let msg = ServerMsg::Chat { from: id, text };
+                        for player in players.values() {
+                            let _ = player.tx.send(msg.clone());
+                        }
+                    }
+                    Some(RoomEvent::SetName { id, name }) => {
+                        if let Some(player) = players.get_mut(&id) {
+                            player.name = name;
+                        }
+                        let names: Vec<(PlayerId, String)> = players.values()
+                            .map(|p| (p.id, p.name.clone()))
+                            .collect();
+                        let msg = ServerMsg::NameUpdate { names };
                         for player in players.values() {
                             let _ = player.tx.send(msg.clone());
                         }
