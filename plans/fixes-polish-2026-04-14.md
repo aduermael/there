@@ -128,7 +128,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **File:** `web/components/chat-console.js:37`
 
-- [ ] 4b: Change max-width to `min(1500px, calc(100vw - 32px))`. The `calc(100vw - 32px)` guarantees 16px margin on each side regardless of screen width, replacing the arbitrary 85vw cap.
+- [x] 4b: Change max-width to `min(1500px, calc(100vw - 32px))`. The `calc(100vw - 32px)` guarantees 16px margin on each side regardless of screen width, replacing the arbitrary 85vw cap.
 
 ### Success criteria
 

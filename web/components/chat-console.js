@@ -34,7 +34,7 @@ class ChatConsole extends HTMLElement {
                     pointer-events: none;
                     font-family: system-ui, sans-serif;
                     font-size: 0.85rem;
-                    max-width: min(500px, 85vw);
+                    max-width: min(1500px, calc(100vw - 32px));
                     display: none;
                 }
                 :host(.active) { display: block; }
