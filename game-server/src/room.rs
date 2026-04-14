@@ -36,6 +36,10 @@ pub enum RoomEvent {
     Leave {
         id: PlayerId,
     },
+    Chat {
+        id: PlayerId,
+        text: String,
+    },
 }
 
 struct Room {
