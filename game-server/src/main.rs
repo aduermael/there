@@ -3,7 +3,7 @@ mod room;
 
 use axum::extract::ws::WebSocket;
 use axum::extract::{Query, State, WebSocketUpgrade};
-use axum::response::{IntoResponse, Redirect};
+use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
 use room::{RoomEvent, RoomManager};
@@ -30,7 +30,6 @@ async fn main() {
     let serve = ServeDir::new("web").fallback(ServeFile::new("web/index.html"));
 
     let app = Router::new()
-        .route("/", get(handle_root))
         .route("/ws", get(handle_ws))
         .fallback_service(serve)
         .layer(SetResponseHeaderLayer::overriding(
@@ -39,7 +38,11 @@ async fn main() {
         ))
         .with_state(rooms);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 21617));
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(21617);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     log::info!("Server listening on http://localhost:{}", addr.port());
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
@@ -47,11 +50,6 @@ async fn main() {
         std::process::exit(1);
     });
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn handle_root(State(rooms): State<SharedRoomManager>) -> impl IntoResponse {
-    let code = rooms.read().await.generate_code();
-    Redirect::temporary(&format!("/{}", code))
 }
 
 async fn handle_ws(
