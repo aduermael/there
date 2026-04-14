@@ -12,6 +12,9 @@ pub enum ClientMsg {
         #[serde(default)]
         move_yaw: f32,
     },
+    Chat {
+        text: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,5 +38,9 @@ pub enum ServerMsg {
     },
     PlayerLeft {
         id: PlayerId,
+    },
+    Chat {
+        from: PlayerId,
+        text: String,
     },
 }

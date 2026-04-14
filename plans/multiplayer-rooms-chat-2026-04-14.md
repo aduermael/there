@@ -77,7 +77,7 @@ Goal: players can browse, create, and join rooms from the settings panel. When i
 
 Goal: extend the binary protocol with chat messages. Server relays chat to all players in a room.
 
-- [ ] 3a: Add chat variants to protocol — in `game-core/src/protocol.rs`: add `ClientMsg::Chat { text: String }` and `ServerMsg::Chat { from: PlayerId, text: String }`.
+- [x] 3a: Add chat variants to protocol — in `game-core/src/protocol.rs`: add `ClientMsg::Chat { text: String }` and `ServerMsg::Chat { from: PlayerId, text: String }`.
 - [ ] 3b: Add `RoomEvent::Chat` variant — in `room.rs`, add `Chat { id: PlayerId, text: String }`.
 - [ ] 3c: Server relays chat — in `game_loop.rs`, handle `RoomEvent::Chat`: broadcast `ServerMsg::Chat { from, text }` to all players in the room (including sender, for confirmation).
 - [ ] 3d: Handle `ClientMsg::Chat` in WebSocket handler — in `main.rs`, add a match arm in the `recv_task` that converts `ClientMsg::Chat` to `RoomEvent::Chat` and sends it to the room.
