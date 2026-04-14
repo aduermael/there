@@ -269,6 +269,7 @@ impl SnapshotContext {
     }
 
     /// Render a single view with the given camera params, return pixels.
+    /// Runs warmup frames first so auto-exposure converges to match in-game look.
     fn render_view(&self, camera_pos: glam::Vec3, camera_target: glam::Vec3, sun_angle: f32) -> Vec<u8> {
         let atmo = compute_atmosphere(sun_angle);
         let view_mat = glam::Mat4::look_at_rh(camera_pos, camera_target, glam::Vec3::Y);
@@ -279,10 +280,6 @@ impl SnapshotContext {
 
         let uniforms = Self::build_uniforms(camera_pos, &view_proj, &atmo, &cascade_vps, cascade_splits);
         self.queue.write_buffer(&self.uniform_buffer, 0, bytemuck::bytes_of(&uniforms));
-
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Snapshot Render"),
-        });
 
         let scene = SceneRenderers {
             terrain: &self.terrain,
@@ -303,6 +300,28 @@ impl SnapshotContext {
 
         update_cascade_vps(&self.queue, &self.shadow_cascades.vp_staging, &cascade_vps);
 
+        // Warmup frames: let auto-exposure converge (EMA at 5% per frame)
+        for _ in 0..60 {
+            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Warmup"),
+            });
+            encode_frame(
+                &mut encoder, &scene,
+                &self.uniform_bind_group, &self.uniform_buffer,
+                &self.shadow_bind_group, &self.shadow_cascades.cascade_views,
+                &self.shadow_cascades.vp_staging,
+                &self.depth_view, &self.render_view,
+                camera_pos, &view_proj,
+                &self.atlas.bind_group,
+            );
+            self.queue.submit(std::iter::once(encoder.finish()));
+            self.device.poll(wgpu::Maintain::Wait);
+        }
+
+        // Final capture frame
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Snapshot Render"),
+        });
         encode_frame(
             &mut encoder, &scene,
             &self.uniform_bind_group, &self.uniform_buffer,
