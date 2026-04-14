@@ -35,11 +35,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     // Separate dawn vs dusk: 0.0 at dawn (angle ~0.0), 1.0 at dusk (angle ~0.5)
     let dusk_blend = smoothstep(0.15, 0.38, sun_angle) * (1.0 - smoothstep(0.62, 0.85, sun_angle));
 
-    // Sun color: bright warm-white at noon, peach-gold at dawn, deep amber at dusk
-    let noon_sun = [1.05_f32, 1.02, 0.95];
-    let dawn_sun = [1.25_f32, 0.62, 0.28];
-    let dusk_sun = [1.15_f32, 0.42, 0.18];
-    let night_sun = [0.22_f32, 0.26, 0.62];
+    // Sun color: warm golden at noon, yellow-gold at dawn, rose-pink at dusk
+    let noon_sun = [1.28_f32, 1.12, 0.86];
+    let dawn_sun = [1.30_f32, 0.75, 0.35];
+    let dusk_sun = [1.20_f32, 0.35, 0.25];
+    let night_sun = [0.06_f32, 0.08, 0.25];
     let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),
@@ -47,11 +47,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         horizon_glow * 0.75,
     );
 
-    // Sky zenith: vivid blue at noon, cool lavender at dawn, warm purple at dusk
-    let noon_zenith = [0.15_f32, 0.38, 1.15];
-    let night_zenith = [0.03_f32, 0.05, 0.28];
-    let dawn_zenith = [0.35_f32, 0.38, 0.82];
-    let dusk_zenith = [0.28_f32, 0.16, 0.55];
+    // Sky zenith: deep summer blue at noon, cool blue at dawn, purple-pink at dusk
+    let noon_zenith = [0.12_f32, 0.35, 1.25];
+    let night_zenith = [0.01_f32, 0.02, 0.12];
+    let dawn_zenith = [0.30_f32, 0.40, 0.85];
+    let dusk_zenith = [0.30_f32, 0.12, 0.50];
     let glow_zenith = lerp3(&dawn_zenith, &dusk_zenith, dusk_blend);
     let sky_zenith = lerp3(
         &lerp3(&night_zenith, &noon_zenith, day_factor),
@@ -59,11 +59,11 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         horizon_glow * 0.55,
     );
 
-    // Sky horizon: clear blue at noon, peach at dawn, deep amber-rose at dusk
-    let noon_horizon = [0.25_f32, 0.45, 0.95];
-    let night_horizon = [0.02_f32, 0.03, 0.18];
-    let dawn_horizon = [1.0_f32, 0.58, 0.32];
-    let dusk_horizon = [1.0_f32, 0.35, 0.12];
+    // Sky horizon: summer blue at noon, golden at dawn, rose-pink at dusk
+    let noon_horizon = [0.15_f32, 0.38, 1.05];
+    let night_horizon = [0.01_f32, 0.01, 0.08];
+    let dawn_horizon = [1.05_f32, 0.70, 0.40];
+    let dusk_horizon = [1.05_f32, 0.30, 0.22];
     let glow_horizon = lerp3(&dawn_horizon, &dusk_horizon, dusk_blend);
     let sky_horizon = lerp3(
         &lerp3(&night_horizon, &noon_horizon, day_factor),
@@ -85,8 +85,8 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_zenith[1] * ambient_intensity,
         sky_zenith[2] * ambient_intensity,
     ];
-    let night_ground = [0.06_f32, 0.08, 0.18]; // cold blue moonlit earth
-    let noon_ground = [0.38_f32, 0.35, 0.14]; // warm earth bounce, less yellow to let greens show
+    let night_ground = [0.01_f32, 0.02, 0.05]; // cold blue moonlit earth — very dark
+    let noon_ground = [0.42_f32, 0.36, 0.16]; // warm earth bounce
     let ground_base = lerp3(&night_ground, &noon_ground, day_factor);
     let ground_ambient = [
         ground_base[0] * ambient_intensity,

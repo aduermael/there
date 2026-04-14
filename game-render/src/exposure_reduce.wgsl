@@ -59,7 +59,7 @@ fn cs_main() {
 
     let avg_lum = sum / f32(weight);
     let target_exposure = 0.18 / max(avg_lum, 0.001);
-    let clamped = clamp(target_exposure, 0.15, 8.0);
+    let clamped = clamp(target_exposure, 0.15, 2.0);
 
     // EMA smoothing toward target
     let current = exposure[0];
