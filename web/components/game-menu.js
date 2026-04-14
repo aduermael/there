@@ -193,6 +193,21 @@ class GameMenu extends HTMLElement {
                     font-size: 0.85rem;
                     margin: 8px 0;
                 }
+                .name-input {
+                    width: 100%;
+                    box-sizing: border-box;
+                    padding: 8px 10px;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    background: rgba(255,255,255,0.08);
+                    color: #fff;
+                    font-size: 0.85rem;
+                    font-family: inherit;
+                    outline: none;
+                    margin: 4px 0 8px;
+                }
+                .name-input::placeholder { color: rgba(255,255,255,0.35); }
+                .name-input:focus { border-color: rgba(100,180,255,0.5); }
 
                 .resume {
                     margin-top: 8px;
@@ -222,6 +237,8 @@ class GameMenu extends HTMLElement {
                         <button data-angle="0.5">Dusk</button>
                         <button data-angle="0.75">Night</button>
                     </div>
+                    <div class="section-label">Player</div>
+                    <input class="name-input" type="text" maxlength="32" placeholder="Enter name...">
                     <div class="mp-section">
                         <div class="section-label">Multiplayer</div>
                         <div class="room-info-area"></div>
@@ -235,6 +252,7 @@ class GameMenu extends HTMLElement {
         this._overlay = this.shadowRoot.querySelector('.overlay');
         this._trigger = this.shadowRoot.querySelector('.trigger');
         this._cycleToggle = this.shadowRoot.querySelector('[data-id="cycle"]');
+        this._nameInput = this.shadowRoot.querySelector('.name-input');
         this._roomInfoArea = this.shadowRoot.querySelector('.room-info-area');
         this._roomList = this.shadowRoot.querySelector('.room-list');
         this._mpActions = this.shadowRoot.querySelector('.mp-actions');
@@ -277,6 +295,25 @@ class GameMenu extends HTMLElement {
                 this._cycleToggle.classList.remove('on');
             });
         });
+
+        // Player name input
+        const saveName = () => {
+            const name = this._nameInput.value.trim();
+            if (name) {
+                window.__playerName = name;
+                if (window.savePlayerName) window.savePlayerName(name);
+                if (window.sendPlayerName) window.sendPlayerName(name);
+            }
+        };
+        this._nameInput.addEventListener('blur', saveName);
+        this._nameInput.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.code === 'Enter') {
+                saveName();
+                this._nameInput.blur();
+            }
+        });
+        this._nameInput.addEventListener('keyup', (e) => e.stopPropagation());
     }
 
     _toggle() {
@@ -287,12 +324,17 @@ class GameMenu extends HTMLElement {
         }
     }
 
-    _open() {
+    async _open() {
         // Sync toggle state from current window global
         if (window.__daylightCycle) {
             this._cycleToggle.classList.add('on');
         } else {
             this._cycleToggle.classList.remove('on');
+        }
+        // Load saved player name
+        if (window.getPlayerName) {
+            const name = await window.getPlayerName();
+            if (name) this._nameInput.value = name;
         }
         this._updateRoomInfo();
         this._updateMpActions();
