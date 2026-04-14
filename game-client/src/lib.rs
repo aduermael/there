@@ -61,6 +61,11 @@ export function js_set_room_code(code) {
 export function js_chat_received(id, text) {
     window.dispatchEvent(new CustomEvent('chat-received', { detail: { id, text } }));
 }
+export function js_update_chat_bubbles(json) {
+    window.dispatchEvent(new CustomEvent('chat-bubbles-update', { detail: json }));
+}
+export function js_viewport_width() { return window.innerWidth; }
+export function js_viewport_height() { return window.innerHeight; }
 ")]
 extern "C" {
     fn hud_set_room(code: &str);
@@ -72,6 +77,33 @@ extern "C" {
     fn js_is_menu_open() -> bool;
     fn js_set_room_code(code: &str);
     fn js_chat_received(id: u16, text: &str);
+    fn js_update_chat_bubbles(json: &str);
+    fn js_viewport_width() -> f32;
+    fn js_viewport_height() -> f32;
+}
+
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            c if (c as u32) < 0x20 => {
+                use std::fmt::Write;
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+struct ChatBubble {
+    player_id: PlayerId,
+    text: String,
+    timestamp: f64,
 }
 
 struct RemotePlayer {
@@ -104,6 +136,8 @@ struct GameState {
     prev_local_pos: glam::Vec3,
     local_move_yaw: f32,
     local_visual_yaw: f32,
+    active_bubbles: Vec<ChatBubble>,
+    had_active_bubbles: bool,
 }
 
 impl GameState {
@@ -163,6 +197,12 @@ impl GameState {
                 }
                 ServerMsg::Chat { from, text } => {
                     js_chat_received(from, &text);
+                    self.active_bubbles.retain(|b| b.player_id != from);
+                    self.active_bubbles.push(ChatBubble {
+                        player_id: from,
+                        text,
+                        timestamp: now,
+                    });
                 }
             }
         }
@@ -382,6 +422,8 @@ async fn run() {
         prev_local_pos: local_pos,
         local_move_yaw: 0.0,
         local_visual_yaw: 0.0,
+        active_bubbles: Vec::new(),
+        had_active_bubbles: false,
     }));
 
     // Initialize daylight globals for JS menu access
@@ -607,6 +649,52 @@ fn start_render_loop(
             state.renderer.update_uniforms(&uniforms);
             state.renderer.update_cascade_vps(&cascade_vps);
             state.renderer.render(eye, &view_proj, &state.players);
+
+            // Chat bubbles: expire old, project active ones to screen
+            state.active_bubbles.retain(|b| now - b.timestamp < 5000.0);
+            if !state.active_bubbles.is_empty() {
+                let vw = js_viewport_width();
+                let vh = js_viewport_height();
+                let tick_ms = (game_core::TICK_INTERVAL_SECS * 1000.0) as f64;
+                let mut parts: Vec<String> = Vec::new();
+                for bubble in &state.active_bubbles {
+                    let pos = if Some(bubble.player_id) == state.local_player_id {
+                        Some(state.local_pos)
+                    } else {
+                        state.remotes.get(&bubble.player_id).map(|rp| {
+                            let t = ((now - rp.recv_time) / tick_ms).clamp(0.0, 1.0) as f32;
+                            glam::Vec3::new(
+                                rp.prev[0] + (rp.target[0] - rp.prev[0]) * t,
+                                rp.prev[1] + (rp.target[1] - rp.prev[1]) * t,
+                                rp.prev[2] + (rp.target[2] - rp.prev[2]) * t,
+                            )
+                        })
+                    };
+                    if let Some(pos) = pos {
+                        let clip = view_proj * glam::Vec4::new(pos.x, pos.y + 1.7, pos.z, 1.0);
+                        if clip.w > 0.0 {
+                            let ndc_x = clip.x / clip.w;
+                            let ndc_y = clip.y / clip.w;
+                            if ndc_x > -2.0 && ndc_x < 2.0 && ndc_y > -2.0 && ndc_y < 2.0 {
+                                let sx = (ndc_x + 1.0) * 0.5 * vw;
+                                let sy = (1.0 - ndc_y) * 0.5 * vh;
+                                let age = (now - bubble.timestamp) / 1000.0;
+                                let escaped = json_escape(&bubble.text);
+                                parts.push(format!(
+                                    r#"{{"id":{},"x":{:.1},"y":{:.1},"text":"{}","age":{:.2}}}"#,
+                                    bubble.player_id, sx, sy, escaped, age
+                                ));
+                            }
+                        }
+                    }
+                }
+                let json = format!("[{}]", parts.join(","));
+                js_update_chat_bubbles(&json);
+                state.had_active_bubbles = true;
+            } else if state.had_active_bubbles {
+                js_update_chat_bubbles("[]");
+                state.had_active_bubbles = false;
+            }
         }
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
