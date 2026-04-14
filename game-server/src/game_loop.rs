@@ -1,7 +1,7 @@
 use game_core::movement::{apply_movement, apply_vertical};
 use game_core::protocol::{PlayerId, PlayerState, ServerMsg};
 use game_core::terrain::{generate_heightmap, sample_height};
-use game_core::{AnimState, TICK_INTERVAL_SECS, TICK_RATE_HZ, WORLD_SIZE};
+use game_core::{AnimState, TICK_INTERVAL_SECS, TICK_RATE_HZ};
 use glam::Vec3;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -99,9 +99,7 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
             event = event_rx.recv() => {
                 match event {
                     Some(RoomEvent::Join { id, tx }) => {
-                        // Spawn at center of world
-                        let spawn_x = WORLD_SIZE / 2.0;
-                        let spawn_z = WORLD_SIZE / 2.0;
+                        let (spawn_x, spawn_z) = game_core::terrain::find_clear_spawn(&heightmap);
                         let spawn_y = game_core::terrain::sample_height(&heightmap, spawn_x, spawn_z);
 
                         // Send welcome

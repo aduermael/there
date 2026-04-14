@@ -51,7 +51,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Approach:** Add `find_clear_spawn(heightmap: &[f32]) -> (f32, f32)` to `game-core/src/terrain.rs`. Search outward from world center in a grid pattern for the nearest position with height > 17.0 (above tree range). Both server and client call this instead of hardcoding center coords.
 
-- [ ] 2a: Implement `find_clear_spawn` in `game-core/src/terrain.rs`. Use in both `game-server/src/game_loop.rs` (player join spawn) and `game-client/src/lib.rs` (initial local position).
+- [x] 2a: Implement `find_clear_spawn` in `game-core/src/terrain.rs`. Use in both `game-server/src/game_loop.rs` (player join spawn) and `game-client/src/lib.rs` (initial local position).
 
 ### 2b: Fix player model orientation
 

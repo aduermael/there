@@ -39,6 +39,35 @@ pub fn in_bounds(x: f32, z: f32) -> bool {
     x >= 0.0 && x < WORLD_SIZE && z >= 0.0 && z < WORLD_SIZE
 }
 
+/// Tree-placement height range (must match trees_compute.wgsl).
+const TREE_HEIGHT_MAX: f32 = 17.0;
+
+/// Find a clear spawn position (no trees) near world center.
+/// Searches outward for a position where terrain height > TREE_HEIGHT_MAX.
+pub fn find_clear_spawn(heightmap: &[f32]) -> (f32, f32) {
+    let cx = WORLD_SIZE / 2.0;
+    let cz = WORLD_SIZE / 2.0;
+    let step = 2.0;
+
+    // Search in expanding square rings around center
+    for ring in 0..40 {
+        let radius = ring as f32 * step;
+        let samples = ((ring * 4).max(1)) as i32;
+        for i in 0..samples {
+            let angle = i as f32 / samples as f32 * std::f32::consts::TAU;
+            let x = cx + radius * angle.cos();
+            let z = cz + radius * angle.sin();
+            if !in_bounds(x, z) {
+                continue;
+            }
+            if sample_height(heightmap, x, z) > TREE_HEIGHT_MAX {
+                return (x, z);
+            }
+        }
+    }
+    (cx, cz) // fallback: center
+}
+
 /// Generate a simple procedural heightmap using layered sine waves.
 /// Returns a Vec<f32> of HEIGHTMAP_RES * HEIGHTMAP_RES values.
 pub fn generate_heightmap() -> Vec<f32> {

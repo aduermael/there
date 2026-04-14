@@ -397,9 +397,7 @@ async fn run() {
 
     let renderer = Renderer::new(canvas.clone(), &heightmap_data).await;
 
-    // Spawn at world center
-    let spawn_x = game_core::WORLD_SIZE / 2.0;
-    let spawn_z = game_core::WORLD_SIZE / 2.0;
+    let (spawn_x, spawn_z) = game_core::terrain::find_clear_spawn(&heightmap_data);
     let spawn_y = game_core::terrain::sample_height(&heightmap_data, spawn_x, spawn_z);
     let local_pos = glam::Vec3::new(spawn_x, spawn_y, spawn_z);
 
