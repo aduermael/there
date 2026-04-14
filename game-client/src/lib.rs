@@ -45,6 +45,9 @@ export function js_is_menu_open() {
 export function js_set_room_code(code) {
     window.__roomCode = code;
 }
+export function js_chat_received(id, text) {
+    window.dispatchEvent(new CustomEvent('chat-received', { detail: { id, text } }));
+}
 ")]
 extern "C" {
     fn hud_set_room(code: &str);
@@ -55,6 +58,7 @@ extern "C" {
     fn js_set_sun_angle(a: f32);
     fn js_is_menu_open() -> bool;
     fn js_set_room_code(code: &str);
+    fn js_chat_received(id: u16, text: &str);
 }
 
 struct RemotePlayer {
@@ -143,6 +147,9 @@ impl GameState {
                 ServerMsg::PlayerLeft { id } => {
                     log::info!("Player {id} left");
                     self.remotes.remove(&id);
+                }
+                ServerMsg::Chat { from, text } => {
+                    js_chat_received(from, &text);
                 }
             }
         }
