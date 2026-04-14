@@ -118,6 +118,54 @@ class GameMenu extends HTMLElement {
                 }
                 .presets button:hover { background: rgba(255,255,255,0.2); }
 
+                .mp-section {
+                    margin-top: 16px;
+                    text-align: left;
+                }
+                .room-list {
+                    max-height: 140px;
+                    overflow-y: auto;
+                    margin: 8px 0;
+                }
+                .room-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    font-size: 0.85rem;
+                }
+                .room-row .code { font-weight: 600; letter-spacing: 0.08em; }
+                .room-row .count { opacity: 0.6; margin: 0 8px; }
+                .room-row button, .mp-actions button {
+                    padding: 4px 12px;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    background: rgba(255,255,255,0.08);
+                    color: #fff;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                }
+                .room-row button:hover, .mp-actions button:hover { background: rgba(255,255,255,0.2); }
+                .mp-actions {
+                    display: flex;
+                    gap: 6px;
+                    margin-top: 8px;
+                }
+                .mp-actions button { flex: 1; padding: 8px 0; }
+                .mp-actions .leave {
+                    background: rgba(255,80,80,0.3);
+                    border-color: rgba(255,80,80,0.4);
+                }
+                .mp-actions .leave:hover { background: rgba(255,80,80,0.5); }
+                .empty-msg {
+                    opacity: 0.4;
+                    font-size: 0.8rem;
+                    text-align: center;
+                    padding: 8px 0;
+                }
+
                 .resume {
                     margin-top: 8px;
                     padding: 10px 32px;
@@ -145,6 +193,11 @@ class GameMenu extends HTMLElement {
                         <button data-angle="0.25">Noon</button>
                         <button data-angle="0.5">Dusk</button>
                         <button data-angle="0.75">Night</button>
+                    </div>
+                    <div class="mp-section">
+                        <div class="section-label">Multiplayer</div>
+                        <div class="room-list"></div>
+                        <div class="mp-actions"></div>
                     </div>
                     <button class="resume">Resume</button>
                 </div>
