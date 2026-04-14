@@ -80,7 +80,7 @@ Goal: extend the binary protocol with chat messages. Server relays chat to all p
 - [x] 3a: Add chat variants to protocol — in `game-core/src/protocol.rs`: add `ClientMsg::Chat { text: String }` and `ServerMsg::Chat { from: PlayerId, text: String }`.
 - [x] 3b: Add `RoomEvent::Chat` variant — in `room.rs`, add `Chat { id: PlayerId, text: String }`.
 - [x] 3c: Server relays chat — in `game_loop.rs`, handle `RoomEvent::Chat`: broadcast `ServerMsg::Chat { from, text }` to all players in the room (including sender, for confirmation).
-- [ ] 3d: Handle `ClientMsg::Chat` in WebSocket handler — in `main.rs`, add a match arm in the `recv_task` that converts `ClientMsg::Chat` to `RoomEvent::Chat` and sends it to the room.
+- [x] 3d: Handle `ClientMsg::Chat` in WebSocket handler — in `main.rs`, add a match arm in the `recv_task` that converts `ClientMsg::Chat` to `RoomEvent::Chat` and sends it to the room.
 - [ ] 3e: Handle `ServerMsg::Chat` on client — in `lib.rs` `process_server_messages`, store received chat in a list: `Vec<(PlayerId, String, f64)>` (id, text, timestamp). Expire entries older than ~8 seconds. Call a new JS bridge function `js_chat_received(id, text)` to notify the UI.
 
 ### Contracts

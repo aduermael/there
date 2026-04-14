@@ -137,6 +137,15 @@ async fn handle_socket(socket: WebSocket, room_code: String, rooms: SharedRoomMa
                                     move_yaw,
                                 });
                             }
+                            game_core::protocol::ClientMsg::Chat { text } => {
+                                let text = text.trim().to_string();
+                                if !text.is_empty() && text.len() <= 200 {
+                                    let _ = event_tx_clone.send(RoomEvent::Chat {
+                                        id: player_id,
+                                        text,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
