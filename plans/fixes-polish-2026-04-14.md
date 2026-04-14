@@ -26,9 +26,9 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 - [x] 1a: Create `game-core/src/anim_state.rs`. Move `AnimState` enum (Idle, Walk, Run, Jump, Fall — **no Swim**), `from_movement(speed, vertical_velocity)` (no `y`/`water_level` params), `to_u8()`, `from_u8()` (map 5→Idle fallback), `WALK_ENTER_SPEED`, `WALK_EXIT_SPEED`. Export via `game-core/src/lib.rs`.
 
-- [x] 1b: Update `game-render/src/animation.rs` — re-export `AnimState` from game-core, remove the enum/methods/constants. Remove `swim_clip()` from the clips vector in `AnimationPlayer::new()` (index 5). Remove `swim_clip()` function from `game-render/src/clips.rs`. Remove `water_level` parameter from any remaining call sites.
+- [ ] 1b: Update `game-render/src/animation.rs` — re-export `AnimState` from game-core, remove the enum/methods/constants. Remove `swim_clip()` from the clips vector in `AnimationPlayer::new()` (index 5). Remove `swim_clip()` function from `game-render/src/clips.rs`. Remove `water_level` parameter from any remaining call sites.
 
-- [x] 1c: Update `game-server/src/game_loop.rs:70-82` — replace the inline `if/else` chain with `game_core::AnimState::from_movement(horiz_speed, player.vertical_velocity).to_u8()`. Update `game-client/src/lib.rs:14` — import `AnimState`, `WALK_ENTER_SPEED`, `WALK_EXIT_SPEED` from `game_core` instead of `game_render::animation`. Remove `water_level` argument from `from_movement()` call at line 331-336.
+- [ ] 1c: Update `game-server/src/game_loop.rs:70-82` — replace the inline `if/else` chain with `game_core::AnimState::from_movement(horiz_speed, player.vertical_velocity).to_u8()`. Update `game-client/src/lib.rs:14` — import `AnimState`, `WALK_ENTER_SPEED`, `WALK_EXIT_SPEED` from `game_core` instead of `game_render::animation`. Remove `water_level` argument from `from_movement()` call at line 331-336.
 
 ### Success criteria
 
@@ -51,7 +51,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Approach:** Add `find_clear_spawn(heightmap: &[f32]) -> (f32, f32)` to `game-core/src/terrain.rs`. Search outward from world center in a grid pattern for the nearest position with height > 17.0 (above tree range). Both server and client call this instead of hardcoding center coords.
 
-- [x] 2a: Implement `find_clear_spawn` in `game-core/src/terrain.rs`. Use in both `game-server/src/game_loop.rs` (player join spawn) and `game-client/src/lib.rs` (initial local position).
+- [ ] 2a: Implement `find_clear_spawn` in `game-core/src/terrain.rs`. Use in both `game-server/src/game_loop.rs` (player join spawn) and `game-client/src/lib.rs` (initial local position).
 
 ### 2b: Fix player model orientation
 
@@ -61,7 +61,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Approach:** Add `PI` to the yaw when building `PlayerInstance` data. This is a single-point fix that propagates to both main and shadow shader passes without touching shader code. Apply to both local player (line 323) and remote players (line 375).
 
-- [x] 2b: Add `std::f32::consts::PI` to yaw in `PlayerInstance.pos_yaw[3]` for both local and remote players in `game-client/src/lib.rs`. If visual inspection shows the model was already correct, revert and investigate further.
+- [ ] 2b: Add `std::f32::consts::PI` to yaw in `PlayerInstance.pos_yaw[3]` for both local and remote players in `game-client/src/lib.rs`. If visual inspection shows the model was already correct, revert and investigate further.
 
 ### Success criteria
 
@@ -86,7 +86,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 | `noon_sun` (line 39) | `[1.20, 1.10, 0.92]` | Could be warmer/brighter |
 | `noon_ground` (line 89) | `[0.48, 0.38, 0.18]` | Weak upward bounce |
 
-- [x] 3a: In `atmosphere.rs`, increase ambient intensity formula, boost noon sun color, and strengthen noon ground bounce. Target: visibly sunnier midday with warm light and readable shadow detail.
+- [ ] 3a: In `atmosphere.rs`, increase ambient intensity formula, boost noon sun color, and strengthen noon ground bounce. Target: visibly sunnier midday with warm light and readable shadow detail.
 
 ### 3b: Blue-toned night
 
@@ -103,7 +103,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 | `sat_boost` at night (postprocess.wgsl:246) | `mix(1.28, 0.20, night_factor)` | 0.20 = nearly greyscale |
 | Blue fill (postprocess.wgsl:251) | `vec3(0.010, 0.014, 0.030)` | Subtle |
 
-- [x] 3b: In `atmosphere.rs`, shift night colors toward blue: reduce R, slightly reduce G, increase B across night_sun, night_zenith, night_horizon, night_ground. In `postprocess.wgsl`, raise the night saturation floor from 0.20 to ~0.35-0.40 to preserve blue tones. Optionally strengthen the blue shadow fill.
+- [ ] 3b: In `atmosphere.rs`, shift night colors toward blue: reduce R, slightly reduce G, increase B across night_sun, night_zenith, night_horizon, night_ground. In `postprocess.wgsl`, raise the night saturation floor from 0.20 to ~0.35-0.40 to preserve blue tones. Optionally strengthen the blue shadow fill.
 
 ### Success criteria
 
@@ -120,7 +120,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Files:** `web/components/game-menu.js:14-32` (trigger button), `web/components/game-hud.js:5-32` (FPS + info layout)
 
-- [x] 4a: In `game-menu.js`, simplify trigger to `top: max(16px, env(safe-area-inset-top))`, `right: max(16px, env(safe-area-inset-right))`, remove `margin-top: 32px`. In `game-hud.js`, move FPS to top-left — reorder DOM so FPS div comes before info div, or place FPS inside the left-side info block.
+- [ ] 4a: In `game-menu.js`, simplify trigger to `top: max(16px, env(safe-area-inset-top))`, `right: max(16px, env(safe-area-inset-right))`, remove `margin-top: 32px`. In `game-hud.js`, move FPS to top-left — reorder DOM so FPS div comes before info div, or place FPS inside the left-side info block.
 
 ### 4b: Chat input wider with right margin
 
@@ -128,7 +128,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **File:** `web/components/chat-console.js:37`
 
-- [x] 4b: Change max-width to `min(1500px, calc(100vw - 32px))`. The `calc(100vw - 32px)` guarantees 16px margin on each side regardless of screen width, replacing the arbitrary 85vw cap.
+- [ ] 4b: Change max-width to `min(1500px, calc(100vw - 32px))`. The `calc(100vw - 32px)` guarantees 16px margin on each side regardless of screen width, replacing the arbitrary 85vw cap.
 
 ### Success criteria
 

@@ -1,7 +1,10 @@
+pub mod anim_state;
 pub mod camera;
 pub mod protocol;
 pub mod movement;
 pub mod terrain;
+
+pub use anim_state::{AnimState, WALK_ENTER_SPEED, WALK_EXIT_SPEED};
 
 // Constants
 pub const TICK_RATE_HZ: u32 = 20;
