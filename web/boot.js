@@ -18,6 +18,7 @@ async function init() {
         window.onJumpPressed = wasm.on_jump_pressed;
         window.sendChat = wasm.send_chat;
         window.addLocalChatBubble = wasm.add_local_chat_bubble;
+        window.sendPlayerName = wasm.send_player_name;
 
         screen.hide();
     } catch (e) {

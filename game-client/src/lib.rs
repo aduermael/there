@@ -38,6 +38,15 @@ pub fn add_local_chat_bubble(text: &str) {
     });
 }
 
+#[wasm_bindgen]
+pub fn send_player_name(name: &str) {
+    GLOBAL_CONN.with(|c| {
+        if let Some(conn) = c.borrow().as_ref() {
+            conn.send_name(name);
+        }
+    });
+}
+
 #[wasm_bindgen(inline_js = "
 export function hud_set_room(code) {
     const el = document.querySelector('game-hud');
@@ -72,6 +81,9 @@ export function js_chat_received(id, text) {
 export function js_update_chat_bubbles(json) {
     window.dispatchEvent(new CustomEvent('chat-bubbles-update', { detail: json }));
 }
+export function js_names_updated(json) {
+    window.dispatchEvent(new CustomEvent('player-names-updated', { detail: json }));
+}
 export function js_viewport_width() { return window.innerWidth; }
 export function js_viewport_height() { return window.innerHeight; }
 ")]
@@ -86,6 +98,7 @@ extern "C" {
     fn js_set_room_code(code: &str);
     fn js_chat_received(id: u16, text: &str);
     fn js_update_chat_bubbles(json: &str);
+    fn js_names_updated(json: &str);
     fn js_viewport_width() -> f32;
     fn js_viewport_height() -> f32;
 }
@@ -146,6 +159,7 @@ struct GameState {
     local_visual_yaw: f32,
     active_bubbles: Vec<ChatBubble>,
     had_active_bubbles: bool,
+    player_names: HashMap<PlayerId, String>,
 }
 
 impl GameState {
@@ -211,6 +225,20 @@ impl GameState {
                         text,
                         timestamp: now,
                     });
+                }
+                ServerMsg::NameUpdate { names } => {
+                    self.player_names.clear();
+                    let mut json_parts: Vec<String> = Vec::new();
+                    for (id, name) in &names {
+                        self.player_names.insert(*id, name.clone());
+                        json_parts.push(format!(
+                            r#"[{},"{}"]"#,
+                            id,
+                            json_escape(name)
+                        ));
+                    }
+                    let json = format!("[{}]", json_parts.join(","));
+                    js_names_updated(&json);
                 }
             }
         }
@@ -432,6 +460,7 @@ async fn run() {
         local_visual_yaw: 0.0,
         active_bubbles: Vec::new(),
         had_active_bubbles: false,
+        player_names: HashMap::new(),
     }));
 
     // Solo mode: set local player ID to 0 so chat bubbles work
