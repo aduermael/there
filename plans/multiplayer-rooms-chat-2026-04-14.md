@@ -200,7 +200,7 @@ Goal: make it clear which room the player is in, and add a way to share the room
 
 Goal: the chat message stack and input field should have visible spacing from the left and bottom screen edges, matching the screenshot feedback.
 
-- [ ] 8a: Fix `:host` padding in `chat-console.js` — the current 2-value shorthand `padding: max(16px, ...) max(16px, ...)` applies vertical/horizontal but the element is `position: fixed; bottom: 0; left: 0` with no explicit width/height, so padding has no visible effect on where child content sits relative to the viewport edge. Replace with explicit `margin` on the `:host` element: `margin: 0 0 max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))`. Remove the padding or convert it to a small inner padding on `.history` and `.input-row` if needed. The key is that the chat block floats inward from the screen edges.
+- [x] 8a: Fix `:host` padding in `chat-console.js` — the current 2-value shorthand `padding: max(16px, ...) max(16px, ...)` applies vertical/horizontal but the element is `position: fixed; bottom: 0; left: 0` with no explicit width/height, so padding has no visible effect on where child content sits relative to the viewport edge. Replace with explicit `margin` on the `:host` element: `margin: 0 0 max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))`. Remove the padding or convert it to a small inner padding on `.history` and `.input-row` if needed. The key is that the chat block floats inward from the screen edges.
 
 ### Contracts
 - Chat messages and input field have at least 16px visible gap from left and bottom edges

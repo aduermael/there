@@ -27,10 +27,9 @@ class ChatConsole extends HTMLElement {
             <style>
                 :host {
                     position: fixed;
-                    bottom: 0;
-                    left: 0;
+                    bottom: max(16px, env(safe-area-inset-bottom));
+                    left: max(16px, env(safe-area-inset-left));
                     z-index: 20;
-                    padding: max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
                     pointer-events: none;
                     font-family: system-ui, sans-serif;
                     font-size: 0.85rem;
