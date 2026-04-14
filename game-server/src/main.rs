@@ -33,6 +33,7 @@ async fn main() {
     let app = Router::new()
         .route("/ws", get(handle_ws))
         .route("/api/rooms", get(handle_list_rooms))
+        .route("/api/rooms/new", get(handle_new_room))
         .fallback_service(serve)
         .layer(SetResponseHeaderLayer::overriding(
             http::header::CACHE_CONTROL,
@@ -52,6 +53,11 @@ async fn main() {
         std::process::exit(1);
     });
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn handle_new_room(State(rooms): State<SharedRoomManager>) -> Json<serde_json::Value> {
+    let code = rooms.read().await.generate_code();
+    Json(serde_json::json!({ "code": code }))
 }
 
 async fn handle_list_rooms(State(rooms): State<SharedRoomManager>) -> Json<serde_json::Value> {
