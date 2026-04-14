@@ -225,7 +225,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // --- Bloom (additive, half-res upsampled via bilinear) ---
     let bloom = textureSample(bloom_texture, hdr_sampler, in.uv).rgb;
-    color += bloom * 0.25;
+    color += bloom * 0.45;
 
     // --- Auto-exposure (compute histogram → trimmed average → EMA adaptation) ---
     let exposure = exposure_buf[0];
