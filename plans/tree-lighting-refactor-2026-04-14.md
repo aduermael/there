@@ -82,7 +82,7 @@ Remove the raw multipliers from trees and rocks. If objects appear too dark afte
 - Dawn/dusk/night still look natural
 - No per-object color multiplier hacks
 
-- [ ] 2a: Remove `* 1.7` from trees.wgsl and `* 1.8` from rocks.wgsl. Adjust `mix()` ratios if objects appear too dark without the boost. Verify all 4 times of day with snapshots + critics.
+- [x] 2a: Remove `* 1.7` from trees.wgsl and `* 1.8` from rocks.wgsl. Adjust `mix()` ratios if objects appear too dark without the boost. Verify all 4 times of day with snapshots + critics.
 
 ---
 

@@ -116,7 +116,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tex = triplanar_sample(in.world_pos, n, layer, TREE_TEXTURE_SCALE);
 
     // Texture is primary color source, instance color provides hue variation
-    let color = mix(in.color, tex, 0.55) * 1.7;
+    let color = mix(in.color, tex, 0.35);
 
     let shadow = sample_shadow(in.world_pos, n);
     let lit = hemisphere_lighting(n, color, shadow, in.world_pos);
