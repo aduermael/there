@@ -196,6 +196,70 @@ Goal: make it clear which room the player is in, and add a way to share the room
 
 ---
 
+## Phase 8: Fix chat console margins
+
+Goal: the chat message stack and input field should have visible spacing from the left and bottom screen edges, matching the screenshot feedback.
+
+- [ ] 8a: Fix `:host` padding in `chat-console.js` — the current 2-value shorthand `padding: max(16px, ...) max(16px, ...)` applies vertical/horizontal but the element is `position: fixed; bottom: 0; left: 0` with no explicit width/height, so padding has no visible effect on where child content sits relative to the viewport edge. Replace with explicit `margin` on the `:host` element: `margin: 0 0 max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))`. Remove the padding or convert it to a small inner padding on `.history` and `.input-row` if needed. The key is that the chat block floats inward from the screen edges.
+
+### Contracts
+- Chat messages and input field have at least 16px visible gap from left and bottom edges
+- Safe-area insets still respected on notched devices
+
+### Success criteria
+- Visually confirm in browser: chat text and input don't touch the screen edges
+
+---
+
+## Phase 9: Fix chat bubbles above player heads
+
+Goal: chat messages should appear as floating speech bubbles above the sending player's character.
+
+- [ ] 9a: Set `local_player_id = Some(0)` in solo mode — in `game-client/src/lib.rs`, after constructing `GameState` (~line 427), if `connection.is_none()` (solo mode), set `state.borrow_mut().local_player_id = Some(0)`. This ensures the bubble lookup `Some(bubble.player_id) == state.local_player_id` succeeds when solo-mode chat echoes with `id: 0`.
+- [ ] 9b: Push local chat bubbles in solo mode — currently `active_bubbles.push(...)` only happens in `GameState::process_server_messages` (line 200-205), which only runs when server messages arrive. In solo mode there's no server. Add a JS→WASM bridge: when the chat-console dispatches a solo echo (`chat-received` with `id: 0`), also call a WASM function `add_local_chat_bubble(text)` that pushes to `active_bubbles` directly. Alternatively, handle this entirely in `lib.rs` by listening for the solo echo event — but the simpler path is a new exported `#[wasm_bindgen]` function that the chat-console calls alongside the local echo dispatch.
+
+### Contracts
+- Solo mode: sending a chat message shows a bubble above the local player for 5 seconds
+- Multiplayer: bubble behavior unchanged (server echo triggers bubble via `process_server_messages`)
+- Local player ID is 0 in solo mode, matching the echo convention
+
+### Success criteria
+- Solo mode: type a message, see it float above your character
+- Multiplayer: chat bubbles still work as before (server-echoed)
+- Bubbles fade and disappear after 5 seconds
+
+---
+
+## Phase 10: Player names
+
+Goal: players can set a display name that persists across sessions (IndexedDB) and is shown in chat instead of "Player {id}".
+
+- [ ] 10a: Add `ClientMsg::SetName` to protocol — in `game-core/src/protocol.rs`, add `SetName { name: String }` to `ClientMsg`. Add `NameUpdate { names: Vec<(PlayerId, String)> }` to `ServerMsg`. This message broadcasts all player names whenever one changes.
+- [ ] 10b: Store name in server Player struct — in `game-server/src/room.rs`, add `pub name: String` to `Player`. Add `RoomEvent::SetName { id: PlayerId, name: String }`. Default name: `"Player {id}"`.
+- [ ] 10c: Handle SetName in server — in `game_loop.rs`, handle `RoomEvent::SetName`: update `player.name`, broadcast `ServerMsg::NameUpdate` with all `(id, name)` pairs to every player. Also broadcast `NameUpdate` on `RoomEvent::Join` so new players get existing names.
+- [ ] 10d: Handle SetName in WS handler — in `main.rs`, add a match arm for `ClientMsg::SetName` that validates (trim, non-empty, max 32 chars) and sends `RoomEvent::SetName` to the room.
+- [ ] 10e: WASM send_player_name bridge — in `game-client/src/lib.rs`, export `send_player_name(name: &str)` that serializes and sends `ClientMsg::SetName`. Add a `HashMap<PlayerId, String>` to `GameState` for player names. Handle `ServerMsg::NameUpdate` in `process_server_messages`: update the map and call a new JS bridge `js_names_updated(json)` that dispatches a `player-names-updated` CustomEvent on `window`.
+- [ ] 10f: IndexedDB persistence — add a `<script>` in `index.html` (or inline in `boot.js`) that opens an `'game-settings'` IndexedDB with a `'settings'` object store. Expose `window.savePlayerName(name)` and `window.getPlayerName() -> Promise<string|null>` globally. In `boot.js`, after WASM init, load the saved name and call `window.sendPlayerName(name)` if one exists.
+- [ ] 10g: Name input in settings menu — in `game-menu.js`, add a "Player" section above the Multiplayer section with a text input (maxlength 32, placeholder "Enter name..."). On blur or Enter, save to IndexedDB and call `window.sendPlayerName(name)`. On menu open, populate from IndexedDB. In solo mode, store the name in `window.__playerName` for local display.
+- [ ] 10h: Display names in chat — in `chat-console.js`, listen for `player-names-updated` events and maintain a `Map<id, name>`. In `_renderMessages`, show the name instead of `"Player {id}"`. In solo mode, use `window.__playerName || "Player 0"`.
+- [ ] 10i: Display names in chat bubbles — optionally include the player name in the bubble JSON from WASM (requires the name map). Or simpler: in `chat-bubbles.js`, listen for `player-names-updated` and maintain a name map. When rendering a bubble, prefix the text with the name if known.
+
+### Contracts
+- Name persists in IndexedDB key `'playerName'` in store `'settings'` of database `'game-settings'`
+- `ClientMsg::SetName` validated server-side: trimmed, non-empty, max 32 chars
+- `ServerMsg::NameUpdate` broadcast to all players on any name change or new join
+- Chat console and bubbles display names instead of "Player {id}" when available
+- Default name is `"Player {id}"` until explicitly set
+- Solo mode: name stored locally via `window.__playerName`, no server interaction
+
+### Success criteria
+- Set name in settings → name persists after page reload
+- Send chat in multiplayer → other players see your name, not "Player {id}"
+- New player joins → sees existing players' names
+- Solo mode: set name, chat shows your name
+
+---
+
 ## DRY & refactoring notes
 
 - **Player color palette**: defined in `player.rs` (Rust) and will be needed in `<chat-console>` (JS). Extract as a shared constant in `game-core` and expose via a WASM function `get_player_color(id) -> [r,g,b]` rather than duplicating the array. If the overhead is unacceptable, a single JS constant is fine — just keep it in one place.
