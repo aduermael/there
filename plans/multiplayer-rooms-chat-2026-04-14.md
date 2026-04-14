@@ -242,7 +242,7 @@ Goal: players can set a display name that persists across sessions (IndexedDB) a
 - [x] 10f: IndexedDB persistence — add a `<script>` in `index.html` (or inline in `boot.js`) that opens an `'game-settings'` IndexedDB with a `'settings'` object store. Expose `window.savePlayerName(name)` and `window.getPlayerName() -> Promise<string|null>` globally. In `boot.js`, after WASM init, load the saved name and call `window.sendPlayerName(name)` if one exists.
 - [x] 10g: Name input in settings menu — in `game-menu.js`, add a "Player" section above the Multiplayer section with a text input (maxlength 32, placeholder "Enter name..."). On blur or Enter, save to IndexedDB and call `window.sendPlayerName(name)`. On menu open, populate from IndexedDB. In solo mode, store the name in `window.__playerName` for local display.
 - [x] 10h: Display names in chat — in `chat-console.js`, listen for `player-names-updated` events and maintain a `Map<id, name>`. In `_renderMessages`, show the name instead of `"Player {id}"`. In solo mode, use `window.__playerName || "Player 0"`.
-- [ ] 10i: Display names in chat bubbles — optionally include the player name in the bubble JSON from WASM (requires the name map). Or simpler: in `chat-bubbles.js`, listen for `player-names-updated` and maintain a name map. When rendering a bubble, prefix the text with the name if known.
+- [x] 10i: Display names in chat bubbles — optionally include the player name in the bubble JSON from WASM (requires the name map). Or simpler: in `chat-bubbles.js`, listen for `player-names-updated` and maintain a name map. When rendering a bubble, prefix the text with the name if known.
 
 ### Contracts
 - Name persists in IndexedDB key `'playerName'` in store `'settings'` of database `'game-settings'`

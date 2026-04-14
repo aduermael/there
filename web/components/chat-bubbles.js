@@ -2,6 +2,7 @@ class ChatBubbles extends HTMLElement {
     constructor() {
         super();
         this._divs = new Map(); // player id -> div element
+        this._playerNames = new Map();
 
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
@@ -50,6 +51,16 @@ class ChatBubbles extends HTMLElement {
         window.addEventListener('chat-bubbles-update', (e) => {
             this._update(JSON.parse(e.detail));
         });
+
+        window.addEventListener('player-names-updated', (e) => {
+            try {
+                const pairs = JSON.parse(e.detail);
+                this._playerNames.clear();
+                for (const [id, name] of pairs) {
+                    this._playerNames.set(id, name);
+                }
+            } catch {}
+        });
     }
 
     _update(bubbles) {
@@ -63,7 +74,8 @@ class ChatBubbles extends HTMLElement {
                 this.shadowRoot.appendChild(div);
                 this._divs.set(b.id, div);
             }
-            div.textContent = b.text;
+            const name = this._playerNames.get(b.id) || (b.id === 0 && window.__playerName) || `Player ${b.id}`;
+            div.textContent = `${name}: ${b.text}`;
             div.style.left = b.x + 'px';
             div.style.top = b.y + 'px';
             // Full opacity 0-3s, linear fade 3-5s
