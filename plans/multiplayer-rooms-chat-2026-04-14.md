@@ -99,8 +99,8 @@ Goal: extend the binary protocol with chat messages. Server relays chat to all p
 
 Goal: a web component for chat input and message history, visible only in multiplayer.
 
-- [ ] 4a: New `<chat-console>` web component — a chat overlay at the bottom-left of the screen. Shows the last ~20 messages as scrollable semi-transparent text. Hidden in solo mode.
-- [ ] 4b: Input activation — pressing Enter focuses a text input at the bottom. Pressing Enter again sends the message and blurs. Pressing Escape cancels and blurs. Input must not trigger game movement keys (stop propagation when focused).
+- [x] 4a: New `<chat-console>` web component — a chat overlay at the bottom-left of the screen. Shows the last ~20 messages as scrollable semi-transparent text. Hidden in solo mode.
+- [x] 4b: Input activation — pressing Enter focuses a text input at the bottom. Pressing Enter again sends the message and blurs. Pressing Escape cancels and blurs. Input must not trigger game movement keys (stop propagation when focused).
 - [ ] 4c: WASM bridge for sending — expose `send_chat(text)` from WASM (like `set_joystick_input`). `boot.js` assigns it to `window.sendChat`. The `<chat-console>` calls `window.sendChat(text)` on submit.
 - [ ] 4d: WASM bridge for receiving — `js_chat_received(id, text)` (from 3e) dispatches a `CustomEvent` on `window` with detail `{id, text}`. The `<chat-console>` listens for this event and appends the message to history. Display format: player color dot + "Player {id}: {text}".
 - [ ] 4e: Register in index.html — add `<chat-console>` element and script tag. Wire up `window.sendChat` in `boot.js`.
