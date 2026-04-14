@@ -16,6 +16,7 @@ async function init() {
         window.setJoystickInput = wasm.set_joystick_input;
         window.onCameraDrag = wasm.on_camera_drag;
         window.onJumpPressed = wasm.on_jump_pressed;
+        window.sendChat = wasm.send_chat;
 
         screen.hide();
     } catch (e) {

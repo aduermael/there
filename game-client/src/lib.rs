@@ -17,6 +17,19 @@ use input::InputState;
 use net::Connection;
 use renderer::Renderer;
 
+thread_local! {
+    static GLOBAL_CONN: RefCell<Option<Connection>> = RefCell::new(None);
+}
+
+#[wasm_bindgen]
+pub fn send_chat(text: &str) {
+    GLOBAL_CONN.with(|c| {
+        if let Some(conn) = c.borrow().as_ref() {
+            conn.send_chat(text);
+        }
+    });
+}
+
 #[wasm_bindgen(inline_js = "
 export function hud_set_room(code) {
     const el = document.querySelector('game-hud');
@@ -338,7 +351,9 @@ async fn run() {
         log::info!("Room code: {room_code}");
         js_set_room_code(room_code);
         hud_set_room(room_code);
-        Some(Connection::new(room_code, incoming.clone()))
+        let conn = Connection::new(room_code, incoming.clone());
+        GLOBAL_CONN.with(|c| *c.borrow_mut() = Some(conn.clone()));
+        Some(conn)
     } else {
         log::info!("No room code — solo mode");
         js_set_room_code("");
