@@ -97,7 +97,9 @@ const TREE_TEXTURE_SCALE: f32 = 0.35; // ~1 tile per 2.9 world units
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let n = compute_flat_normal(in.world_pos);
+    // Force normal upward-biased so all cone faces catch sunlight
+    let flat_n = compute_flat_normal(in.world_pos);
+    let n = normalize(vec3(flat_n.x, abs(flat_n.y) + 0.7, flat_n.z));
 
     // Select material: bark for trunk, foliage for canopy
     let layer = select(MAT_BARK, MAT_FOLIAGE, in.is_foliage > 0.5);
