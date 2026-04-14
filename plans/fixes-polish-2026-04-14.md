@@ -26,7 +26,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 - [x] 1a: Create `game-core/src/anim_state.rs`. Move `AnimState` enum (Idle, Walk, Run, Jump, Fall — **no Swim**), `from_movement(speed, vertical_velocity)` (no `y`/`water_level` params), `to_u8()`, `from_u8()` (map 5→Idle fallback), `WALK_ENTER_SPEED`, `WALK_EXIT_SPEED`. Export via `game-core/src/lib.rs`.
 
-- [ ] 1b: Update `game-render/src/animation.rs` — re-export `AnimState` from game-core, remove the enum/methods/constants. Remove `swim_clip()` from the clips vector in `AnimationPlayer::new()` (index 5). Remove `swim_clip()` function from `game-render/src/clips.rs`. Remove `water_level` parameter from any remaining call sites.
+- [x] 1b: Update `game-render/src/animation.rs` — re-export `AnimState` from game-core, remove the enum/methods/constants. Remove `swim_clip()` from the clips vector in `AnimationPlayer::new()` (index 5). Remove `swim_clip()` function from `game-render/src/clips.rs`. Remove `water_level` parameter from any remaining call sites.
 
 - [ ] 1c: Update `game-server/src/game_loop.rs:70-82` — replace the inline `if/else` chain with `game_core::AnimState::from_movement(horiz_speed, player.vertical_velocity).to_u8()`. Update `game-client/src/lib.rs:14` — import `AnimState`, `WALK_ENTER_SPEED`, `WALK_EXIT_SPEED` from `game_core` instead of `game_render::animation`. Remove `water_level` argument from `from_movement()` call at line 331-336.
 

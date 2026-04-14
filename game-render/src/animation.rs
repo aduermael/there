@@ -2,10 +2,7 @@ use glam::Quat;
 use crate::skeleton::NUM_BONES;
 use crate::clips;
 
-/// Speed threshold to enter Walk from Idle.
-pub const WALK_ENTER_SPEED: f32 = 0.5;
-/// Speed threshold to exit Walk back to Idle.
-pub const WALK_EXIT_SPEED: f32 = 0.15;
+pub use game_core::{AnimState, WALK_ENTER_SPEED, WALK_EXIT_SPEED};
 
 /// A single keyframe for one bone: a rotation at a specific time.
 #[derive(Clone)]
@@ -80,69 +77,6 @@ pub fn blend_poses(a: &[Quat; NUM_BONES], b: &[Quat; NUM_BONES], t: f32) -> [Qua
     result
 }
 
-// ── Animation state machine ─────────────────────────────────────────────
-
-/// Movement states that drive animation selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AnimState {
-    Idle,
-    Walk,
-    Run,
-    Jump,
-    Fall,
-    Swim,
-}
-
-impl AnimState {
-    /// Derive animation state from movement parameters.
-    ///   - `speed`: horizontal speed (length of XZ velocity)
-    ///   - `vertical_velocity`: Y velocity (positive = going up)
-    ///   - `y`: player world Y position
-    ///   - `water_level`: world water height
-    pub fn from_movement(speed: f32, vertical_velocity: f32, y: f32, water_level: f32) -> Self {
-        if y < water_level - 0.3 {
-            return AnimState::Swim;
-        }
-        if vertical_velocity > 1.0 {
-            return AnimState::Jump;
-        }
-        if vertical_velocity < -1.0 {
-            return AnimState::Fall;
-        }
-        if speed > 4.0 {
-            return AnimState::Run;
-        }
-        if speed > WALK_ENTER_SPEED {
-            return AnimState::Walk;
-        }
-        AnimState::Idle
-    }
-
-    /// Convert to u8 for network serialization.
-    pub fn to_u8(self) -> u8 {
-        match self {
-            AnimState::Idle => 0,
-            AnimState::Walk => 1,
-            AnimState::Run => 2,
-            AnimState::Jump => 3,
-            AnimState::Fall => 4,
-            AnimState::Swim => 5,
-        }
-    }
-
-    /// Convert from u8 (network deserialization).
-    pub fn from_u8(v: u8) -> Self {
-        match v {
-            1 => AnimState::Walk,
-            2 => AnimState::Run,
-            3 => AnimState::Jump,
-            4 => AnimState::Fall,
-            5 => AnimState::Swim,
-            _ => AnimState::Idle,
-        }
-    }
-}
-
 /// Crossfade duration in seconds.
 const BLEND_DURATION: f32 = 0.2;
 
@@ -171,7 +105,6 @@ impl AnimationPlayer {
             clips::run_clip(),  // 2 = Run
             clips::jump_clip(), // 3 = Jump
             clips::fall_clip(), // 4 = Fall
-            clips::swim_clip(), // 5 = Swim
         ];
         Self {
             clips,
