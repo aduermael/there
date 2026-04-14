@@ -403,16 +403,16 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
 
         for i in 0..segments {
             indices.push(tip_idx);
-            indices.push(ring_start + i + 1);
             indices.push(ring_start + i);
+            indices.push(ring_start + i + 1);
         }
 
         let center_idx = verts.len() as u32;
         verts.push([0.0, base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
         for i in 0..segments {
             indices.push(center_idx);
-            indices.push(ring_start + i);
             indices.push(ring_start + i + 1);
+            indices.push(ring_start + i);
         }
     }
 
