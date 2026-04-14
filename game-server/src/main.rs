@@ -146,6 +146,15 @@ async fn handle_socket(socket: WebSocket, room_code: String, rooms: SharedRoomMa
                                     });
                                 }
                             }
+                            game_core::protocol::ClientMsg::SetName { name } => {
+                                let name = name.trim().to_string();
+                                if !name.is_empty() && name.len() <= 32 {
+                                    let _ = event_tx_clone.send(RoomEvent::SetName {
+                                        id: player_id,
+                                        name,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
