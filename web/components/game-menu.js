@@ -165,6 +165,34 @@ class GameMenu extends HTMLElement {
                     text-align: center;
                     padding: 8px 0;
                 }
+                .room-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin: 8px 0;
+                    font-size: 0.9rem;
+                }
+                .room-info .room-code {
+                    font-weight: 700;
+                    letter-spacing: 0.1em;
+                    font-size: 1rem;
+                }
+                .room-info .copy-btn {
+                    padding: 4px 10px;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: 6px;
+                    background: rgba(255,255,255,0.08);
+                    color: #fff;
+                    font-size: 0.75rem;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                }
+                .room-info .copy-btn:hover { background: rgba(255,255,255,0.2); }
+                .solo-label {
+                    opacity: 0.5;
+                    font-size: 0.85rem;
+                    margin: 8px 0;
+                }
 
                 .resume {
                     margin-top: 8px;
@@ -196,6 +224,7 @@ class GameMenu extends HTMLElement {
                     </div>
                     <div class="mp-section">
                         <div class="section-label">Multiplayer</div>
+                        <div class="room-info-area"></div>
                         <div class="room-list"></div>
                         <div class="mp-actions"></div>
                     </div>
@@ -206,6 +235,7 @@ class GameMenu extends HTMLElement {
         this._overlay = this.shadowRoot.querySelector('.overlay');
         this._trigger = this.shadowRoot.querySelector('.trigger');
         this._cycleToggle = this.shadowRoot.querySelector('[data-id="cycle"]');
+        this._roomInfoArea = this.shadowRoot.querySelector('.room-info-area');
         this._roomList = this.shadowRoot.querySelector('.room-list');
         this._mpActions = this.shadowRoot.querySelector('.mp-actions');
 
@@ -264,6 +294,7 @@ class GameMenu extends HTMLElement {
         } else {
             this._cycleToggle.classList.remove('on');
         }
+        this._updateRoomInfo();
         this._updateMpActions();
         this._fetchRooms();
         this._overlay.classList.add('open');
@@ -277,6 +308,22 @@ class GameMenu extends HTMLElement {
 
     _inRoom() {
         return !!(window.__roomCode);
+    }
+
+    _updateRoomInfo() {
+        if (this._inRoom()) {
+            this._roomInfoArea.innerHTML =
+                `<div class="room-info">Room: <span class="room-code">${window.__roomCode}</span>` +
+                `<button class="copy-btn">Copy URL</button></div>`;
+            this._roomInfoArea.querySelector('.copy-btn').addEventListener('click', (e) => {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                    e.target.textContent = 'Copied!';
+                    setTimeout(() => { e.target.textContent = 'Copy URL'; }, 1500);
+                });
+            });
+        } else {
+            this._roomInfoArea.innerHTML = '<div class="solo-label">Solo Mode</div>';
+        }
     }
 
     _updateMpActions() {

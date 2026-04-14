@@ -181,8 +181,8 @@ Goal: fix the Enter-to-send bug, make chat work in solo mode, and improve chat c
 
 Goal: make it clear which room the player is in, and add a way to share the room URL.
 
-- [ ] 7a: Show current room in settings — when in a room, display the room code prominently in the Multiplayer section of `game-menu.js` (e.g., "Room: ABCD" with styled code). When in solo mode, show "Solo Mode" instead.
-- [ ] 7b: Copy room URL button — when in a room, add a "Copy Room URL" button next to the room code in the settings panel. Clicking it copies the full URL (`window.location.href`) to the clipboard via `navigator.clipboard.writeText()`. Show brief "Copied!" feedback on success.
+- [x] 7a: Show current room in settings — when in a room, display the room code prominently in the Multiplayer section of `game-menu.js` (e.g., "Room: ABCD" with styled code). When in solo mode, show "Solo Mode" instead.
+- [x] 7b: Copy room URL button — when in a room, add a "Copy Room URL" button next to the room code in the settings panel. Clicking it copies the full URL (`window.location.href`) to the clipboard via `navigator.clipboard.writeText()`. Show brief "Copied!" feedback on success.
 
 ### Contracts
 - Room code display reads from `window.__roomCode`
