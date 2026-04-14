@@ -118,6 +118,9 @@ class ChatConsole extends HTMLElement {
                         window.dispatchEvent(new CustomEvent('chat-received', {
                             detail: { id: 0, text }
                         }));
+                        if (window.addLocalChatBubble) {
+                            window.addLocalChatBubble(text);
+                        }
                     }
                     this._input.value = '';
                 }

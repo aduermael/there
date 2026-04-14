@@ -19,6 +19,7 @@ use renderer::Renderer;
 
 thread_local! {
     static GLOBAL_CONN: RefCell<Option<Connection>> = RefCell::new(None);
+    static PENDING_LOCAL_BUBBLES: RefCell<Vec<String>> = RefCell::new(Vec::new());
 }
 
 #[wasm_bindgen]
@@ -27,6 +28,13 @@ pub fn send_chat(text: &str) {
         if let Some(conn) = c.borrow().as_ref() {
             conn.send_chat(text);
         }
+    });
+}
+
+#[wasm_bindgen]
+pub fn add_local_chat_bubble(text: &str) {
+    PENDING_LOCAL_BUBBLES.with(|b| {
+        b.borrow_mut().push(text.to_string());
     });
 }
 
@@ -426,6 +434,11 @@ async fn run() {
         had_active_bubbles: false,
     }));
 
+    // Solo mode: set local player ID to 0 so chat bubbles work
+    if connection.is_none() {
+        state.borrow_mut().local_player_id = Some(0);
+    }
+
     // Initialize daylight globals for JS menu access
     js_set_sun_angle(0.0);
 
@@ -557,6 +570,20 @@ fn start_render_loop(
             // Process messages → movement → build instances
             let messages: Vec<ServerMsg> = incoming.borrow_mut().drain(..).collect();
             state.process_server_messages(messages, now);
+
+            // Drain pending local chat bubbles (solo mode)
+            PENDING_LOCAL_BUBBLES.with(|b| {
+                let mut pending = b.borrow_mut();
+                for text in pending.drain(..) {
+                    let player_id = state.local_player_id.unwrap_or(0);
+                    state.active_bubbles.retain(|b| b.player_id != player_id);
+                    state.active_bubbles.push(ChatBubble {
+                        player_id,
+                        text,
+                        timestamp: now,
+                    });
+                }
+            });
 
             // Compute input
             let menu_open = js_is_menu_open();

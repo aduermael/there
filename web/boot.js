@@ -17,6 +17,7 @@ async function init() {
         window.onCameraDrag = wasm.on_camera_drag;
         window.onJumpPressed = wasm.on_jump_pressed;
         window.sendChat = wasm.send_chat;
+        window.addLocalChatBubble = wasm.add_local_chat_bubble;
 
         screen.hide();
     } catch (e) {
