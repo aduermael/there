@@ -51,11 +51,11 @@ Goal: visiting `/` starts the game in solo mode. Server exposes room data via RE
 Goal: players can browse, create, and join rooms from the settings panel. When in a room, they can leave.
 
 - [x] 2a: Add a "Multiplayer" section to `game-menu.js` — positioned between the time presets and the Resume button. Contains: a room list area, a "Create Room" button, and a "Refresh" button. When the player is already in a room, show a "Leave Room" button instead.
-- [ ] 2b: Fetch and display room list — when the menu opens and the multiplayer section is visible, `fetch('/api/rooms')` and render each room as a row: room code + player count + "Join" button. Show "No rooms available" when the list is empty.
-- [ ] 2c: "Create Room" — calls `fetch('/api/rooms/new')`, gets `{code}`, navigates to `/{code}` (page reload starts multiplayer session in that room).
-- [ ] 2d: "Join" — navigates to `/{code}` for the selected room.
-- [ ] 2e: "Leave Room" — navigates to `/` (returns to solo mode). Only shown when `window.location.pathname` has a room code.
-- [ ] 2f: Expose room code to JS — add a `window.__roomCode` global set from WASM (or read from URL in JS) so the menu knows whether we're in solo or multiplayer mode.
+- [x] 2b: Fetch and display room list — when the menu opens and the multiplayer section is visible, `fetch('/api/rooms')` and render each room as a row: room code + player count + "Join" button. Show "No rooms available" when the list is empty.
+- [x] 2c: "Create Room" — calls `fetch('/api/rooms/new')`, gets `{code}`, navigates to `/{code}` (page reload starts multiplayer session in that room).
+- [x] 2d: "Join" — navigates to `/{code}` for the selected room.
+- [x] 2e: "Leave Room" — navigates to `/` (returns to solo mode). Only shown when `window.location.pathname` has a room code.
+- [x] 2f: Expose room code to JS — add a `window.__roomCode` global set from WASM (or read from URL in JS) so the menu knows whether we're in solo or multiplayer mode.
 
 ### Contracts
 - Menu reads room code from `window.__roomCode` (empty string = solo mode)

@@ -206,6 +206,8 @@ class GameMenu extends HTMLElement {
         this._overlay = this.shadowRoot.querySelector('.overlay');
         this._trigger = this.shadowRoot.querySelector('.trigger');
         this._cycleToggle = this.shadowRoot.querySelector('[data-id="cycle"]');
+        this._roomList = this.shadowRoot.querySelector('.room-list');
+        this._mpActions = this.shadowRoot.querySelector('.mp-actions');
 
         // Initialize window globals
         window.__daylightCycle = true;
@@ -262,6 +264,8 @@ class GameMenu extends HTMLElement {
         } else {
             this._cycleToggle.classList.remove('on');
         }
+        this._updateMpActions();
+        this._fetchRooms();
         this._overlay.classList.add('open');
         window.__menuOpen = true;
     }
@@ -269,6 +273,60 @@ class GameMenu extends HTMLElement {
     _close() {
         this._overlay.classList.remove('open');
         window.__menuOpen = false;
+    }
+
+    _inRoom() {
+        return !!(window.__roomCode);
+    }
+
+    _updateMpActions() {
+        if (this._inRoom()) {
+            this._mpActions.innerHTML = '<button class="leave">Leave Room</button>';
+            this._mpActions.querySelector('.leave').addEventListener('click', () => {
+                window.location.href = '/';
+            });
+        } else {
+            this._mpActions.innerHTML =
+                '<button class="create">Create Room</button>' +
+                '<button class="refresh">Refresh</button>';
+            this._mpActions.querySelector('.create').addEventListener('click', () => this._createRoom());
+            this._mpActions.querySelector('.refresh').addEventListener('click', () => this._fetchRooms());
+        }
+    }
+
+    async _fetchRooms() {
+        try {
+            const res = await fetch('/api/rooms');
+            const rooms = await res.json();
+            if (rooms.length === 0) {
+                this._roomList.innerHTML = '<div class="empty-msg">No rooms available</div>';
+            } else {
+                this._roomList.innerHTML = rooms.map(r =>
+                    `<div class="room-row">
+                        <span class="code">${r.code}</span>
+                        <span class="count">${r.player_count} player${r.player_count !== 1 ? 's' : ''}</span>
+                        <button data-code="${r.code}">Join</button>
+                    </div>`
+                ).join('');
+                this._roomList.querySelectorAll('button[data-code]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        window.location.href = '/' + btn.dataset.code;
+                    });
+                });
+            }
+        } catch {
+            this._roomList.innerHTML = '<div class="empty-msg">Could not load rooms</div>';
+        }
+    }
+
+    async _createRoom() {
+        try {
+            const res = await fetch('/api/rooms/new');
+            const { code } = await res.json();
+            window.location.href = '/' + code;
+        } catch {
+            // silently fail
+        }
     }
 }
 
