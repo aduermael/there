@@ -101,6 +101,13 @@ impl RoomManager {
         (id, room.event_tx.clone())
     }
 
+    pub fn list_rooms(&self) -> Vec<(String, usize)> {
+        self.rooms
+            .iter()
+            .map(|(code, room)| (code.clone(), room.player_count))
+            .collect()
+    }
+
     pub fn player_left(&mut self, code: &str) {
         if let Some(room) = self.rooms.get_mut(code) {
             room.player_count = room.player_count.saturating_sub(1);

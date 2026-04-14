@@ -5,6 +5,7 @@ use axum::extract::ws::WebSocket;
 use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::routing::get;
+use axum::Json;
 use axum::Router;
 use room::{RoomEvent, RoomManager};
 use std::net::SocketAddr;
@@ -31,6 +32,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/ws", get(handle_ws))
+        .route("/api/rooms", get(handle_list_rooms))
         .fallback_service(serve)
         .layer(SetResponseHeaderLayer::overriding(
             http::header::CACHE_CONTROL,
@@ -50,6 +52,17 @@ async fn main() {
         std::process::exit(1);
     });
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn handle_list_rooms(State(rooms): State<SharedRoomManager>) -> Json<serde_json::Value> {
+    let list = rooms.read().await.list_rooms();
+    let arr: Vec<serde_json::Value> = list
+        .into_iter()
+        .map(|(code, count)| {
+            serde_json::json!({ "code": code, "player_count": count })
+        })
+        .collect();
+    Json(serde_json::Value::Array(arr))
 }
 
 async fn handle_ws(
