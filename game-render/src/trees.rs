@@ -345,8 +345,8 @@ type TreeVertex = [f32; 6]; // [x, y, z, r, g, b]
 /// `segments` controls circular resolution.
 fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
     let trunk_radius = 0.15;
-    let trunk_height = 1.0;
-    let trunk_color = [0.45, 0.30, 0.15];
+    let trunk_height = 0.5;
+    let trunk_color = [0.25, 0.20, 0.10];
 
     let mut verts: Vec<TreeVertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
@@ -411,8 +411,8 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
         verts.push([0.0, base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
         for i in 0..segments {
             indices.push(center_idx);
-            indices.push(ring_start + i + 1);
             indices.push(ring_start + i);
+            indices.push(ring_start + i + 1);
         }
     }
 
