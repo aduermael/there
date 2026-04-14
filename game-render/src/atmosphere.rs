@@ -36,10 +36,10 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let dusk_blend = smoothstep(0.15, 0.38, sun_angle) * (1.0 - smoothstep(0.62, 0.85, sun_angle));
 
     // Sun color: bright warm-white at noon, peach-gold at dawn, deep amber at dusk
-    let noon_sun = [1.20_f32, 1.10, 0.92];
+    let noon_sun = [1.40_f32, 1.30, 1.05];
     let dawn_sun = [1.25_f32, 0.62, 0.28];
     let dusk_sun = [1.15_f32, 0.42, 0.18];
-    let night_sun = [0.16_f32, 0.18, 0.36];
+    let night_sun = [0.18_f32, 0.22, 0.58];
     let glow_sun = lerp3(&dawn_sun, &dusk_sun, dusk_blend);
     let sun_color = lerp3(
         &lerp3(&night_sun, &noon_sun, day_factor),
@@ -49,7 +49,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
 
     // Sky zenith: vivid blue at noon, cool lavender at dawn, warm purple at dusk
     let noon_zenith = [0.22_f32, 0.45, 0.95];
-    let night_zenith = [0.04_f32, 0.06, 0.18];
+    let night_zenith = [0.05_f32, 0.07, 0.32];
     let dawn_zenith = [0.35_f32, 0.38, 0.82];
     let dusk_zenith = [0.28_f32, 0.16, 0.55];
     let glow_zenith = lerp3(&dawn_zenith, &dusk_zenith, dusk_blend);
@@ -61,7 +61,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
 
     // Sky horizon: clear blue at noon, peach at dawn, deep amber-rose at dusk
     let noon_horizon = [0.42_f32, 0.60, 0.88];
-    let night_horizon = [0.03_f32, 0.04, 0.12];
+    let night_horizon = [0.03_f32, 0.05, 0.24];
     let dawn_horizon = [1.0_f32, 0.58, 0.32];
     let dusk_horizon = [1.0_f32, 0.35, 0.12];
     let glow_horizon = lerp3(&dawn_horizon, &dusk_horizon, dusk_blend);
@@ -77,7 +77,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let fog_color = lerp3(&sky_horizon, &fog_neutral, horizon_glow * 0.45);
 
     // Ambient intensity: lower = more sun/shadow contrast, higher = flatter
-    let ambient_intensity = 0.13 + 0.09 * day_factor;
+    let ambient_intensity = 0.22 + 0.12 * day_factor;
 
     // Hemisphere lighting: sky-tinted ambient from above, warm earth bounce from below
     let sky_ambient = [
@@ -85,8 +85,8 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_zenith[1] * ambient_intensity,
         sky_zenith[2] * ambient_intensity,
     ];
-    let night_ground = [0.06_f32, 0.07, 0.12]; // cold blue-gray moonlit earth
-    let noon_ground = [0.48_f32, 0.38, 0.18]; // strong warm earth bounce for shadow warmth
+    let night_ground = [0.13_f32, 0.16, 0.30]; // cold blue moonlit earth
+    let noon_ground = [0.55_f32, 0.45, 0.22]; // strong warm earth bounce for shadow warmth
     let ground_base = lerp3(&night_ground, &noon_ground, day_factor);
     let ground_ambient = [
         ground_base[0] * ambient_intensity,
@@ -95,7 +95,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     ];
 
     // Exponential height fog: clear scenes, minimal wash, atmospheric at distance
-    let fog_density = 0.0012 + 0.004 * horizon_glow + 0.0005 * (1.0 - day_factor);
+    let fog_density = 0.0012 + 0.004 * horizon_glow + 0.0018 * (1.0 - day_factor);
     let fog_height_falloff = 0.05 - 0.015 * horizon_glow;
 
     AtmosphereParams {

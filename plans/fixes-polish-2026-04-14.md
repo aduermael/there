@@ -86,7 +86,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 | `noon_sun` (line 39) | `[1.20, 1.10, 0.92]` | Could be warmer/brighter |
 | `noon_ground` (line 89) | `[0.48, 0.38, 0.18]` | Weak upward bounce |
 
-- [ ] 3a: In `atmosphere.rs`, increase ambient intensity formula, boost noon sun color, and strengthen noon ground bounce. Target: visibly sunnier midday with warm light and readable shadow detail.
+- [x] 3a: In `atmosphere.rs`, increase ambient intensity formula, boost noon sun color, and strengthen noon ground bounce. Target: visibly sunnier midday with warm light and readable shadow detail.
 
 ### 3b: Blue-toned night
 
@@ -103,7 +103,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 | `sat_boost` at night (postprocess.wgsl:246) | `mix(1.28, 0.20, night_factor)` | 0.20 = nearly greyscale |
 | Blue fill (postprocess.wgsl:251) | `vec3(0.010, 0.014, 0.030)` | Subtle |
 
-- [ ] 3b: In `atmosphere.rs`, shift night colors toward blue: reduce R, slightly reduce G, increase B across night_sun, night_zenith, night_horizon, night_ground. In `postprocess.wgsl`, raise the night saturation floor from 0.20 to ~0.35-0.40 to preserve blue tones. Optionally strengthen the blue shadow fill.
+- [x] 3b: In `atmosphere.rs`, shift night colors toward blue: reduce R, slightly reduce G, increase B across night_sun, night_zenith, night_horizon, night_ground. In `postprocess.wgsl`, raise the night saturation floor from 0.20 to ~0.35-0.40 to preserve blue tones. Optionally strengthen the blue shadow fill.
 
 ### Success criteria
 

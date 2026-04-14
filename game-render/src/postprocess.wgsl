@@ -243,12 +243,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Saturation boost: strong by day (1.28), heavily reduced at night (scotopic desaturation)
     let grey = vec3(luminance);
-    let sat_boost = mix(1.28, 0.20, night_factor);
+    let sat_boost = mix(1.28, 0.45, night_factor);
     color = mix(grey, color, sat_boost);
 
     // Subtle cool fill for very dark areas (cold blue, not purple)
     let dark_fill = saturate(1.0 - luminance * 4.0);
-    color += dark_fill * dark_fill * vec3(0.010, 0.014, 0.030);
+    color += dark_fill * dark_fill * vec3(0.012, 0.018, 0.055);
 
     // S-curve contrast for visual punch
     color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.32);
