@@ -21,12 +21,14 @@ const MAT_ROCK: i32 = 3;
 struct VertexInput {
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) world_normal: vec3<f32>,
 };
 
 @vertex
@@ -39,6 +41,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
     out.color = inst.color.rgb;
+    out.world_normal = in.normal; // uniform scale — normal unchanged
     return out;
 }
 
@@ -46,6 +49,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn vs_shadow(
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
 ) -> @builtin(position) vec4<f32> {
     let inst = shadow_instances[instance_id];
     let world_pos = position * inst.pos_scale.w + inst.pos_scale.xyz;
@@ -58,7 +62,7 @@ const ROCK_TEXTURE_SCALE: f32 = 0.25; // ~1 tile per 4 world units
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let n = compute_flat_normal(in.world_pos);
+    let n = normalize(in.world_normal);
     let tex = triplanar_sample(in.world_pos, n, MAT_ROCK, ROCK_TEXTURE_SCALE);
 
     // Texture is primary color source, instance color provides hue variation

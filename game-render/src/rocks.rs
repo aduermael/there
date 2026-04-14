@@ -234,9 +234,12 @@ impl RockRenderer {
         });
 
         let rock_vertex_layout = &[wgpu::VertexBufferLayout {
-            array_stride: 12,
+            array_stride: 24,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 }],
+            attributes: &[
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 },  // position
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 12, shader_location: 1 }, // normal
+            ],
         }];
 
         // Scene pipeline: group 0=uniforms, 1=shadow, 2=instances, 3=atlas
@@ -333,15 +336,45 @@ impl RockRenderer {
 }
 
 /// Generate a deformed icosphere rock mesh.
-fn generate_rock_mesh(radius: f32, subdivisions: u32, seed: u32) -> (Vec<[f32; 3]>, Vec<u32>) {
-    let (mut verts, indices) = icosphere(subdivisions);
+/// Rock vertex: position + face normal for flat shading.
+type RockVertex = [f32; 6]; // [x, y, z, nx, ny, nz]
 
-    for (i, v) in verts.iter_mut().enumerate() {
+fn generate_rock_mesh(radius: f32, subdivisions: u32, seed: u32) -> (Vec<RockVertex>, Vec<u32>) {
+    let (mut shared_verts, shared_indices) = icosphere(subdivisions);
+
+    // Displace vertices for rocky shape
+    for (i, v) in shared_verts.iter_mut().enumerate() {
         let n = glam::Vec3::from(*v).normalize();
         let hash = simple_hash(seed.wrapping_add(i as u32));
         let displacement = (hash as f32 / u32::MAX as f32) * 0.6 - 0.3;
         let r = radius * (1.0 + displacement);
         *v = (n * r).to_array();
+    }
+
+    // Explode mesh: 3 unique vertices per triangle with the face normal
+    let tri_count = shared_indices.len() / 3;
+    let mut verts: Vec<RockVertex> = Vec::with_capacity(tri_count * 3);
+    let mut indices: Vec<u32> = Vec::with_capacity(tri_count * 3);
+
+    for tri in 0..tri_count {
+        let i0 = shared_indices[tri * 3] as usize;
+        let i1 = shared_indices[tri * 3 + 1] as usize;
+        let i2 = shared_indices[tri * 3 + 2] as usize;
+
+        let p0 = glam::Vec3::from(shared_verts[i0]);
+        let p1 = glam::Vec3::from(shared_verts[i1]);
+        let p2 = glam::Vec3::from(shared_verts[i2]);
+
+        let face_n = (p1 - p0).cross(p2 - p0).normalize();
+        let n = face_n.to_array();
+
+        let base = verts.len() as u32;
+        verts.push([shared_verts[i0][0], shared_verts[i0][1], shared_verts[i0][2], n[0], n[1], n[2]]);
+        verts.push([shared_verts[i1][0], shared_verts[i1][1], shared_verts[i1][2], n[0], n[1], n[2]]);
+        verts.push([shared_verts[i2][0], shared_verts[i2][1], shared_verts[i2][2], n[0], n[1], n[2]]);
+        indices.push(base);
+        indices.push(base + 1);
+        indices.push(base + 2);
     }
 
     (verts, indices)
