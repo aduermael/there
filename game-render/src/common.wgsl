@@ -13,20 +13,20 @@
 //             opacity (visual density), drift_mult (wind speed multiplier).
 const CLOUD_HIGH_ALTITUDE: f32 = 220.0;
 const CLOUD_HIGH_SCALE: f32 = 700.0;
-const CLOUD_HIGH_COVERAGE: f32 = 0.38;
-const CLOUD_HIGH_OPACITY: f32 = 0.5;
+const CLOUD_HIGH_COVERAGE: f32 = 0.44;
+const CLOUD_HIGH_OPACITY: f32 = 0.35;
 const CLOUD_HIGH_DRIFT: f32 = 1.3;
 
 const CLOUD_MID_ALTITUDE: f32 = 120.0;
 const CLOUD_MID_SCALE: f32 = 500.0;
-const CLOUD_MID_COVERAGE: f32 = 0.35;
-const CLOUD_MID_OPACITY: f32 = 1.0;
+const CLOUD_MID_COVERAGE: f32 = 0.45;
+const CLOUD_MID_OPACITY: f32 = 0.7;
 const CLOUD_MID_DRIFT: f32 = 1.0;
 
 const CLOUD_LOW_ALTITUDE: f32 = 80.0;
 const CLOUD_LOW_SCALE: f32 = 350.0;
-const CLOUD_LOW_COVERAGE: f32 = 0.42;
-const CLOUD_LOW_OPACITY: f32 = 0.85;
+const CLOUD_LOW_COVERAGE: f32 = 0.50;
+const CLOUD_LOW_OPACITY: f32 = 0.6;
 const CLOUD_LOW_DRIFT: f32 = 0.7;
 
 fn cloud_drift(drift_mult: f32) -> vec2<f32> {

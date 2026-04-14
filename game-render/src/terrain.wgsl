@@ -108,6 +108,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var base_color = tex_color + hue_shift + tex_color * brightness;
 
+    // Lush green-gold tint near waterline (shore zone, h≈6-9)
+    let shore_zone = smoothstep(4.0, 7.0, h) * smoothstep(11.0, 8.0, h) * (1.0 - slope_factor);
+    base_color = mix(base_color, base_color * vec3(0.88, 1.18, 0.78), shore_zone * 0.35);
+
     // Grass-root green tint for distance blending with grass blades
     let grass_zone = sg * (1.0 - gr) * (1.0 - slope_factor);
     let cam_d = length(in.world_pos - u.camera_pos);

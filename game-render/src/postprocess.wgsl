@@ -225,7 +225,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // --- Bloom (additive, half-res upsampled via bilinear) ---
     let bloom = textureSample(bloom_texture, hdr_sampler, in.uv).rgb;
-    color += bloom * 0.6;
+    color += bloom * 0.25;
 
     // --- Auto-exposure (compute histogram → trimmed average → EMA adaptation) ---
     let exposure = exposure_buf[0];
@@ -251,7 +251,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     color += dark_fill * dark_fill * vec3(0.012, 0.018, 0.055);
 
     // S-curve contrast for visual punch
-    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.32);
+    color = mix(color, smoothstep(vec3(0.0), vec3(1.0), color), 0.38);
 
     // Vignette
     let center = in.uv - 0.5;

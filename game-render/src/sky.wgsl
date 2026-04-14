@@ -103,12 +103,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Horizon boost: wider, stronger glow when sun is low (dawn/dusk atmosphere path)
     let horizon_boost = 1.0 + (1.0 - max(u.sun_dir.y, 0.0)) * 1.5;
-    let glow = phase * 0.12 * horizon_boost;
+    let glow = phase * 0.08 * horizon_boost;
     color += u.sun_color * glow;
 
     // Sun disc: small bright circle
     let disc = smoothstep(0.9994, 0.9997, sun_dot);
-    let sun_intensity = mix(vec3(1.0, 0.95, 0.85), u.sun_color, 0.3) * 5.0;
+    let sun_intensity = mix(vec3(1.0, 0.95, 0.85), u.sun_color, 0.3) * 3.0;
 
     // --- Multi-layer procedural clouds ---
     let c_high = sample_cloud_layer(ray_dir, sun_dot, CLOUD_HIGH_ALTITUDE, CLOUD_HIGH_SCALE, CLOUD_HIGH_COVERAGE, CLOUD_HIGH_OPACITY, CLOUD_HIGH_DRIFT);
