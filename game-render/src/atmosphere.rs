@@ -36,7 +36,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let dusk_blend = smoothstep(0.15, 0.38, sun_angle) * (1.0 - smoothstep(0.62, 0.85, sun_angle));
 
     // Sun color: warm golden at noon, yellow-gold at dawn, rose-pink at dusk
-    let noon_sun = [1.28_f32, 1.12, 0.86];
+    let noon_sun = [1.35_f32, 1.18, 0.90];
     let dawn_sun = [1.30_f32, 0.75, 0.35];
     let dusk_sun = [1.20_f32, 0.35, 0.25];
     let night_sun = [0.06_f32, 0.08, 0.25];
@@ -77,7 +77,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
     let fog_color = lerp3(&sky_horizon, &fog_neutral, horizon_glow * 0.45);
 
     // Ambient intensity: lower = more sun/shadow contrast, higher = flatter
-    let ambient_intensity = 0.12 + 0.10 * day_factor;
+    let ambient_intensity = 0.14 + 0.12 * day_factor;
 
     // Hemisphere lighting: sky-tinted ambient from above, warm earth bounce from below
     let sky_ambient = [
@@ -86,7 +86,7 @@ pub fn compute_atmosphere(sun_angle: f32) -> AtmosphereParams {
         sky_zenith[2] * ambient_intensity,
     ];
     let night_ground = [0.01_f32, 0.02, 0.05]; // cold blue moonlit earth — very dark
-    let noon_ground = [0.42_f32, 0.36, 0.16]; // warm earth bounce
+    let noon_ground = [0.48_f32, 0.40, 0.18]; // warm earth bounce — sunny
     let ground_base = lerp3(&night_ground, &noon_ground, day_factor);
     let ground_ambient = [
         ground_base[0] * ambient_intensity,
