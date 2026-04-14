@@ -255,7 +255,7 @@ impl TreeRenderer {
         let render_pipeline = crate::pipeline::create_scene_pipeline(
             device, "Tree Pipeline", &render_shader, &render_pipeline_layout,
             tree_vertex_layout, surface_format,
-            Some(wgpu::Face::Back), wgpu::CompareFunction::Less,
+            None, wgpu::CompareFunction::Less, // two-sided: visible from inside/below
         );
 
         // Shadow pipeline: group 0=uniforms, 1=instances
