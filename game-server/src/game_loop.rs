@@ -148,6 +148,12 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                             }
                         }
                     }
+                    Some(RoomEvent::Chat { id, text }) => {
+                        let msg = ServerMsg::Chat { from: id, text };
+                        for player in players.values() {
+                            let _ = player.tx.send(msg.clone());
+                        }
+                    }
                     Some(RoomEvent::Leave { id }) => {
                         players.remove(&id);
                         log::info!("Room {}: player {} left ({} remaining)", code, id, players.len());
