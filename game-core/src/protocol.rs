@@ -15,6 +15,9 @@ pub enum ClientMsg {
     Chat {
         text: String,
     },
+    SetName {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,5 +45,8 @@ pub enum ServerMsg {
     Chat {
         from: PlayerId,
         text: String,
+    },
+    NameUpdate {
+        names: Vec<(PlayerId, String)>,
     },
 }
