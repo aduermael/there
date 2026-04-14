@@ -235,7 +235,7 @@ Goal: chat messages should appear as floating speech bubbles above the sending p
 Goal: players can set a display name that persists across sessions (IndexedDB) and is shown in chat instead of "Player {id}".
 
 - [x] 10a: Add `ClientMsg::SetName` to protocol — in `game-core/src/protocol.rs`, add `SetName { name: String }` to `ClientMsg`. Add `NameUpdate { names: Vec<(PlayerId, String)> }` to `ServerMsg`. This message broadcasts all player names whenever one changes.
-- [ ] 10b: Store name in server Player struct — in `game-server/src/room.rs`, add `pub name: String` to `Player`. Add `RoomEvent::SetName { id: PlayerId, name: String }`. Default name: `"Player {id}"`.
+- [x] 10b: Store name in server Player struct — in `game-server/src/room.rs`, add `pub name: String` to `Player`. Add `RoomEvent::SetName { id: PlayerId, name: String }`. Default name: `"Player {id}"`.
 - [ ] 10c: Handle SetName in server — in `game_loop.rs`, handle `RoomEvent::SetName`: update `player.name`, broadcast `ServerMsg::NameUpdate` with all `(id, name)` pairs to every player. Also broadcast `NameUpdate` on `RoomEvent::Join` so new players get existing names.
 - [ ] 10d: Handle SetName in WS handler — in `main.rs`, add a match arm for `ClientMsg::SetName` that validates (trim, non-empty, max 32 chars) and sends `RoomEvent::SetName` to the room.
 - [ ] 10e: WASM send_player_name bridge — in `game-client/src/lib.rs`, export `send_player_name(name: &str)` that serializes and sends `ClientMsg::SetName`. Add a `HashMap<PlayerId, String>` to `GameState` for player names. Handle `ServerMsg::NameUpdate` in `process_server_messages`: update the map and call a new JS bridge `js_names_updated(json)` that dispatches a `player-names-updated` CustomEvent on `window`.

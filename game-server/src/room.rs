@@ -17,6 +17,7 @@ pub struct Player {
     pub input_jump: bool,
     pub vertical_velocity: f32,
     pub anim_state: u8,
+    pub name: String,
     pub tx: mpsc::UnboundedSender<ServerMsg>,
 }
 
@@ -39,6 +40,10 @@ pub enum RoomEvent {
     Chat {
         id: PlayerId,
         text: String,
+    },
+    SetName {
+        id: PlayerId,
+        name: String,
     },
 }
 

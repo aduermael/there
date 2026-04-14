@@ -132,6 +132,7 @@ pub async fn run(code: String, mut event_rx: mpsc::UnboundedReceiver<RoomEvent>)
                             input_jump: false,
                             vertical_velocity: 0.0,
                             anim_state: 0,
+                            name: format!("Player {id}"),
                             tx,
                         });
 
