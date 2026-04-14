@@ -132,7 +132,7 @@ Goal: when a player sends a message, it appears as a floating text bubble above 
 - [x] 5a: World-to-screen projection in WASM — add a utility that takes `view_proj` matrix + world position and returns `(screen_x, screen_y, visible)`. A point is visible if it's in front of the camera (`clip.w > 0`) and within the viewport. Compute for each player that has an active chat message.
 - [x] 5b: WASM-to-JS bridge for bubble positions — each frame, WASM calls a new JS function `js_update_chat_bubbles(json_string)` with an array of `{id, x, y, text, age}` for players with active messages. `age` is seconds since the message was sent (used for fade-out). Only call when there are active bubbles.
 - [x] 5c: New `<chat-bubbles>` web component — manages a pool of absolutely-positioned `<div>` elements. On each `js_update_chat_bubbles` call: create/update/remove divs. Position each div at `(x, y)` offset upward from the player's head. Apply CSS opacity based on `age` (fade out over last 2 seconds of the 5-second window).
-- [ ] 5d: Register in index.html — add `<chat-bubbles>` element and script. High z-index (above canvas, below menu).
+- [x] 5d: Register in index.html — add `<chat-bubbles>` element and script. High z-index (above canvas, below menu).
 - [x] 5e: Style and polish — bubbles have a dark semi-transparent background, rounded corners, max-width with word wrap, text shadow for readability. Small triangle pointer at bottom (speech bubble). Font size slightly smaller than HUD text.
 
 ### Contracts
