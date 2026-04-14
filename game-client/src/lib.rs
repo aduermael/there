@@ -42,6 +42,9 @@ export function js_set_sun_angle(a) {
 export function js_is_menu_open() {
     return !!window.__menuOpen;
 }
+export function js_set_room_code(code) {
+    window.__roomCode = code;
+}
 ")]
 extern "C" {
     fn hud_set_room(code: &str);
@@ -51,6 +54,7 @@ extern "C" {
     fn js_get_sun_angle() -> f32;
     fn js_set_sun_angle(a: f32);
     fn js_is_menu_open() -> bool;
+    fn js_set_room_code(code: &str);
 }
 
 struct RemotePlayer {
@@ -325,10 +329,12 @@ async fn run() {
     let room_code = pathname.trim_start_matches('/');
     let connection = if !room_code.is_empty() {
         log::info!("Room code: {room_code}");
+        js_set_room_code(room_code);
         hud_set_room(room_code);
         Some(Connection::new(room_code, incoming.clone()))
     } else {
-        log::info!("No room code — offline mode");
+        log::info!("No room code — solo mode");
+        js_set_room_code("");
         None
     };
 

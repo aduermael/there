@@ -36,7 +36,7 @@ Goal: visiting `/` starts the game in solo mode. Server exposes room data via RE
 - [x] 1a: Remove `handle_root` redirect in `main.rs` — delete the `/` route so the fallback serves `web/index.html` directly. Visiting `/` now loads the game with no room code in the URL.
 - [x] 1b: Add `GET /api/rooms` endpoint in `main.rs` — reads `RoomManager` and returns JSON array `[{code, player_count}]` for all active rooms. Add a `list_rooms()` method to `RoomManager` that returns `Vec<(String, usize)>`.
 - [x] 1c: Add `GET /api/rooms/new` endpoint in `main.rs` — calls `generate_code()` and returns JSON `{code}`. Does not create the room (room is created on first WebSocket connect via `join_or_create`).
-- [ ] 1d: Update HUD for solo mode — when no room code in URL, hide room code and player count from `game-hud.js`. The HUD should only show FPS in solo mode. WASM side: skip calling `hud_set_room`/`hud_set_players` when connection is `None`.
+- [x] 1d: Update HUD for solo mode — when no room code in URL, hide room code and player count from `game-hud.js`. The HUD should only show FPS in solo mode. WASM side: skip calling `hud_set_room`/`hud_set_players` when connection is `None`.
 
 ### Success criteria
 - `GET /` loads the game, no redirect, no WebSocket connection, player explores solo
