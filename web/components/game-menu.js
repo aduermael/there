@@ -13,9 +13,8 @@ class GameMenu extends HTMLElement {
                 }
                 .trigger {
                     position: fixed;
-                    top: max(12px, env(safe-area-inset-top));
-                    right: max(12px, env(safe-area-inset-right));
-                    margin-top: 32px;
+                    top: max(16px, env(safe-area-inset-top));
+                    right: max(16px, env(safe-area-inset-right));
                     width: 44px; height: 44px;
                     display: flex; align-items: center; justify-content: center;
                     cursor: pointer;

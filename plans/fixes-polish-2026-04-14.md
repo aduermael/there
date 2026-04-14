@@ -120,7 +120,7 @@ At the same time, the user wants water to have no impact on movement or animatio
 
 **Files:** `web/components/game-menu.js:14-32` (trigger button), `web/components/game-hud.js:5-32` (FPS + info layout)
 
-- [ ] 4a: In `game-menu.js`, simplify trigger to `top: max(16px, env(safe-area-inset-top))`, `right: max(16px, env(safe-area-inset-right))`, remove `margin-top: 32px`. In `game-hud.js`, move FPS to top-left — reorder DOM so FPS div comes before info div, or place FPS inside the left-side info block.
+- [x] 4a: In `game-menu.js`, simplify trigger to `top: max(16px, env(safe-area-inset-top))`, `right: max(16px, env(safe-area-inset-right))`, remove `margin-top: 32px`. In `game-hud.js`, move FPS to top-left — reorder DOM so FPS div comes before info div, or place FPS inside the left-side info block.
 
 ### 4b: Chat input wider with right margin
 

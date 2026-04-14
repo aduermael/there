@@ -10,7 +10,7 @@ class GameHud extends HTMLElement {
                     left: 0;
                     right: 0;
                     z-index: 10;
-                    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left));
+                    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
                     color: #fff;
                     font-family: system-ui, sans-serif;
                     font-size: 0.85rem;
@@ -25,11 +25,11 @@ class GameHud extends HTMLElement {
                 .players { opacity: 0.7; margin-top: 4px; }
                 .fps { opacity: 0.7; font-variant-numeric: tabular-nums; }
             </style>
+            <div class="fps"></div>
             <div class="info">
                 <div class="room"></div>
                 <div class="players"></div>
-            </div>
-            <div class="fps"></div>`;
+            </div>`;
     }
 
     set roomCode(code) {
