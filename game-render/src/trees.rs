@@ -236,11 +236,12 @@ impl TreeRenderer {
         });
 
         let tree_vertex_layout = &[wgpu::VertexBufferLayout {
-            array_stride: 24,
+            array_stride: 36,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 },
-                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 12, shader_location: 1 },
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 },  // position
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 12, shader_location: 1 }, // normal
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 24, shader_location: 2 }, // color
             ],
         }];
 
@@ -337,9 +338,9 @@ impl TreeRenderer {
     }
 }
 
-/// Vertex with position and per-vertex color (trunk brown, foliage uses placeholder green
-/// that gets multiplied by instance foliage_color in the shader).
-type TreeVertex = [f32; 6]; // [x, y, z, r, g, b]
+/// Vertex with position, normal, and per-vertex color (trunk brown, foliage uses placeholder
+/// green that gets multiplied by instance foliage_color in the shader).
+type TreeVertex = [f32; 9]; // [x, y, z, nx, ny, nz, r, g, b]
 
 /// Generate combined trunk (cylinder) + multi-layered foliage (3 stacked cones) mesh.
 /// `segments` controls circular resolution.
@@ -351,19 +352,21 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
     let mut verts: Vec<TreeVertex> = Vec::new();
     let mut indices: Vec<u32> = Vec::new();
 
-    // --- Trunk (open cylinder) ---
+    // --- Trunk (open cylinder) — normals are purely radial ---
     let base_idx = verts.len() as u32;
     for i in 0..=segments {
         let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
-        let x = trunk_radius * theta.cos();
-        let z = trunk_radius * theta.sin();
-        verts.push([x, 0.0, z, trunk_color[0], trunk_color[1], trunk_color[2]]);
+        let (cos_t, sin_t) = (theta.cos(), theta.sin());
+        let x = trunk_radius * cos_t;
+        let z = trunk_radius * sin_t;
+        verts.push([x, 0.0, z, cos_t, 0.0, sin_t, trunk_color[0], trunk_color[1], trunk_color[2]]);
     }
     for i in 0..=segments {
         let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
-        let x = trunk_radius * theta.cos();
-        let z = trunk_radius * theta.sin();
-        verts.push([x, trunk_height, z, trunk_color[0], trunk_color[1], trunk_color[2]]);
+        let (cos_t, sin_t) = (theta.cos(), theta.sin());
+        let x = trunk_radius * cos_t;
+        let z = trunk_radius * sin_t;
+        verts.push([x, trunk_height, z, cos_t, 0.0, sin_t, trunk_color[0], trunk_color[1], trunk_color[2]]);
     }
     let stride = segments + 1;
     for i in 0..segments {
@@ -390,29 +393,48 @@ fn generate_tree_mesh(segments: u32) -> (Vec<TreeVertex>, Vec<u32>) {
         let tip_y = base_y + height;
         let foliage_color = [shade, shade, shade];
 
-        let tip_idx = verts.len() as u32;
-        verts.push([0.0, tip_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+        // Cone surface normal: normalize(radial + up * radius/height)
+        let r_over_h = radius / height;
+        let inv_len = 1.0 / (1.0 + r_over_h * r_over_h).sqrt();
 
+        // Tip vertex — normal points up
+        let tip_idx = verts.len() as u32;
+        verts.push([0.0, tip_y, 0.0, 0.0, 1.0, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+
+        // Side ring vertices with cone surface normals
         let ring_start = verts.len() as u32;
         for i in 0..=segments {
             let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
-            let x = radius * theta.cos();
-            let z = radius * theta.sin();
-            verts.push([x, base_y, z, foliage_color[0], foliage_color[1], foliage_color[2]]);
+            let (cos_t, sin_t) = (theta.cos(), theta.sin());
+            let x = radius * cos_t;
+            let z = radius * sin_t;
+            let nx = cos_t * inv_len;
+            let ny = r_over_h * inv_len;
+            let nz = sin_t * inv_len;
+            verts.push([x, base_y, z, nx, ny, nz, foliage_color[0], foliage_color[1], foliage_color[2]]);
         }
 
+        // Side triangles: tip to ring
         for i in 0..segments {
             indices.push(tip_idx);
             indices.push(ring_start + i);
             indices.push(ring_start + i + 1);
         }
 
+        // Base cap: separate ring with downward normals + center
+        let base_ring_start = verts.len() as u32;
+        for i in 0..=segments {
+            let theta = (i as f32 / segments as f32) * std::f32::consts::TAU;
+            let x = radius * theta.cos();
+            let z = radius * theta.sin();
+            verts.push([x, base_y, z, 0.0, -1.0, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+        }
         let center_idx = verts.len() as u32;
-        verts.push([0.0, base_y, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
+        verts.push([0.0, base_y, 0.0, 0.0, -1.0, 0.0, foliage_color[0], foliage_color[1], foliage_color[2]]);
         for i in 0..segments {
             indices.push(center_idx);
-            indices.push(ring_start + i);
-            indices.push(ring_start + i + 1);
+            indices.push(base_ring_start + i);
+            indices.push(base_ring_start + i + 1);
         }
     }
 

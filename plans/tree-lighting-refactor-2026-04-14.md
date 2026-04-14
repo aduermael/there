@@ -44,9 +44,9 @@ Extend the tree vertex to include pre-computed geometric normals. For cone geome
 - No per-object normal hacks in the shader
 - Dawn/dusk/night still look good (natural shading works at all sun angles)
 
-- [ ] 1a: Extend `TreeVertex` to include normals, compute cone/cylinder normals analytically in `generate_tree_mesh()`, update vertex buffer layout in `trees.rs`
+- [x] 1a: Extend `TreeVertex` to include normals, compute cone/cylinder normals analytically in `generate_tree_mesh()`, update vertex buffer layout in `trees.rs`
 
-- [ ] 1b: Update `trees.wgsl` — add normal to vertex input/output, rotate normal in vertex shader, use `normalize(in.normal)` in fragment shader. Remove `compute_flat_normal` hack. Update shadow vertex shader input if needed.
+- [x] 1b: Update `trees.wgsl` — add normal to vertex input/output, rotate normal in vertex shader, use `normalize(in.normal)` in fragment shader. Remove `compute_flat_normal` hack. Update shadow vertex shader input if needed.
 
 ---
 

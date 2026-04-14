@@ -22,7 +22,8 @@ const MAT_FOLIAGE: i32 = 5;
 struct VertexInput {
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
-    @location(1) vert_color: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) vert_color: vec3<f32>,
 };
 
 struct VertexOutput {
@@ -30,6 +31,7 @@ struct VertexOutput {
     @location(0) world_pos: vec3<f32>,
     @location(1) color: vec3<f32>,
     @location(2) is_foliage: f32,
+    @location(3) world_normal: vec3<f32>,
 };
 
 fn apply_tree_transform(position: vec3<f32>, vert_color: vec3<f32>, inst: TreeInstanceData) -> vec3<f32> {
@@ -72,11 +74,20 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let color = in.vert_color * inst.foliage_color.rgb;
     let is_foliage = step(2.0, in.vert_color.r + in.vert_color.g + in.vert_color.b);
 
+    // Transform normal: apply inverse transpose of the crown deformation
+    let shape = inst.foliage_color.a;
+    let crown_w = mix(0.6, 1.7, shape);
+    let crown_h = mix(1.08, 0.93, shape);
+    let inv_w = mix(1.0, 1.0 / crown_w, is_foliage);
+    let inv_h = mix(1.0, 1.0 / crown_h, is_foliage);
+    let world_normal = normalize(vec3(in.normal.x * inv_w, in.normal.y * inv_h, in.normal.z * inv_w));
+
     var out: VertexOutput;
     out.clip_pos = u.view_proj * vec4(world_pos, 1.0);
     out.world_pos = world_pos;
     out.color = color;
     out.is_foliage = is_foliage;
+    out.world_normal = world_normal;
     return out;
 }
 
@@ -84,7 +95,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn vs_shadow(
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
-    @location(1) vert_color: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) vert_color: vec3<f32>,
 ) -> @builtin(position) vec4<f32> {
     let inst = shadow_instances[instance_id];
     let world_pos = apply_tree_transform(position, vert_color, inst);
@@ -97,9 +109,7 @@ const TREE_TEXTURE_SCALE: f32 = 0.35; // ~1 tile per 2.9 world units
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Force normal upward-biased so all cone faces catch sunlight
-    let flat_n = compute_flat_normal(in.world_pos);
-    let n = normalize(vec3(flat_n.x, abs(flat_n.y) + 0.7, flat_n.z));
+    let n = normalize(in.world_normal);
 
     // Select material: bark for trunk, foliage for canopy
     let layer = select(MAT_BARK, MAT_FOLIAGE, in.is_foliage > 0.5);
