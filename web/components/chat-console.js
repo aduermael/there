@@ -21,6 +21,7 @@ class ChatConsole extends HTMLElement {
         this._maxMessages = 20;
         this._fadeTimer = null;
         this._visible = false;
+        this._playerNames = new Map();
 
         this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
@@ -96,6 +97,18 @@ class ChatConsole extends HTMLElement {
             this._addMessage(e.detail.id, e.detail.text);
         });
 
+        // Listen for player name updates
+        window.addEventListener('player-names-updated', (e) => {
+            try {
+                const pairs = JSON.parse(e.detail);
+                this._playerNames.clear();
+                for (const [id, name] of pairs) {
+                    this._playerNames.set(id, name);
+                }
+                this._renderMessages();
+            } catch {}
+        });
+
         // Enter key to open chat input (send/close handled by input's own handler)
         window.addEventListener('keydown', (e) => {
             if (!this._visible) return;
@@ -159,11 +172,18 @@ class ChatConsole extends HTMLElement {
         this._resetFade();
     }
 
+    _displayName(id) {
+        if (this._playerNames.has(id)) return this._playerNames.get(id);
+        if (id === 0 && window.__playerName) return window.__playerName;
+        return `Player ${id}`;
+    }
+
     _renderMessages() {
         this._history.innerHTML = this._messages.map(m => {
             const color = colorForId(m.id);
+            const name = this._displayName(m.id).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const escaped = m.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            return `<div class="msg"><span class="dot" style="background:${color}"></span>Player ${m.id}: ${escaped}</div>`;
+            return `<div class="msg"><span class="dot" style="background:${color}"></span>${name}: ${escaped}</div>`;
         }).join('');
         this._history.scrollTop = this._history.scrollHeight;
     }
