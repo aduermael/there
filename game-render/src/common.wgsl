@@ -33,12 +33,6 @@ fn cloud_drift(drift_mult: f32) -> vec2<f32> {
     return vec2(u.time * 6.0, u.time * 2.0) * drift_mult;
 }
 
-fn compute_flat_normal(world_pos: vec3<f32>) -> vec3<f32> {
-    let dx = dpdx(world_pos);
-    let dy = dpdy(world_pos);
-    return normalize(cross(dx, dy));
-}
-
 fn sample_shadow(world_pos: vec3<f32>, normal: vec3<f32>) -> f32 {
     let dist = length(world_pos - u.camera_pos);
 

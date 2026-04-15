@@ -19,6 +19,7 @@ struct VertexOutput {
     @location(0) world_pos: vec3<f32>,
     @location(1) color: vec3<f32>,
     @location(2) bend_factor: f32,
+    @location(3) world_normal: vec3<f32>,
 };
 
 @vertex
@@ -59,15 +60,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.world_pos = world_pos;
     out.color = inst.color_rotation.xyz;
     out.bend_factor = in.bend;
+    out.world_normal = vec3(0.0, 1.0, 0.0); // upward — thin blades catch light like terrain
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Bias normal upward for lighting: grass should catch sunlight like terrain,
-    // not be dark from horizontal face normals. Blend 60% up + 40% face normal.
-    let face_n = compute_flat_normal(in.world_pos);
-    let n = normalize(mix(face_n, vec3(0.0, 1.0, 0.0), 0.6));
+    let n = normalize(in.world_normal);
 
     // Soft base-to-tip gradient: subtle root shadow, bright sunlit tips
     let grad = smoothstep(0.0, 0.3, in.bend_factor);
